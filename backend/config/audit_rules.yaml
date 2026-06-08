@@ -1,0 +1,123 @@
+password_rule_sectors:
+  - transferencia
+  - uti
+  - bas
+  - distribuicao
+  - fenix
+  - rastreamento
+
+rastreamento_sectors:
+  - distribuicao
+  - uti
+  - transferencia
+  - fenix
+  - bas
+  - rastreamento
+
+password_criterion_keys:
+  - senha
+  - confirmar_senha
+  - confirmou_senha
+  - senha_seguranca
+  - validacao_senha
+  - validar_senha
+
+sector_prompt_rules:
+  transferencia:
+    label: Transferencia
+    tipo_ligacao: Ligacao Efetuada (Motorista ou Cliente)
+    regras_zeragem: &rastreamento_zeragem "Itens que ZERAM a nota neste setor: Nao solicitar a senha. Fornecer informacoes antes de confirmar a senha. Solicitar CPF no lugar da senha sem esperar a negacao do condutor (ou pedir 'senha ou CPF' juntos). Se o condutor informar que nao recebeu/nao tem senha, esta dirigindo, esta em movimento, ou esta sem acesso a senha no veiculo, confirmar CPF ou outros dados e fallback legitimo e NAO zera. Acatar senha incorreta. Dar dica da senha. Informar no inicio da ligacao que a senha esta incorreta. Comportamento hostil ou incomum. Abandono de ligacao."
+  distribuicao:
+    label: Distribuicao
+    tipo_ligacao: Ligacao Efetuada (Motorista ou Cliente)
+    regras_zeragem: *rastreamento_zeragem
+  uti:
+    label: UTI
+    tipo_ligacao: Ligacao Efetuada (Motorista ou Cliente)
+    regras_zeragem: *rastreamento_zeragem
+  fenix:
+    label: Fenix
+    tipo_ligacao: Ligacao Efetuada (Motorista ou Cliente)
+    regras_zeragem: *rastreamento_zeragem
+  rastreamento:
+    label: Rastreamento
+    tipo_ligacao: Ligacao Efetuada (Motorista ou Cliente)
+    regras_zeragem: *rastreamento_zeragem
+  bas:
+    label: BAS - Base de Sinistros (Acionamento Policial)
+    tipo_ligacao: Ligacao Efetuada (Policia / Ponto de Apoio)
+    regras_zeragem: *rastreamento_zeragem
+  cadastro:
+    label: Cadastro
+    tipo_ligacao: Ligacao Receptiva
+    regras_zeragem: "Itens que ZERAM a nota neste setor: Nao atender em ate 45 segundos. Comportamento hostil ou incomum. Abandono de ligacao."
+  logistica_unilever:
+    label: Logistica Unilever
+    tipo_ligacao: Ligacao Efetuada (Cliente)
+    regras_zeragem: "Itens que ZERAM a nota neste setor: Comportamento hostil ou incomum. Abandono de ligacao."
+  mondelez:
+    label: Mondelez
+    tipo_ligacao: Ligacao Receptiva
+    regras_zeragem: "Itens que ZERAM a nota neste setor: Nao atender em ate 45 segundos. Comportamento hostil ou incomum. Abandono de ligacao."
+  logistica:
+    label: Logistica (Geral)
+    tipo_ligacao: Ligacao Efetuada (Motorista ou Cliente)
+    regras_zeragem: "Itens que ZERAM a nota neste setor: Comportamento hostil ou incomum. Abandono de ligacao."
+  checklist:
+    label: Checklist
+    tipo_ligacao: WhatsApp
+    regras_zeragem: NAO ha regra que zere a auditoria neste setor.
+  celula_atendimento:
+    label: Celula de Atendimento
+    tipo_ligacao: WhatsApp
+    regras_zeragem: NAO ha regra que zere a auditoria neste setor.
+  operacao_taborda:
+    label: Operacao Taborda
+    tipo_ligacao: WhatsApp / Ligacao
+    regras_zeragem: "Itens que ZERAM a nota neste setor: Comportamento hostil ou incomum. Abandono de ligacao."
+
+fatal_flags:
+  comportamento_hostil:
+    sectors: [cadastro, mondelez, logistica, logistica_unilever, operacao_taborda, distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: houve comportamento hostil ou inadequado por parte do operador
+  abandono_ligacao:
+    sectors: [cadastro, mondelez, logistica, logistica_unilever, operacao_taborda, distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: o operador abandonou ou encerrou a ligacao sem a tratativa correta
+  senha_nao_solicitada:
+    sectors: [distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: a senha de seguranca nao foi solicitada quando era obrigatoria
+  info_antes_senha:
+    sectors: [distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: foram passadas informacoes sensiveis antes da confirmacao da senha
+  senha_incorreta_aceita:
+    sectors: [distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: o operador aceitou senha incorreta ou deu dica de senha
+  dica_senha:
+    sectors: [distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: o operador deu dicas ou insinuou a senha ao motorista
+  solicitar_senha_ou_cpf:
+    sectors: [distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: o operador solicitou 'senha ou CPF' (ou ofereceu o CPF sem aguardar a negativa da senha)
+
+  senha_errada_revelada:
+    sectors: [distribuicao, uti, transferencia, fenix, bas, rastreamento]
+    reason_text: o operador revelou que a senha informada estava incorreta antes de seguir o procedimento seguro
+  tempo_resposta_excedido:
+    sectors: [cadastro, mondelez]
+    reason_text: o tempo maximo de resposta foi excedido
+  bloqueio_cadastro:
+    sectors: [cadastro]
+    reason_text: o operador informou bloqueio, reprovacao de cadastro ou impedimento de carregamento
+
+fatal_keywords_by_sector:
+  cadastro: [45 segundos, comportamento hostil, incomum, abandono de ligacao, abandono]
+  mondelez: [45 segundos, comportamento hostil, incomum, abandono de ligacao, abandono]
+  logistica: [comportamento hostil, incomum, abandono de ligacao, abandono]
+  logistica_unilever: [comportamento hostil, incomum, abandono de ligacao, abandono]
+  operacao_taborda: [comportamento hostil, incomum, abandono de ligacao, abandono]
+  distribuicao: &rastreamento_keywords [comportamento hostil, incomum, abandono de ligacao, abandono, dica de senha, dica da senha, senha ou cpf]
+  uti: *rastreamento_keywords
+  transferencia: *rastreamento_keywords
+  fenix: *rastreamento_keywords
+  bas: *rastreamento_keywords
+  rastreamento: *rastreamento_keywords

@@ -1,0 +1,614 @@
+[
+  {
+    "path": "D:\\auditoria\\Ligações\\CADASTRO\\BOAS\\ANTECEDENTES-agent-11214-5_11_2025_17_13_3-node01-1762373580-26728.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\CADASTRO\\RUINS\\ANTECEDENTES-agent-10362-8_10_2025_12_25_17-node01-1759937115-60427.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\ATRASO-MOTORISTA-20251230173926115_Danilo_Alves_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\DESVIO-MOTORISTA-agent-11218-19_11_2025_19_57_50-node01-1763593067-198710.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\PARADA-MOTORISTA-agent-11406-1_10_2025_8_19_35-node01-1759317573-76676.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\POSIÇÃO-MOTORISTA-20251230112504541_Camila_Florindo_Reinert_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\TEMPERATURA-CLIENTE-agent-11426-20_10_2025_17_11_46-node01-1760991104-2103.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\TEMPERATURA-MOTORISTA-agent-11426-9_10_2025_16_58_31-node01-1760039909-75917.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\ATRASO-MOTORISTA-agent-112100-17_11_2025_12_24_58-node01-1763393095-166233.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\DESVIO-MOTORISTA-agent-11427-23_10_2025_19_58_11-node01-1761260289-29732.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\PARADA-MOTORISTA-20-08-2025_11-11-04_112790_21995342893.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\POSIÇÃO-MOTORISTA-20260108142611955_Bruno_Roberto_da_Silva_Logistica_Taborda_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\TEMPERATURA-CLIENTE-20251230105252398_David_João_Cardoso_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\TEMPERATURA-MOTORISTA-20260108100935776_Jaqueline_Frazao_de_Souza_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\LOGÍSTICA REVERSA-fe4558bec880fd7cd33187ad42b730f1.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\MONITORAMENTO I-2025_09_25-10_34_49-11996521135-4721016123-175880728936577582.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\MONITORAMENTO II-11a59f8be22d44a74aa0a096f9487e18.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\LOGÍSTICA REVERSA-2025_09_15-14_59_52-38997222947-4721016123-175795919297847943.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\MONITORAMENTO I-2025_08_06-10_43_40-11995396051-4721016123-175448782075528041.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\MONITORAMENTO II-8ec063aeaa80dd36d5ab7a458c1ec9f9.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\DESVIO-CLIENTE-03-08-2025_21-23-06_11237_11953859270.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\PARADA-CLIENTE-27-08-2025_14-32-21_11387_11975608715.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\POSIÇÃO-CLIENTE-agent-11237-20_11_2025_22_50_29-node01-1763689827-211796.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\PRIORITÁRIO-CLIENTE-03-08-2025_14-45-31_10788_43991394271.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\DESVIO-CLIENTE-20-08-2025_16-52-53_11185_41991369072.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\PARADA-CLIENTE-12-08-2025_13-17-49_11371_4733551674.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\POSIÇÃO-CLIENTE-agent-11233-25_11_2025_13_21_2-node01-1764087659-265979.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\PRIORITÁRIO-CLIENTE-09-08-2025_21-38-19_11296_11981820231.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\DESVIO-MOT-02-08-2025_15-45-28_10858_18997246914.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\PARADA-MOT-agent-4218-4_10_2025_10_41_55-node01-1759585314-17302.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\POSIÇÃO-MOT-12-09-2025_08-20-17_1697_63993043486.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\PRIORITÁRIO-MOT-agent-11201-1_11_2025_7_30_31-node01-1761993029-138033.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\DESVIO-MOT-agent-1622-2_10_2025_8_58_47-node01-1759406325-90466.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\PARADA-MOT-20251229174101210_Solange_Miranda_de_Araujo_G2L_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\POSIÇÃO-MOT-02-09-2025_18-58-55_11368_11953819293.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\PRIORITÁRIO-MOT-agent-11242-28_10_2025_8_15_52-node01-1761650149-82216.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\212313123.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\BOA-POLICIA-22-09-2025_01-58-05_1700_8633026366.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\RUIM-POLICIA-agent-10610-4_11_2025_1_55_31-node01-1762232128-715 - Copia.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\PONTO DE APOIO\\RUIM-PONTO DE APOIO-20251223152017944_Priscila_Cabral_Fenix_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Ponto de Apoio",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\COMPORTAMENTO INADEQUADO-agent-106760-12_11_2025_16_39_34-node01-1762976372-111187.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\DICA DE SENHA-10-08-2025_16-56-52_11209_11947829472.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\INFORMAÇÃO ANTES SENHA-04-08-2025_11-47-02_11188_66996625159.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\INFORMOU INÍCIO SENHA ERRADA-20251226135711775_Daniella_Gomes_Distribuição_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\NÃO CONFIRMOU SNEHA-20260107164848396_Ruan_Richeli_da_Silva_Distribuição_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\SOLICITOU SENHA OU CPF-agent-11216-3_11_2025_10_25_30-node01-1762176327-158835.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\ATUAÇÃO TRATATIVA-CLIENTE-agent-11409-2_10_2025_11_49_14-node01-1759416552-92649.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\CABINETS-CLIENTE-agent-11244-20_10_2025_16_26_11-node01-1760988369-1482.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\DEVOLUÇÃO-CLIENTE-agent-11444-25_11_2025_8_12_40-node01-1764069157-261200.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\RUINS\\ATUAÇÃO TRATATIVA-CLIENTE-05-09-2025_12-57-32_11353_11953217745.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\RUINS\\DEVOLUÇÃO-CLIENTE-22-08-2025_11-33-33_11231_11976013982.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  }
+]

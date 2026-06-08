@@ -1,0 +1,135 @@
+[
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\MONITORAMENTO II-11a59f8be22d44a74aa0a096f9487e18.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "assemblyai": {
+        "status": "ok",
+        "segment_count": 31,
+        "diarization": {
+          "score": 0.76,
+          "quality": "regular",
+          "swap_risk": "medium",
+          "raw_speaker_count": 2,
+          "segment_count": 31,
+          "human_segment_count": 29,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 29,
+            "high": 0
+          },
+          "notes": [
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega.",
+          "Cliente: e aí e aí e aí E aí e aí e aí",
+          "Telefonia: ATENÇÃO! LIGAÇÃO RECEBIDA!"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\LOGÍSTICA REVERSA-2025_09_15-14_59_52-38997222947-4721016123-175795919297847943.WAV",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "assemblyai": {
+        "status": "ok",
+        "segment_count": 48,
+        "diarization": {
+          "score": 0.24,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 6,
+          "segment_count": 48,
+          "human_segment_count": 46,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            3,
+            5
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            1,
+            2,
+            4
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "01:14.989",
+              "end": "01:15.489",
+              "speaker": "cliente",
+              "text": "Cliente: Admitiu."
+            },
+            {
+              "start": "01:41.636",
+              "end": "01:54.796",
+              "speaker": "cliente",
+              "text": "Cliente: O número aqui é... Deixa eu ver... Deixa eu ver aqui... Deixa eu ver, deixa eu ver... Onde é o número aqui? Onde é o número?"
+            },
+            {
+              "start": "03:25.450",
+              "end": "03:45.090",
+              "speaker": "cliente",
+              "text": "Cliente: Não, eu vi ela cuidar, eu vi ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar, ela cuidar"
+            },
+            {
+              "start": "04:27.449",
+              "end": "04:30.449",
+              "speaker": "cliente",
+              "text": "Cliente: Peraí,"
+            },
+            {
+              "start": "04:56.429",
+              "end": "04:57.923",
+              "speaker": "cliente",
+              "text": "Cliente: peraí, Olha peraí, peraí, peraí, o peraí, tamanho disso."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 41,
+            "high": 5
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para outros motivos. Ou fique na linha para ser atendido. Olá, be",
+          "Telefonia: Atenção, ligação recebida. Boa tarde.",
+          "Cliente: Eu queria abrir uma ocorrência de devolução."
+        ]
+      }
+    }
+  }
+]

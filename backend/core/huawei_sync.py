@@ -1,0 +1,2413 @@
+from __future__ import annotations
+from .huawei.telemetry import _notify_progress, _increment_skip_counter, _empty_process_delta, _is_direction_skip
+from .huawei.download_candidates import _normalize_identity_text
+from .huawei.download_candidates import _slug_filename_part, _call_duration_is_known, _clean_huawei_operator_id, _obs_prefix_candidates, _obs_match_ids, _download_id_candidates, _clean_obs_prefix, _download_candidate_sort_key, _make_filename, _resolve_call_key
+"""Orquestrador de sincronizacao com a plataforma Huawei AICC.
+
+Fluxo:
+1. Carrega credenciais da tabela `configuracoes`.
+2. Consulta a VDN globalmente, sem filtrar por agentId/mediaType.
+3. Complementa a descoberta com o manifesto Contact_Record do OBS.
+4. Deduplica por callId, aplica apenas filtros operacionais minimos antes do
+   download e tenta baixar via FS/OBS.
+5. Salva a midia baixada e deixa o item pendente na fila de triagem.
+
+O sync nao chama auditoria nem decide envio ao supervisor. O objetivo deste
+modulo e somente baixar ligacoes da Huawei e disponibiliza-las para triagem.
+"""
+
+
+import asyncio
+import hashlib
+import json
+import logging
+import os
+import unicodedata
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Dict, List, Optional
+from zoneinfo import ZoneInfo
+from collections import defaultdict
+
+import httpx
+
+import db.database as database
+from repositories import audits
+from repositories import operators
+from core.automation import load_classified_audio, store_classified_audio
+from core.classification import (
+    ClassificationResult,
+    align_classification_with_catalog,
+    classify_with_gpt,
+    enforce_alert_hierarchy_guardrail,
+    enforce_context_not_non_auditable_guardrail,
+    enforce_operator_and_direction_guardrails,
+    enforce_parada_desvio_guardrail,
+    enforce_temperature_guardrail,
+    finalize_classification_result,
+    get_mime_type,
+    load_audit_criteria_catalog,
+    transcribe_for_classification,
+)
+from core.automation_rules import AUTOMATION_RULES, get_call_duration_seconds, get_call_reason_text, filtrar_chamadas
+from core.audit import extract_text_from_pdf
+from core.huawei_client import OAUTH_DIRECT_MODES, HuaweiAICCClient
+from core.huawei_direction import (
+    NON_TELEFONIA_SECTORS,
+    OUTBOUND_ONLY_RISK_SECTORS,
+    coerce_huawei_is_call_in,
+    format_huawei_is_call_in,
+    normalize_huawei_sector,
+    resolve_huawei_is_call_in,
+)
+from core.huawei_obs_client import HuaweiOBSClient
+from core.huawei_discovery import HuaweiDiscoveryService
+from core.llm_triage import filtrar_ligacoes_com_llm
+from db.domain_constants import SOURCE_TYPE_AUDIO, SOURCE_TYPE_PDF
+from repositories.common import json_loads, normalize_huawei_agent_id
+
+logger = logging.getLogger(__name__)
+_HUAWEI_SYNC_LOCK_KEY = 2026042202
+DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT = 20
+DEFAULT_HUAWEI_SYNC_MIN_DURATION_SECONDS = 120
+DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS = 0
+DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY = 5
+DEFAULT_HUAWEI_SYNC_CLASSIFY_CONCURRENCY = 5
+DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD = 0.90
+_AUDIO_DIRECTION_GATE_SECTORS = OUTBOUND_ONLY_RISK_SECTORS
+_NON_TELEFONIA_SECTORS = NON_TELEFONIA_SECTORS
+_AUTOMATION_CONFIDENCE_REVIEW_REASON = "confianca_insuficiente_automacao"
+# Timeout generoso o bastante para download via FS (audios podem ter ate 50MB).
+_OBS_HTTP_TIMEOUT = 120.0
+
+def _ensure_enabled() -> bool:
+    return (os.getenv("ENABLE_HUAWEI_SYNC", "false") or "").strip().lower() == "true"
+
+def _load_config() -> Dict[str, Any]:
+    """Le AK/SK/CCID/VDN/App Key da tabela configuracoes.
+
+    Env vars funcionam como override local (`HUAWEI_AK`, etc.).
+    """
+
+    def read(key: str) -> str:
+        env_key = f"HUAWEI_{key.upper()}"
+        if os.getenv(env_key):
+            return str(os.getenv(env_key)).strip()
+        return str(database.get_config_value(f"huawei_{key}", "") or "").strip()
+
+    cfg = {
+        "cms_url": read("cms_url") or read("portal_url"),
+        "fs_url": read("fs_url"),
+        "cc_id": read("ccid") or read("cc_id"),
+        "vdn": read("vdn"),
+        "ak": read("ak"),
+        "sk": read("sk"),
+        "app_key": read("app_key"),
+        "app_secret": read("app_secret"),
+        "proxy_url": read("proxy_url"),
+        "auth_mode": read("auth_mode"),
+        # OAuth direct (modo `oauth_direct`): credenciais isoladas do proxy
+        # Teledata para o tokenByAkSk + cabecalho X-TenantSpaceID.
+        "auth_base_url": read("auth_base_url"),
+        "tenant_space_id": read("tenant_space_id"),
+        "direct_app_key": read("direct_app_key"),
+        "direct_app_secret": read("direct_app_secret"),
+        # Credenciais OBS (fallback direto no bucket quando CC-FS retorna 0300012).
+        # Lidas do mesmo padrao: env HUAWEI_OBS_* ou tabela configuracoes huawei_obs_*.
+        "obs_ak": read("obs_ak"),
+        "obs_sk": read("obs_sk"),
+        "obs_bucket": read("obs_bucket"),
+        "obs_endpoint": read("obs_endpoint"),
+    }
+        
+    return cfg
+
+def _missing_credentials(cfg: Dict[str, Any]) -> List[str]:
+    auth_mode = str(cfg.get("auth_mode") or "proxy").strip().lower()
+    if auth_mode in OAUTH_DIRECT_MODES:
+        obrigatorios = ["cc_id", "vdn", "direct_app_key", "direct_app_secret"]
+    else:
+        obrigatorios = ["ak", "sk", "cc_id", "vdn"]
+    return [k for k in obrigatorios if not cfg.get(k)]
+
+
+
+
+
+
+
+
+
+_DURATION_KEYS = (
+    "duration",
+    "duracao",
+    "callDuration",
+    "calllDuration",
+    "talkDuration",
+    "talkTime",
+    "durationSeconds",
+    "durationSec",
+    "recordDuration",
+    "recordTime",
+)
+
+
+def _normalize_setor_regra(raw_setor: str) -> str:
+    return normalize_huawei_sector(raw_setor)
+
+# Setores de risco aceitam somente ligacoes ativas (outbound). Ligacoes
+# receptivas devem ser descartadas antes do download sempre que a Huawei
+# informar a direcao.
+
+def _coerce_huawei_is_call_in(value: Any) -> Optional[bool]:
+    return coerce_huawei_is_call_in(value)
+
+def _resolve_huawei_is_call_in(interacao: dict) -> Optional[bool]:
+    return resolve_huawei_is_call_in(interacao)
+
+def _operator_sector_id(operador: dict) -> str:
+    raw_setor = str(
+        operador.get("setor")
+        or operador.get("sectorId")
+        or operador.get("displaySector")
+        or operador.get("sector")
+        or ""
+    ).strip()
+    escala = str(operador.get("escala") or "").strip()
+    supervisor = str(operador.get("supervisor") or "").strip()
+    raw_sector_slug = _normalize_setor_regra(raw_setor)
+    if raw_sector_slug in _AUDIO_DIRECTION_GATE_SECTORS or raw_sector_slug in _NON_TELEFONIA_SECTORS:
+        return raw_sector_slug
+
+    mapped_sector: Optional[str] = None
+    try:
+        mapped_sector = operators.map_db_sector_to_classification_sector(
+            raw_setor,
+            escala,
+            supervisor,
+        )
+    except Exception:
+        logger.debug("Sync Huawei: falha ao mapear setor do operador.", exc_info=True)
+    return _normalize_setor_regra(mapped_sector or raw_setor)
+
+def _should_skip_call(interacao: dict, operador: dict) -> Optional[str]:
+    from core.huawei_sync_gatekeeper import SyncDownloadGatekeeper
+    gatekeeper = SyncDownloadGatekeeper(AUTOMATION_RULES)
+    return gatekeeper.check_eligibility(interacao, operador)
+
+_SKIP_REASON_COUNTERS = {
+    "mondelez": "ignoradas_mondelez",
+    "operator_not_registered": "ignoradas_operador_huawei_nao_cadastrado",
+    "direction_mismatch": "ignoradas_direcao_incompativel",
+    "direction_unknown": "ignoradas_direcao_desconhecida",
+    "risk_inbound": "ignoradas_receptiva_setor_risco",
+    "non_telefonia_sector": "ignoradas_setor_nao_telefonia",
+    "receptiva_setor_desconhecido": "ignoradas_receptiva_setor_desconhecido",
+    "operator_huawei_not_registered": "ignoradas_operador_huawei_nao_cadastrado",
+}
+_SKIP_REASON_EXTRA_COUNTERS = {
+    "risk_inbound": ("ignoradas_direcao_incompativel",),
+    "receptiva_setor_desconhecido": ("ignoradas_direcao_incompativel",),
+}
+
+
+
+def _resolve_operator_name_from_interacao(interacao: dict, operador: dict) -> Optional[str]:
+    # Preferencia: nome que a Huawei reportou na chamada (operatorName da VDN
+    # ou countName do manifest OBS). Cai pra nome do colaborador resolvido
+    # apenas se for um nome real (nao o placeholder "Nao Identificado").
+    for key in ("operatorName", "countName", "agentName"):
+        value = str(interacao.get(key) or "").strip()
+        if value:
+            return value
+    nome_op = str(operador.get("nome") or "").strip()
+    if nome_op and nome_op.lower() != "nao identificado":
+        return nome_op
+    return "Não Identificado"
+
+def _resolve_huawei_skill_id_field(interacao: dict) -> Optional[str]:
+    for key in ("callSkill", "skillId", "skill_id", "skillid", "skillID"):
+        value = interacao.get(key)
+        if value not in (None, ""):
+            text = str(value).strip()
+            if text:
+                return text
+    return None
+
+def _huawei_call_reason_metadata(interacao: dict) -> dict[str, Any]:
+    """Preserva a tabulacao nativa da Huawei para triagem/auditoria."""
+    metadata: dict[str, Any] = {
+        "huawei_call_reason": get_call_reason_text(interacao),
+        "huawei_talk_reason": str(interacao.get("talkReason") or "").strip(),
+        "huawei_talk_remark": str(interacao.get("talkRemark") or "").strip(),
+        "huawei_call_reason_code": str(
+            interacao.get("callReasonCode")
+            or interacao.get("leaveReason")
+            or ""
+        ).strip(),
+        "huawei_call_skill": str(interacao.get("callSkill") or "").strip(),
+    }
+    if "native_reason_match" in interacao:
+        metadata["native_reason_match"] = interacao.get("native_reason_match")
+    if interacao.get("native_reason_targets"):
+        metadata["native_reason_targets"] = interacao.get("native_reason_targets")
+    return metadata
+
+def _register_direction_skip(call_id: str, interacao: dict, operador: dict, reason: str) -> None:
+    if not call_id:
+        return
+    if reason == "operator_not_registered":
+        status = "skipped_operator"
+        failure_reason = "operador_huawei_nao_cadastrado"
+    elif reason == "non_telefonia_sector":
+        status = "skipped_non_telefonia"
+        failure_reason = "setor_nao_telefonia"
+    elif _is_direction_skip(reason):
+        status = "skipped_direction"
+        failure_reason = {
+            "direction_unknown": "direcao_desconhecida",
+            "risk_inbound": "receptiva_setor_risco",
+            "receptiva_setor_desconhecido": "receptiva_setor_desconhecido",
+        }.get(reason, "direcao_incompativel")
+    elif reason == "operator_huawei_not_registered":
+        status = "skipped_operator"
+        failure_reason = "operador_huawei_nao_cadastrado"
+    else:
+        return
+    agent_id = (
+        _operator_field(operador, "id_huawei", "idHuawei", "id_telefonia", "idTelefonia")
+        or _resolve_huawei_operator_id(interacao)
+        or None
+    )
+    database.huawei_sync_log_registrar(
+        call_id=call_id,
+        agent_id=agent_id,
+        media_url=None,
+        status=status,
+        failure_reason=failure_reason,
+        operator_name=_resolve_operator_name_from_interacao(interacao, operador),
+        huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+    )
+
+def _debug_direction_skip(call_id: str, interacao: dict, operador: dict, reason: str) -> None:
+    if not logger.isEnabledFor(logging.DEBUG) or not _is_direction_skip(reason):
+        return
+    sector_slug = _operator_sector_id(operador)
+    expected = (AUTOMATION_RULES.get(sector_slug) or {}).get("call_direction")
+    logger.debug(
+        "Sync Huawei: chamada ignorada por direcao "
+        "(call_id=%s, setor=%s, esperado=%s, inferido=%s, caller=%s, callee=%s, workNo=%s, reason=%s)",
+        call_id,
+        sector_slug,
+        expected,
+        _resolve_huawei_is_call_in(interacao),
+        interacao.get("callerNo") or interacao.get("caller"),
+        interacao.get("calleeNo") or interacao.get("called"),
+        interacao.get("workNo"),
+        reason,
+    )
+
+def _required_query_directions_for_operators(operadores: list[dict]) -> list[str]:
+    directions: set[str] = set()
+    if not operadores:
+        return ["INBOUND", "OUTBOUND"]
+
+    for operador in operadores:
+        sector_slug = _operator_sector_id(operador)
+        regra = AUTOMATION_RULES.get(sector_slug)
+        raw_direction = str((regra or {}).get("call_direction") or "").strip().upper()
+        if raw_direction in {"INBOUND", "OUTBOUND"}:
+            directions.add(raw_direction)
+        else:
+            directions.update({"INBOUND", "OUTBOUND"})
+
+    return [direction for direction in ("INBOUND", "OUTBOUND") if direction in directions]
+
+def _should_skip_receptive_risk_call(interacao: dict, operador: dict) -> bool:
+    """Compatibilidade com callers antigos; a regra atual usa _should_skip_call."""
+    return _should_skip_call(interacao, operador) is not None
+
+def _get_duration_limits_for_sector(
+    raw_setor: str,
+    default_min: int,
+    default_max: int = DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS,
+) -> tuple[int, int]:
+    # A coleta de ligacoes deve ser ampla; setor nao deve bloquear download.
+    _ = raw_setor
+    return max(0, default_min), max(0, default_max)
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(float(str(value).strip()))
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+
+def _runtime_int_config(env_key: str, db_keys: tuple[str, ...], default: int) -> int:
+    raw = os.getenv(env_key)
+    if raw not in (None, ""):
+        return _coerce_int(raw, default)
+
+    for key in db_keys:
+        try:
+            raw = database.get_config_value(key, "")
+        except Exception as exc:
+            logger.debug("Sync Huawei: falha ao ler config %s: %s", key, exc)
+            continue
+        if raw not in (None, ""):
+            return _coerce_int(raw, default)
+
+    return default
+
+
+def _effective_download_attempt_limit() -> int:
+    explicit_download_limit = os.getenv("HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS")
+    if explicit_download_limit not in (None, ""):
+        return max(
+            1,
+            _coerce_int(explicit_download_limit, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT),
+        )
+
+    configured_download_limit = max(
+        1,
+        _coerce_int(
+            database.get_config_value("huawei_d1_limite_ligacoes"),
+            DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT,
+        ),
+    )
+    raw_audit_target = os.getenv("AUTOMATION_AUDIT_TARGET_COUNT") or os.getenv("AUTOMATION_AUDIT_BATCH_SIZE")
+    if raw_audit_target in (None, ""):
+        raw_audit_target = ""
+        for key in ("automacao_audit_target_count", "automacao_audit_batch_size"):
+            try:
+                raw_audit_target = database.get_config_value(key, "")
+            except Exception as exc:
+                logger.debug("Sync Huawei: falha ao ler config %s: %s", key, exc)
+                continue
+            if raw_audit_target not in (None, ""):
+                break
+    audit_target = max(1, _coerce_int(raw_audit_target, configured_download_limit))
+    return max(configured_download_limit, audit_target)
+
+
+def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float) -> float:
+    raw = os.getenv(env_key)
+    if raw not in (None, ""):
+        return _coerce_float(raw, default)
+
+    for key in db_keys:
+        try:
+            raw = database.get_config_value(key, "")
+        except Exception as exc:
+            logger.debug("Sync Huawei: falha ao ler config %s: %s", key, exc)
+            continue
+        if raw not in (None, ""):
+            return _coerce_float(raw, default)
+
+    return default
+
+
+def _get_huawei_auto_audit_confidence_threshold() -> float:
+    threshold = _runtime_float_config(
+        "HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD",
+        ("huawei_auto_audit_confidence_threshold",),
+        DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD,
+    )
+    return min(1.0, max(0.0, threshold))
+
+def _env_flag(name: str, default: Optional[bool] = None) -> Optional[bool]:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+def _should_run_auto_classification_after_sync() -> bool:
+    """Controls the expensive Telefonia-side alert classifier.
+
+    Default is disabled: Huawei sync should download/enqueue and let the
+    triage module classify alerts. Legacy HUAWEI_SYNC_SKIP_CLASSIFY is still
+    honored when explicitly set so existing deployments can roll back quickly.
+    """
+    explicit_enable = _env_flag("HUAWEI_SYNC_ENABLE_CLASSIFY", None)
+    if explicit_enable is not None:
+        return explicit_enable
+
+    legacy_skip = _env_flag("HUAWEI_SYNC_SKIP_CLASSIFY", None)
+    if legacy_skip is not None:
+        return not legacy_skip
+
+    return False
+
+def _cancel_requested(should_cancel: Optional[Callable[[], bool]]) -> bool:
+    if should_cancel is None:
+        return False
+    try:
+        return bool(should_cancel())
+    except Exception:
+        logger.warning("Sync Huawei: callback de cancelamento falhou.", exc_info=True)
+        return False
+
+
+def _pause_requested(should_pause: Optional[Callable[[], bool]]) -> bool:
+    if should_pause is None:
+        return False
+    try:
+        return bool(should_pause())
+    except Exception:
+        logger.warning("Sync Huawei: callback de pausa falhou.", exc_info=True)
+        return False
+
+
+async def _wait_if_paused(
+    should_pause: Optional[Callable[[], bool]],
+    should_cancel: Optional[Callable[[], bool]],
+) -> None:
+    """Bloqueia o loop enquanto should_pause() retornar True.
+
+    Sai imediatamente se cancel for solicitado. Polling de 0.5s evita busy-loop
+    e mantem responsividade ao retomar/cancelar.
+    """
+    if not _pause_requested(should_pause):
+        return
+    logger.info("Sync Huawei: pausado pelo usuario; aguardando retomada.")
+    while _pause_requested(should_pause):
+        if _cancel_requested(should_cancel):
+            return
+        await asyncio.sleep(0.5)
+    logger.info("Sync Huawei: retomado pelo usuario.")
+
+
+def _build_operator_indexes(operadores: list[dict]) -> tuple[dict[str, dict], dict[str, dict]]:
+    by_id: dict[str, dict] = {}
+    by_name: dict[str, dict] = {}
+    for operador in operadores:
+        operador.setdefault("huawei_registered", True)
+        for value in (
+            operador.get("id_huawei"),
+            operador.get("idHuawei"),
+        ):
+            text = _clean_huawei_operator_id(value)
+            if text:
+                by_id.setdefault(text, operador)
+                by_id.setdefault(text.lower(), operador)
+        name_key = _normalize_identity_text(operador.get("nome") or operador.get("name"))
+        if name_key:
+            by_name.setdefault(name_key, operador)
+    return by_id, by_name
+
+def _resolve_huawei_operator_id(interacao: dict) -> str:
+    for key in (
+        "agent_id",
+        "agentId",
+        "agentid",
+        "workNo",
+        "work_no",
+        "operatorId",
+        "operator_id",
+    ):
+        raw_val = interacao.get(key)
+        if raw_val is not None:
+            value = _clean_huawei_operator_id(raw_val)
+            if value:
+                return value
+    return ""
+
+def _resolve_operador_interacao(
+    interacao: dict,
+    by_id: dict[str, dict],
+    by_name: dict[str, dict],
+) -> dict:
+    operator_id = _resolve_huawei_operator_id(interacao)
+    if operator_id:
+        operador = by_id.get(operator_id) or by_id.get(operator_id.lower())
+        if operador:
+            resolved = dict(operador)
+            resolved["huawei_registered"] = True
+            resolved["huawei_match_source"] = "id_huawei"
+            resolved["huawei_call_operator_id"] = operator_id
+            return resolved
+
+    for value in (
+        interacao.get("operatorName"),
+        interacao.get("countName"),
+        interacao.get("agentName"),
+    ):
+        name_key = _normalize_identity_text(value)
+        if name_key and name_key in by_name:
+            matched = by_name[name_key]
+            operator_name = (
+                interacao.get("operatorName")
+                or interacao.get("countName")
+                or interacao.get("agentName")
+                or matched.get("nome")
+                or "Nao Identificado"
+            )
+            from utils.text_processing import format_pt_br_name
+            return {
+                "nome": format_pt_br_name(str(operator_name or "Nao Identificado").strip() or "Nao Identificado"),
+                "id_huawei": str(operator_id or "").strip(),
+                "id_telefonia": str(operator_id or "").strip(),
+                "setor": "",
+                "escala": "",
+                "matricula": "",
+                "auditavel_db": False,
+                "huawei_registered": False,
+                "huawei_match_source": "name_only",
+                "matched_operator_id": matched.get("id"),
+                "matched_operator_name": matched.get("nome") or matched.get("name"),
+                "matched_operator_id_huawei": matched.get("id_huawei") or matched.get("idHuawei"),
+            }
+
+    operator_name = (
+        interacao.get("operatorName")
+        or interacao.get("countName")
+        or interacao.get("agentName")
+        or "Nao Identificado"
+    )
+    from utils.text_processing import format_pt_br_name
+    return {
+        "nome": format_pt_br_name(str(operator_name or "Nao Identificado").strip() or "Nao Identificado"),
+        "id_huawei": str(operator_id or "").strip(),
+        "id_telefonia": str(operator_id or "").strip(),
+        "setor": "",
+        "escala": "",
+        "matricula": "",
+        "auditavel_db": False,
+        "huawei_registered": False,
+        "huawei_match_source": "none",
+    }
+
+
+def _operator_field(operador: dict, *keys: str) -> str:
+    for key in keys:
+        value = str(operador.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+def _operator_truth_snapshot(operador: dict) -> dict[str, str]:
+    id_huawei = _operator_field(operador, "id_huawei", "idHuawei")
+    return {
+        "nome": _operator_field(operador, "nome", "name"),
+        "setor": _operator_field(operador, "setor", "displaySector", "sector", "sectorId"),
+        "setor_id": _operator_sector_id(operador),
+        "escala": _operator_field(operador, "escala"),
+        "matricula": _operator_field(operador, "matricula"),
+        "id_huawei": id_huawei,
+    }
+
+def _inject_operator_truth(interacao: dict, operador: dict) -> dict[str, str]:
+    truth = _operator_truth_snapshot(operador)
+    interacao["operatorNameResolved"] = truth["nome"]
+    interacao["operatorSectorResolved"] = truth["setor"]
+    interacao["operatorSectorIdResolved"] = truth["setor_id"]
+    interacao["operatorScaleResolved"] = truth["escala"]
+    interacao["operatorMatriculaResolved"] = truth["matricula"]
+    interacao["operatorIdHuaweiResolved"] = truth["id_huawei"]
+    return truth
+
+def _manifest_row_to_interacao(row: dict[str, str]) -> dict:
+    begin_ms = HuaweiDiscoveryService._coerce_huawei_time_ms(row.get("beginTime"))
+    end_ms = HuaweiDiscoveryService._coerce_huawei_time_ms(row.get("endTime"))
+    duration = _coerce_int(
+        row.get("calllDuration")
+        or row.get("callDuration")
+        or row.get("duration"),
+        0,
+    )
+    if duration <= 0 and begin_ms is not None and end_ms is not None and end_ms >= begin_ms:
+        duration = int((end_ms - begin_ms) / 1000)
+
+    caller_no = str(row.get("caller") or "").strip()
+    callee_no = str(row.get("called") or "").strip()
+    work_no = str(row.get("workNo") or "").strip()
+    direction_payload = {
+        **row,
+        "callerNo": caller_no,
+        "calleeNo": callee_no,
+        "workNo": work_no,
+    }
+    is_call_in = format_huawei_is_call_in(resolve_huawei_is_call_in(direction_payload))
+
+    return {
+        "callId": str(row.get("callId") or row.get("recordId") or "").strip(),
+        "recordId": str(row.get("recordId") or "").strip(),
+        "contactId": str(row.get("contactId") or "").strip(),
+        "callSerialno": str(row.get("callSerialno") or "").strip(),
+        "callerNo": caller_no,
+        "calleeNo": callee_no,
+        "isCallIn": is_call_in,
+        "beginTime": begin_ms if begin_ms is not None else row.get("beginTime"),
+        "endTime": end_ms if end_ms is not None else row.get("endTime"),
+        "duration": duration,
+        "duracao": duration,
+        "callReason": str(row.get("callReason") or row.get("talkReason") or row.get("talkRemark") or "").strip(),
+        "talkReason": str(row.get("talkReason") or "").strip(),
+        "talkRemark": str(row.get("talkRemark") or "").strip(),
+        "callReasonCode": str(row.get("callReasonCode") or row.get("leaveReason") or "").strip(),
+        "workNo": work_no,
+        "operatorName": str(row.get("countName") or "").strip(),
+        "skillId": str(row.get("skillId") or "").strip(),
+        "callSkill": str(row.get("callSkill") or "").strip(),
+        "mediaTypeId": str(row.get("mediaTypeId") or "").strip(),
+        "source": "obs_contact_record",
+    }
+
+async def _buscar_chamadas_globais(
+    client: HuaweiAICCClient,
+    begin_ms: int,
+    end_ms: int,
+    *,
+    limit_per_page: int = 100,
+    max_rows: int = 500,
+) -> list[dict]:
+    # Kept for backward-compatible internal callers; querycalls has no
+    # supported limit/offset pagination, so the collection window is split by
+    # time instead.
+    _ = (limit_per_page, max_rows)
+    chamadas_por_id: dict[str, dict] = {}
+    chamadas_sem_id: list[dict] = []
+
+    for window_begin_ms, window_end_ms in _query_time_windows(begin_ms, end_ms):
+        for direction in ("INBOUND", "OUTBOUND"):
+            chamadas = await client.buscar_historico_chamadas(
+                window_begin_ms,
+                window_end_ms,
+                call_direction=direction,
+            )
+            if not chamadas:
+                continue
+            for chamada in chamadas:
+                chamada = dict(chamada)
+                chamada.setdefault("isCallIn", "true" if direction == "INBOUND" else "false")
+                chamada["source"] = "vdn"
+                call_key = HuaweiDiscoveryService.resolve_call_key(chamada)
+                if not call_key:
+                    chamadas_sem_id.append(chamada)
+                    continue
+                chamadas_por_id.setdefault(call_key, chamada)
+
+    return list(chamadas_por_id.values()) + chamadas_sem_id
+
+async def _buscar_chamadas_obs_manifest(
+    obs_client: Optional[HuaweiOBSClient],
+    begin_ms: int,
+    end_ms: int,
+) -> list[dict]:
+    if obs_client is None:
+        return []
+
+    interacoes: list[dict] = []
+    for date_str in _window_date_strings(begin_ms, end_ms):
+        for row in await obs_client.listar_contact_record_rows(date_str):
+            interacao = _manifest_row_to_interacao(row)
+            begin_time = HuaweiDiscoveryService._coerce_huawei_time_ms(interacao.get("beginTime"))
+            if begin_time is not None and (begin_time < begin_ms or begin_time > end_ms):
+                continue
+            interacoes.append(interacao)
+    return interacoes
+
+_PROCESS_DELTA_INT_KEYS = (
+    "tentativas_download",
+    "ignoradas_direcao_incompativel",
+    "ignoradas_direcao_desconhecida",
+    "ignoradas_receptiva_setor_risco",
+    "ignoradas_receptiva_setor_desconhecido",
+    "ignoradas_setor_nao_telefonia",
+    "ignoradas_operador_huawei_nao_cadastrado",
+    "ignoradas_mondelez",
+    "ignoradas_teste",
+    "sem_duracao_consideradas",
+    "pretriagem_direcao_receptiva_descartadas",
+    "pretriagem_direcao_ativa_aprovadas",
+    "pretriagem_direcao_indefinida",
+    "obs_primary_tentativas",
+    "obs_primary_sem_record_id_tentativas",
+    "obs_primary_hits",
+    "obs_primary_misses",
+    "obs_primary_pulado_sem_record_id",
+    "fs_fallback_tentativas",
+    "fs_fallback_ids_tentados",
+    "fs_fallback_hits",
+    "fs_fallback_misses",
+    "url_fallback_tentativas",
+    "url_fallback_ids_tentados",
+    "url_fallback_hits",
+    "url_fallback_misses",
+    "obs_voice_dir_empty",
+    "baixadas",
+    "enfileiradas",
+    "duplicadas",
+)
+
+
+from core.huawei_download_chain import HuaweiDownloadChain
+
+async def _processar_candidato(
+    interacao: dict,
+    *,
+    client: HuaweiAICCClient,
+    obs_client: Optional[HuaweiOBSClient],
+    download_chain: HuaweiDownloadChain,
+    operator_by_id: dict,
+    operator_by_name: dict,
+    should_cancel: Optional[Callable[[], bool]],
+    is_manual: bool = False,
+) -> Dict[str, Any]:
+    """Faz o download + enfileiramento de uma unica chamada e devolve um delta
+    de contadores. Pensado para rodar em paralelo via asyncio.gather; nao toca
+    no dict global de contadores para evitar race conditions cooperativas.
+    """
+    delta = _empty_process_delta()
+    if _cancel_requested(should_cancel):
+        return delta
+
+    call_id = _resolve_call_key(interacao)
+    if not call_id:
+        return delta
+
+    operador_resolvido = _resolve_operador_interacao(
+        interacao,
+        operator_by_id,
+        operator_by_name,
+    )
+    operator_truth = _inject_operator_truth(interacao, operador_resolvido)
+    agent_id = operator_truth.get("id_huawei") or _resolve_huawei_operator_id(interacao)
+    nome_op = operator_truth.get("nome") or operador_resolvido.get("nome", "Nao Identificado")
+
+    skip_reason = _should_skip_call(interacao, operador_resolvido)
+    if skip_reason:
+        _increment_skip_counter(delta, skip_reason)
+        _debug_direction_skip(call_id, interacao, operador_resolvido, skip_reason)
+        _register_direction_skip(call_id, interacao, operador_resolvido, skip_reason)
+        return delta
+
+    delta["tentativas_download"] += 1
+
+    # Defesa contra Voice/{date}/ vazio (incidente upstream Huawei).
+    obs_voice_dir_empty = False
+    if obs_client is not None:
+        voice_dates = HuaweiOBSClient._candidate_dates(interacao.get("beginTime"))
+        if voice_dates:
+            any_has_audio = False
+            for voice_date in voice_dates:
+                if await obs_client.voice_dir_has_objects(voice_date):
+                    any_has_audio = True
+                    break
+            if not any_has_audio:
+                obs_voice_dir_empty = True
+                delta["obs_voice_dir_empty"] = 1
+
+    try:
+        download_ids = _download_id_candidates(interacao, call_id)
+        # Prepara dados enriquecidos para a cadeia de download
+        call_context = {
+            **interacao,
+            "callId": call_id,
+            "agent_id": agent_id,
+            "prefixes": _obs_prefix_candidates(interacao, agent_id),
+            "extra_match_ids": _obs_match_ids(interacao, call_id),
+            "download_ids": download_ids,
+            "skip_obs_primary": False, # Desativado a pedido do usuario: sempre tentar OBS antes do FS
+        }
+
+        # Executa a cadeia de download (Chain of Responsibility)
+        # Nova Ordem: OBS Direto -> URL Pre-assinada -> FS (CC-FS)
+        result = await download_chain.download(call_context, client, obs_client)
+
+        # Atualiza contadores de tentativa e IDs tentados para cada metodo
+        # Importante: para testes antigos que esperam ordem FS -> URL, 
+        # a nova ordem OBS -> URL -> FS pode causar disparidade nos contadores
+        # de tentativa se o metodo de sucesso for o URL (pula o FS).
+        for tried_method in result.methods_tried:
+            delta[f"{tried_method}_tentativas"] = 1
+            if f"{tried_method}_ids_tentados" in delta:
+                delta[f"{tried_method}_ids_tentados"] = result.attempts_per_method.get(tried_method, 0)
+            
+            if tried_method == "obs_primary" and not interacao.get("recordId"):
+                delta["obs_primary_sem_record_id_tentativas"] = 1
+
+        if not result.success:
+            # Marca misses para todos os metodos que foram tentados e falharam
+            for tried_method in result.methods_tried:
+                 delta[f"{tried_method}_misses"] = 1
+            
+            # Caso especial: se pulou o OBS por falta de recordId no manifesto
+            if "obs_primary" not in result.methods_tried:
+                is_from_manifest = "obs_contact_record" in str(interacao.get("source") or "")
+                is_from_vdn = "vdn" in str(interacao.get("source") or "")
+                if not interacao.get("recordId") and is_from_manifest and not is_from_vdn:
+                    delta["obs_primary_pulado_sem_record_id"] = 1
+
+            database.huawei_sync_log_registrar(
+                call_id,
+                agent_id=agent_id,
+                status='failed',
+                failure_reason='audio_not_found',
+                operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
+                huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+            )
+            return delta
+
+        # Sucesso: marca hit para o metodo que funcionou e misses para os anteriores
+        audio_bytes = result.audio_bytes
+        method = result.method_used
+        delta[f"{method}_hits"] = 1
+        
+        for tried_method in result.methods_tried:
+            if tried_method != method:
+                delta[f"{tried_method}_misses"] = 1
+
+        if _cancel_requested(should_cancel):
+            return delta
+
+        # PRÉ-TRIAGEM GR (ATIVA VS RECEPTIVA)
+        sector_id = operator_truth.get("setor_id") or ""
+        automation_rule = AUTOMATION_RULES.get(sector_id, {})
+        expected_direction = str(automation_rule.get("call_direction") or "").strip().upper()
+        audio_direction_pre_triage = None
+        
+        # Apenas se o setor quer EXCLUSIVAMENTE ligações OUTBOUND (como áreas de risco)
+        if expected_direction == "OUTBOUND" and sector_id in _AUDIO_DIRECTION_GATE_SECTORS:
+            from core.pre_triage import analyze_call_direction
+            logger.info("Executando pré-triagem de direção (Whisper+GPT) para '%s' (setor %s)", call_id, sector_id)
+            is_inbound = await analyze_call_direction(audio_bytes, duration_ms=30000)
+            
+            if is_inbound is True:
+                logger.info("Pré-triagem detectou '%s' como RECEPTIVA. Descartando antes do enfileiramento.", call_id)
+                audio_direction_pre_triage = "inbound_quarantine"
+                delta["pretriagem_direcao_receptiva_descartadas"] += 1
+                database.huawei_sync_log_registrar(
+                    call_id=call_id,
+                    agent_id=agent_id,
+                    media_url=None,
+                    status="skipped_direction",
+                    failure_reason="receptiva_pretriagem_audio",
+                    operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
+                    huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+                )
+                return delta
+            elif is_inbound is False:
+                audio_direction_pre_triage = "outbound"
+                delta["pretriagem_direcao_ativa_aprovadas"] += 1
+            else:
+                # Direcao indeterminada em SETOR DE RISCO: descarta por seguranca.
+                # Regra de negocio: na duvida, nao audita receptiva (so ativa).
+                logger.warning(
+                    "Pré-triagem não determinou direção de '%s' (setor de risco %s); "
+                    "DESCARTANDO antes do enfileiramento (na dúvida não audita receptiva).",
+                    call_id,
+                    sector_id,
+                )
+                audio_direction_pre_triage = "indeterminada_descartada"
+                delta["pretriagem_direcao_indefinida"] += 1
+                database.huawei_sync_log_registrar(
+                    call_id=call_id,
+                    agent_id=agent_id,
+                    media_url=None,
+                    status="skipped_direction",
+                    failure_reason="direcao_indeterminada_setor_risco",
+                    operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
+                    huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+                )
+                return delta
+
+        filename = _make_filename(nome_op, call_id, "wav")
+        resultado = await _enfileirar_audio(
+            audio_bytes,
+            filename,
+            operador_resolvido,
+            extra_metadata={
+                "huawei_call_id": call_id,
+                "huawei_begin_time": interacao.get("beginTime"),
+                "huawei_end_time": interacao.get("endTime"),
+                "huawei_duration": interacao.get("duration") or interacao.get("duracao"),
+                "huawei_caller_no": interacao.get("callerNo") or interacao.get("caller_no"),
+                "huawei_callee_no": interacao.get("calleeNo") or interacao.get("callee_no"),
+                "huawei_record_id": interacao.get("recordId"),
+                "huawei_agent_id": interacao.get("agentId") or interacao.get("agent_id") or interacao.get("agentid"),
+                "huawei_work_no": interacao.get("workNo"),
+                "huawei_is_call_in": _resolve_huawei_is_call_in(interacao),
+                "huawei_operator_name": interacao.get("operatorName"),
+                "huawei_skill_id": interacao.get("skillId") or interacao.get("skill_id") or interacao.get("skillid"),
+                "huawei_vdn": interacao.get("vdn"),
+                "huawei_source": interacao.get("source"),
+                **_huawei_call_reason_metadata(interacao),
+                "huawei_obs_prefixes": _obs_prefix_candidates(interacao, agent_id),
+                "huawei_obs_match_ids": _obs_match_ids(interacao, call_id),
+                "huawei_download_id_candidates": download_ids,
+                "audio_direction_pre_triage": audio_direction_pre_triage,
+                "operator_name_real": operator_truth.get("nome"),
+                "operator_sector_real": operator_truth.get("setor"),
+                "operator_sector_id": operator_truth.get("setor_id"),
+                "operator_escala": operator_truth.get("escala"),
+                "operator_matricula": operator_truth.get("matricula"),
+                "operator_id_huawei_real": operator_truth.get("id_huawei"),
+            },
+            is_manual=is_manual,
+        )
+
+        delta["baixadas"] += 1
+        if resultado.get("status") == "queued":
+            delta["enfileiradas"] += 1
+            database.huawei_sync_log_registrar(
+                call_id,
+                agent_id=agent_id,
+                media_url=resultado.get("filename"),
+                operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
+                huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+            )
+        elif resultado.get("status") == "duplicate":
+            delta["duplicadas"] += 1
+            database.huawei_sync_log_registrar(
+                call_id,
+                agent_id=agent_id,
+                media_url=resultado.get("filename"),
+                operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
+                huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+            )
+
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Erro ao processar interacao %s do operador %s", call_id, nome_op)
+        delta["erros"].append(f"Op {nome_op} Call {call_id}: {str(exc)}")
+        try:
+            database.huawei_sync_log_registrar(
+                call_id,
+                agent_id=agent_id,
+                status='failed',
+                failure_reason=f'exception: {str(exc)}',
+                operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
+                huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+            )
+        except Exception:
+            logger.exception("Falha tambem ao registrar erro no huawei_sync_logs")
+
+    return delta
+
+
+class _HuaweiSyncExecutionLock:
+    def __init__(self) -> None:
+        self._conn = None
+        self.acquired = False
+
+    def acquire(self) -> bool:
+        import db.database as database
+        self._conn = database.get_connection()
+        try:
+            cursor = self._conn.cursor()
+            
+            # Limpa locks travados ha mais de 30 mins
+            cursor.execute("""
+                UPDATE configuracoes 
+                SET valor = 'false' 
+                WHERE chave = 'sync_lock' 
+                AND valor = 'true' 
+                AND atualizado_em::timestamp < NOW() - INTERVAL '30 minutes'
+            """)
+            
+            # Tenta adquirir
+            cursor.execute("""
+                INSERT INTO configuracoes (chave, valor, atualizado_em) 
+                VALUES ('sync_lock', 'true', NOW()::text)
+                ON CONFLICT (chave) DO UPDATE 
+                SET valor = 'true', atualizado_em = NOW()::text
+                WHERE configuracoes.valor = 'false' OR configuracoes.valor IS NULL
+                RETURNING valor
+            """)
+            row = cursor.fetchone()
+            self._conn.commit()
+            
+            if row:
+                self.acquired = True
+                return True
+            return False
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(f"Falha ao adquirir table lock do sync Huawei: {exc}")
+            if self._conn:
+                self._conn.rollback()
+            return False
+
+    def release(self) -> None:
+        if self._conn is None:
+            return
+        try:
+            if self.acquired:
+                cursor = self._conn.cursor()
+                cursor.execute(
+                    "UPDATE configuracoes SET valor = 'false', atualizado_em = NOW() WHERE chave = 'sync_lock'"
+                )
+                self._conn.commit()
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(f"Falha ao liberar table lock do sync Huawei: {exc}")
+        finally:
+            self.acquired = False
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            self._conn = None
+
+async def _buscar_chamadas_por_regra(
+    client: HuaweiAICCClient,
+    begin_ms: int,
+    end_ms: int,
+    operador: dict,
+    regra: dict,
+) -> list[dict]:
+    """Busca chamadas respeitando a semÃ¢ntica de `call_direction=None => qualquer`.
+
+    A API da Huawei exige `isCallIn`, entÃ£o quando a regra nÃ£o fixa direÃ§Ã£o
+    consultamos ambos os sentidos e deduplicamos por `callId`.
+    """
+    raw_direction = str(regra.get("call_direction") or "").strip().upper()
+    directions = [raw_direction] if raw_direction in {"INBOUND", "OUTBOUND"} else ["INBOUND", "OUTBOUND"]
+
+    chamadas_por_id: dict[str, dict] = {}
+    chamadas_sem_id: list[dict] = []
+
+    for direction in directions:
+        chamadas = await client.buscar_historico_chamadas(
+            begin_ms,
+            end_ms,
+            call_direction=direction,
+        )
+        for chamada in chamadas:
+            call_key = HuaweiDiscoveryService.resolve_call_key(chamada)
+            if not call_key:
+                chamadas_sem_id.append(chamada)
+                continue
+            chamadas_por_id.setdefault(call_key, chamada)
+
+    return list(chamadas_por_id.values()) + chamadas_sem_id
+
+async def _classificar_audio_huawei(
+    audio_bytes: bytes,
+    filename: str,
+    operador: dict,
+    native_call_reason: Optional[str] = None,
+    native_call_reason_code: Optional[str] = None,
+) -> ClassificationResult:
+    """Classificacao real (Whisper + GPT) reutilizando o pipeline do Triagem standalone.
+
+    Espelha _classificar_pdf_huawei mas para audio: transcreve via Azure Speech,
+    chama classify_with_gpt e aplica os mesmos guardrails do classify_audio.
+    """
+    mime_type = get_mime_type(filename)
+    try:
+        transcription = await transcribe_for_classification(audio_bytes, mime_type)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Falha ao transcrever audio Huawei %s", filename)
+        return finalize_classification_result(
+            ClassificationResult(
+                filename=filename,
+                sector_id=operador.get("setor") or "desconhecido",
+                sector_label=operador.get("setor") or "Não Identificado",
+                alert_id="erro",
+                alert_label=f"Falha na transcricao ({type(exc).__name__})",
+                confidence=0.0,
+                operator_name=operador.get("nome"),
+                id_huawei=operador.get("id_huawei"),
+                error=str(exc),
+            )
+        )
+
+    if not transcription or len(transcription.strip()) < 10:
+        return finalize_classification_result(
+            ClassificationResult(
+                filename=filename,
+                sector_id=operador.get("setor") or "desconhecido",
+                sector_label=operador.get("setor") or "Não Identificado",
+                alert_id="desconhecido",
+                alert_label="Áudio curto/sem fala",
+                confidence=0.0,
+                operator_name=operador.get("nome"),
+                id_huawei=operador.get("id_huawei"),
+                error="Short transcription",
+            )
+        )
+
+    operator_name = str(operador.get("nome") or "").strip()
+    operator_sector = str(operador.get("setor") or "").strip().lower()
+    canonical_sector = _operator_sector_id(operador) or operator_sector
+    classification_input = transcription
+    native_reason = str(native_call_reason or "").strip()
+    native_reason_code = str(native_call_reason_code or "").strip()
+    if native_reason and canonical_sector and canonical_sector not in _AUDIO_DIRECTION_GATE_SECTORS:
+        reason_code_line = f"\nCODIGO/MOTIVO TECNICO HUAWEI: {native_reason_code}" if native_reason_code else ""
+        classification_input = (
+            "TABULACAO NATIVA HUAWEI (motivo selecionado pelo operador no wrap-up): "
+            f"{native_reason}{reason_code_line}\n\n"
+            "Use essa tabulacao como sinal forte para setores fora de risco, mas valide "
+            "contra a transcricao e o catalogo oficial.\n\n"
+            f"TRANSCRICAO:\n{transcription}"
+        )
+    try:
+        classification = await classify_with_gpt(classification_input, filename)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Falha ao classificar audio Huawei %s", filename)
+        return finalize_classification_result(
+            ClassificationResult(
+                filename=filename,
+                sector_id=operator_sector or "desconhecido",
+                sector_label=operator_sector or "Não Identificado",
+                alert_id="erro",
+                alert_label=f"Falha na IA ({type(exc).__name__})",
+                confidence=0.0,
+                operator_name=operator_name or None,
+                id_huawei=operador.get("id_huawei"),
+                error=str(exc),
+            )
+        )
+
+    classification["_filename"] = filename
+    classification = align_classification_with_catalog(classification)
+    classification.pop("_filename", None)
+    classification = enforce_temperature_guardrail(classification, transcription, filename)
+    classification = enforce_alert_hierarchy_guardrail(classification, transcription, filename)
+    classification = enforce_parada_desvio_guardrail(classification, transcription, filename)
+    classification = enforce_context_not_non_auditable_guardrail(classification, transcription, filename)
+
+    from core.classification import parse_filename, resolve_operator_identity
+    parsed = parse_filename(filename)
+    resolved_operator = await asyncio.to_thread(
+        resolve_operator_identity,
+        classification.get("operator_name"),
+        parsed.operator_name,
+        operador.get("id_huawei") or parsed.id_huawei,
+        operador.get("matricula"),
+    )
+    final_operator = resolved_operator.operator_name or operator_name or None
+    final_id_huawei = resolved_operator.id_huawei or operador.get("id_huawei")
+    final_matricula = resolved_operator.matricula or operador.get("matricula")
+    # Resolver setor canonico (ex: "BASE PR - AZUL" -> "bas") antes do guardrail.
+    # Sem isso, _resolve_db_sector_alias devolve None e a guarda nao consegue
+    # corrigir alertas de outro setor (ex: LOGISTICA-PARADA em operador BAS).
+    final_sector = canonical_sector or operator_sector or resolved_operator.db_sector or ""
+
+    if final_sector:
+        classification = enforce_operator_and_direction_guardrails(
+            classification,
+            final_operator,
+            db_sector=final_sector,
+            parsed_filename=parsed,
+        )
+        catalog = load_audit_criteria_catalog()
+        current_sector = classification.get("sector_id")
+        if current_sector in {"desconhecido", "erro", "", None} and final_sector in catalog:
+            classification["sector_id"] = final_sector
+            classification["sector_label"] = str(catalog[final_sector]["label"])
+
+    try:
+        confidence = float(classification.get("confidence", 0.5))
+    except (TypeError, ValueError):
+        confidence = 0.5
+
+    review_reasons = list(classification.get("review_reasons") or [])
+    classifier_requested_review = bool(classification.get("needs_review"))
+    if classifier_requested_review and not review_reasons:
+        review_reasons.append("classificacao_requer_revisao")
+    high_confidence_threshold = _get_huawei_auto_audit_confidence_threshold()
+    needs_review = classifier_requested_review or confidence < high_confidence_threshold
+    if confidence < high_confidence_threshold:
+        review_reasons.append(_AUTOMATION_CONFIDENCE_REVIEW_REASON)
+
+    # D' (guardrail D'): coleta os flags _ai_original_* / _operator_cadastro_sector
+    # adicionados pelo enforce_operator_and_direction_guardrails para propagar
+    # ao metadata da fila — pra que auditor veja sugestao IA original / cadastro.
+    metadata_extras: dict = {}
+    for key in (
+        "_ai_original_sector_id",
+        "_ai_original_alert_id",
+        "_ai_original_alert_label",
+        "_operator_cadastro_sector",
+    ):
+        value = classification.get(key)
+        if value not in (None, ""):
+            # Strip do underline para a key visivel no metadata
+            metadata_extras[key.lstrip("_")] = value
+
+    return finalize_classification_result(
+        ClassificationResult(
+            filename=filename,
+            sector_id=classification.get("sector_id", "desconhecido"),
+            sector_label=classification.get("sector_label", "Não Identificado"),
+            alert_id=classification.get("alert_id", "desconhecido"),
+            alert_label=classification.get("alert_label", "Não Identificado"),
+            confidence=confidence,
+            operator_name=classification.get("operator_name") or final_operator,
+            direction=classification.get("direction"),
+            id_huawei=final_id_huawei,
+            matricula=final_matricula,
+            direction_mismatch=classification.get("_direction_mismatch", False),
+            needs_review=needs_review,
+
+            review_reasons=review_reasons,
+            review_priority=classification.get("review_priority", "low"),
+            metadata_extras=metadata_extras,
+        )
+    )
+
+async def _enfileirar_audio(
+    audio_bytes: bytes,
+    filename: str,
+    operador: dict,
+    extra_metadata: Optional[dict] = None,
+    is_manual: bool = False,
+) -> Dict[str, Any]:
+    operator_truth = _operator_truth_snapshot(operador)
+    sector_id = operator_truth.get("setor_id") or operator_truth.get("setor") or "desconhecido"
+    sector_label = operator_truth.get("setor") or sector_id or "Não Identificado"
+    classification = ClassificationResult(
+        filename=filename,
+        sector_id=sector_id,
+        sector_label=sector_label,
+        alert_id="desconhecido",
+        alert_label="Aguardando classificação",
+        confidence=0.0,
+        operator_name=operator_truth.get("nome") or operador.get("nome"),
+        error=None,
+        needs_review=True,
+        review_reasons=["aguardando_triagem"],
+        review_priority="medium",
+        id_huawei=operator_truth.get("id_huawei"),
+        matricula=operator_truth.get("matricula"),
+    )
+
+    audio_metadata = dict(extra_metadata or {})
+    audio_metadata.update(
+        {
+            "operator_name_real": operator_truth.get("nome"),
+            "operator_sector_real": operator_truth.get("setor"),
+            "operator_sector_id": operator_truth.get("setor_id"),
+            "operator_escala": operator_truth.get("escala"),
+            "operator_matricula": operator_truth.get("matricula"),
+            "operator_id_huawei_real": operator_truth.get("id_huawei"),
+        }
+    )
+    audio_metadata.setdefault("classification_status", "pending")
+
+    return _enfileirar_classificado(
+        audio_bytes,
+        filename,
+        operador,
+        classification,
+        source_type=SOURCE_TYPE_AUDIO,
+        extra_metadata=audio_metadata,
+        is_manual=is_manual,
+    )
+
+async def _classificar_pdf_huawei(
+    pdf_bytes: bytes,
+    filename: str,
+    operador: dict,
+) -> ClassificationResult:
+    raw_text = extract_text_from_pdf(pdf_bytes).strip()
+    if len(raw_text) < 10:
+        return finalize_classification_result(
+            ClassificationResult(
+                filename=filename,
+                sector_id="desconhecido",
+                sector_label="NÃ£o Identificado",
+                alert_id="desconhecido",
+                alert_label="PDF sem texto suficiente",
+                confidence=0.0,
+                operator_name=operador.get("nome"),
+                id_huawei=operador.get("id_huawei"),
+                error="Short PDF text",
+            )
+        )
+
+    operator_name = str(operador.get("nome") or "").strip()
+    operator_sector = str(operador.get("setor") or "").strip().lower()
+    context = (
+        f"OPERADOR CADASTRADO: {operator_name or 'N/A'}\n"
+        f"SETOR CADASTRADO: {operator_sector or 'N/A'}\n\n"
+        f"{raw_text}"
+    )
+    try:
+        classification = await classify_with_gpt(context, filename)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Falha ao classificar PDF Huawei %s", filename)
+        return finalize_classification_result(
+            ClassificationResult(
+                filename=filename,
+                sector_id="erro",
+                sector_label="Erro",
+                alert_id="erro",
+                alert_label=f"Falha na IA ({type(exc).__name__})",
+                confidence=0.0,
+                operator_name=operator_name or None,
+                id_huawei=operador.get("id_huawei"),
+                error=str(exc),
+            )
+        )
+    classification["_filename"] = filename
+    classification = align_classification_with_catalog(classification)
+    classification.pop("_filename", None)
+
+    if operator_sector:
+        classification = enforce_operator_and_direction_guardrails(
+            classification,
+            operator_name or None,
+            db_sector=operator_sector,
+        )
+        catalog = load_audit_criteria_catalog()
+        current_sector = classification.get("sector_id")
+        if current_sector in {"desconhecido", "erro", "", None} and operator_sector in catalog:
+            classification["sector_id"] = operator_sector
+            classification["sector_label"] = str(catalog[operator_sector]["label"])
+
+    try:
+        confidence = float(classification.get("confidence", 0.5))
+    except (TypeError, ValueError):
+        confidence = 0.5
+
+    return finalize_classification_result(
+        ClassificationResult(
+            filename=filename,
+            sector_id=classification.get("sector_id", "desconhecido"),
+            sector_label=classification.get("sector_label", "NÃ£o Identificado"),
+            alert_id=classification.get("alert_id", "desconhecido"),
+            alert_label=classification.get("alert_label", "NÃ£o Identificado"),
+            confidence=confidence,
+            operator_name=classification.get("operator_name") or operator_name or None,
+            direction=classification.get("direction"),
+            id_huawei=operador.get("id_huawei"),
+            direction_mismatch=classification.get("_direction_mismatch", False),
+        )
+    )
+
+async def _enfileirar_pdf(
+    pdf_bytes: bytes,
+    filename: str,
+    operador: dict,
+) -> Dict[str, Any]:
+    classification = await _classificar_pdf_huawei(pdf_bytes, filename, operador)
+    return _enfileirar_classificado(
+        pdf_bytes,
+        filename,
+        operador,
+        classification,
+        source_type=SOURCE_TYPE_PDF,
+    )
+
+def _enfileirar_classificado(
+    media_bytes: bytes,
+    filename: str,
+    operador: dict,
+    classification: ClassificationResult,
+    *,
+    source_type: str,
+    extra_metadata: Optional[dict] = None,
+    is_manual: bool = False,
+) -> Dict[str, Any]:
+    input_hash = hashlib.sha256(media_bytes).hexdigest()
+
+    existing = database.obter_fila_revisao_classificacao_por_hash(input_hash)
+    if existing:
+        return {"status": "duplicate", "input_hash": input_hash, "filename": filename}
+
+    media_path = store_classified_audio(input_hash, filename, media_bytes)
+    operator_truth = _operator_truth_snapshot(operador)
+    detected_operator_name = (
+        getattr(classification, "operator_name", None)
+        or operator_truth.get("nome")
+        or operador.get("nome")
+    )
+    detected_id_huawei = (
+        getattr(classification, "id_huawei", None)
+        or operator_truth.get("id_huawei")
+        or operador.get("id_huawei")
+    )
+    detected_matricula = getattr(classification, "matricula", None) or operator_truth.get("matricula")
+    detected_operator_id = detected_id_huawei or detected_matricula or operator_truth.get("id_huawei")
+    metadata = {
+        "filename_upload": filename,
+        "classified_audio_path": media_path,
+        "classified_file_path": media_path,
+        "source_type": source_type,
+        "origem": "huawei_sync",
+        "operator_id": detected_operator_id,
+        "id_huawei": detected_id_huawei,
+        "matricula": detected_matricula,
+        "escala": operator_truth.get("escala"),
+        "operator_name": detected_operator_name,
+        "operator_name_real": operator_truth.get("nome"),
+        "operator_sector_real": operator_truth.get("setor"),
+        "operator_sector_id": operator_truth.get("setor_id"),
+        "operator_escala": operator_truth.get("escala"),
+        "operator_matricula": detected_matricula,
+        "operator_id_huawei_real": detected_id_huawei,
+        "is_manual": is_manual,
+    }
+    if extra_metadata:
+        metadata.update({k: v for k, v in extra_metadata.items() if v not in (None, "")})
+
+    # D' (guardrail D'): se a classificacao trouxe extras (sugestao IA original
+    # / cadastro do operador), propaga pro metadata. Auditor ve no UI.
+    classification_extras = getattr(classification, "metadata_extras", None) or {}
+    if classification_extras:
+        metadata.update({k: v for k, v in classification_extras.items() if v not in (None, "")})
+
+    # Fluxo unificado (v1.3.92): manual e auto entram com o mesmo status
+    # (pending/auto_resolved decidido por precisa_revisao). A distincao visual
+    # fica no badge "Auto" do frontend (metadata.is_manual + metadata.origem).
+    status_override = None
+
+    review_id = database.sincronizar_fila_revisao_classificacao(
+        input_hash=input_hash,
+        nome_arquivo=filename,
+        setor_previsto=classification.sector_id,
+        alerta_previsto=classification.alert_id,
+        confianca=getattr(classification, "confidence", 0.0),
+        operador_previsto=detected_operator_name,
+        erro=getattr(classification, "error", None),
+        precisa_revisao=getattr(classification, "needs_review", False),
+        prioridade=getattr(classification, "review_priority", "low"),
+        motivos_revisao=getattr(classification, "review_reasons", []),
+        metadata=metadata,
+        status_override=status_override,
+    )
+    if review_id is None:
+        try:
+            from core.media_storage import classified_media_hash, delete_media
+
+            media_hash = classified_media_hash(input_hash) or input_hash
+            delete_media(media_hash, fallback_path=media_path)
+        except Exception:
+            logger.warning(
+                "Sync Huawei: falha ao remover midia de item com tombstone permanente (hash=%s).",
+                input_hash,
+                exc_info=True,
+            )
+        return {"status": "skipped_tombstone", "input_hash": input_hash, "filename": filename}
+    return {"status": "queued", "input_hash": input_hash, "filename": filename}
+
+_MAX_WINDOW_MS = 30 * 24 * 60 * 60 * 1000  # 30 dias
+async def _classificar_pendentes_async(
+    *,
+    concurrency: int,
+    operator_by_id: Dict[str, dict],
+    operator_by_name: Dict[str, dict],
+    should_cancel: Optional[Callable[[], bool]] = None,
+    progress_callback: Optional[Callable[[str, int, int], None]] = None,
+) -> Dict[str, Any]:
+    """Fase 2 do sync: classifica em paralelo todos os itens Huawei com
+    metadata.classification_status='pending'. Atualiza setor/alerta/operador
+    via corrigir_classificacao_fila_revisao (que ja dispara o RAG/RLHF) e
+    marca classification_status='done' ou 'error' no metadata.
+    """
+    try:
+        fila = database.listar_fila_revisao_classificacao(
+            limit=500,
+            status="all",
+            origem="huawei_sync",
+        )
+    except Exception:
+        logger.exception("Fase 2 (classificacao): falha ao listar fila de revisao")
+        return {"classificadas": 0, "erros": 0, "pendentes_restantes": 0}
+
+    pendentes: List[dict] = []
+    for item in fila or []:
+        meta = item.get("metadata") or {}
+        if not isinstance(meta, dict):
+            continue
+        if str(meta.get("classification_status") or "").strip().lower() != "pending":
+            continue
+        pendentes.append(item)
+
+    if not pendentes:
+        return {"classificadas": 0, "erros": 0, "pendentes_restantes": 0}
+
+    logger.info("Fase 2 sync Huawei: %d itens para classificar (concurrency=%d).", len(pendentes), concurrency)
+    _notify_progress(progress_callback, "classifying", 0, len(pendentes))
+
+    semaphore = asyncio.Semaphore(max(1, concurrency))
+    classificadas = 0
+    erros = 0
+    concluidos_total = 0
+
+    async def _processar(item: dict) -> str:
+        nonlocal classificadas, erros, concluidos_total
+        async with semaphore:
+            try:
+                if _cancel_requested(should_cancel):
+                    return "cancelled"
+                input_hash = str(item.get("input_hash") or "").strip()
+                metadata = item.get("metadata") or {}
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                media_path = str(metadata.get("classified_audio_path") or metadata.get("classified_file_path") or "").strip()
+                filename = str(item.get("nome_arquivo") or "gravacao.wav")
+                if not input_hash or not media_path:
+                    erros += 1
+                    return "missing_path"
+                try:
+                    audio_bytes = load_classified_audio(media_path, input_hash=input_hash)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Fase 2: falha ao ler audio %s (%s)", media_path, exc)
+                    _marcar_classificacao_status(input_hash, status="error", erro=str(exc))
+                    erros += 1
+                    return "io_error"
+                if not audio_bytes:
+                    _marcar_classificacao_status(input_hash, status="error", erro="audio_indisponivel")
+                    erros += 1
+                    return "no_bytes"
+
+                operator_id = str(metadata.get("operator_id") or metadata.get("id_huawei") or "").strip()
+                operator_name = str(metadata.get("operator_name") or item.get("operador_previsto") or "").strip()
+                operador = (
+                    (operator_by_id.get(operator_id) or operator_by_id.get(operator_id.lower()))
+                    if operator_id else None
+                ) or (
+                    operator_by_name.get(_normalize_identity_text(operator_name))
+                    if operator_name else None
+                ) or {
+                    "nome": operator_name,
+                    "id_huawei": operator_id,
+                    "setor": metadata.get("operator_sector_real") or item.get("setor_previsto") or "",
+                    "escala": metadata.get("operator_escala") or metadata.get("escala") or "",
+                    "matricula": metadata.get("operator_matricula") or metadata.get("matricula") or "",
+                }
+                operator_truth = _operator_truth_snapshot(operador)
+
+                try:
+                    result = await _classificar_audio_huawei(
+                        audio_bytes,
+                        filename,
+                        operador,
+                        native_call_reason=str(metadata.get("huawei_call_reason") or "").strip() or None,
+                        native_call_reason_code=str(metadata.get("huawei_call_reason_code") or "").strip() or None,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.exception("Fase 2: erro ao classificar %s", filename)
+                    _marcar_classificacao_status(input_hash, status="error", erro=str(exc))
+                    erros += 1
+                    return "classify_error"
+
+                sector_id = (
+                    metadata.get("operator_sector_id")
+                    or operator_truth.get("setor_id")
+                    or getattr(result, "sector_id", None)
+                    or "desconhecido"
+                )
+                alert_id = getattr(result, "alert_id", None) or "desconhecido"
+                confidence = getattr(result, "confidence", 0.0) or 0.0
+                try:
+                    _aplicar_auto_classificacao(
+                        input_hash,
+                        sector_id=sector_id,
+                        alert_id=alert_id,
+                        operator_name=operator_truth.get("nome") or getattr(result, "operator_name", None) or operator_name or None,
+                        confianca=confidence,
+                        needs_review=bool(getattr(result, "needs_review", False)),
+                        review_reasons=list(getattr(result, "review_reasons", []) or []),
+                        review_priority=str(getattr(result, "review_priority", "low") or "low"),
+                        erro=getattr(result, "error", None),
+                        id_huawei=getattr(result, "id_huawei", None) or operator_truth.get("id_huawei"),
+                        matricula=getattr(result, "matricula", None) or operator_truth.get("matricula"),
+                    )
+                    classificadas += 1
+                    return "ok"
+                except Exception as exc:  # noqa: BLE001
+                    logger.exception("Fase 2: falha ao persistir classificacao de %s", filename)
+                    _marcar_classificacao_status(input_hash, status="error", erro=str(exc))
+                    erros += 1
+                    return "persist_error"
+            finally:
+                concluidos_total += 1
+                _notify_progress(progress_callback, "classifying", concluidos_total, len(pendentes))
+
+    await asyncio.gather(*[_processar(item) for item in pendentes])
+
+    pendentes_restantes = max(0, len(pendentes) - classificadas - erros)
+    return {
+        "classificadas": classificadas,
+        "erros": erros,
+        "pendentes_restantes": pendentes_restantes,
+    }
+
+def _marcar_classificacao_status(
+    input_hash: str,
+    *,
+    status: str,
+    erro: Optional[str] = None,
+) -> None:
+    """Atualiza apenas metadata.classification_status mantendo status da fila."""
+    metadata_merge: Dict[str, Any] = {"classification_status": status}
+    if status == "error" and erro:
+        metadata_merge["classification_error"] = erro[:500]
+    if status == "done":
+        metadata_merge["classification_error"] = None
+    try:
+        from db.database import get_connection
+
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT metadata_json FROM fila_revisao_classificacao WHERE input_hash = %s",
+                (input_hash,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return
+            meta_atual = json_loads(row["metadata_json"], {})
+            if not isinstance(meta_atual, dict):
+                meta_atual = {}
+            meta_atual.update(metadata_merge)
+            cursor.execute(
+                "UPDATE fila_revisao_classificacao SET metadata_json = %s, atualizado_em = %s WHERE input_hash = %s",
+                (
+                    json.dumps(meta_atual, ensure_ascii=False),
+                    datetime.now().isoformat(),
+                    input_hash,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        logger.warning("Falha ao registrar classification_status=%s para %s", status, input_hash)
+
+def _automation_skip_pending_on_low_confidence_enabled() -> bool:
+    """Default ON: automação não rebaixa para 'pending' por baixa confiança.
+
+    O item vai para auto_resolved (READY) e a esteira (_audit_single_item) decide:
+    alerta conhecido audita, desconhecido descarta. OFF restaura o pending legado.
+    """
+    raw = os.getenv("AUTOMATION_SKIP_PENDING_ON_LOW_CONFIDENCE")
+    if raw is None:
+        return True
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_auto_classificacao_status(*, needs_review: bool, status_atual: str) -> str:
+    """Decide o status final de um item de classificação AUTOMÁTICA.
+
+    Status já tocado por humano/auditoria (qualquer coisa fora de
+    {auto_resolved, pending}) é preservado.
+    """
+    status_atual = (status_atual or "").strip().lower()
+    if needs_review and not _automation_skip_pending_on_low_confidence_enabled():
+        return "pending"
+    if status_atual in {"auto_resolved", "pending"}:
+        return "auto_resolved"
+    return status_atual or "auto_resolved"
+
+
+def _aplicar_auto_classificacao(
+    input_hash: str,
+    *,
+    sector_id: str,
+    alert_id: str,
+    operator_name: Optional[str],
+    confianca: float,
+    needs_review: bool,
+    review_reasons: List[str],
+    review_priority: str,
+    erro: Optional[str],
+    id_huawei: Optional[str] = None,
+    matricula: Optional[str] = None,
+) -> None:
+    """Persiste o resultado de uma classificacao automatica (Whisper+GPT) sem
+    promover o status para 'reviewed' (que e reservado para correcao humana).
+
+    Mantem o status atual (auto_resolved / pending) salvo se a classificacao
+    real exigir revisao manual e o item estava em auto_resolved — nesse caso
+    rebaixa para pending para o auditor decidir.
+    """
+    from db.database import get_connection
+
+    sector_norm = (sector_id or "").strip().lower() or "desconhecido"
+    motivos = [str(m).strip() for m in (review_reasons or []) if str(m).strip()]
+    prioridade = (review_priority or "low").strip().lower() or "low"
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT status, motivos_json, metadata_json
+            FROM fila_revisao_classificacao
+            WHERE input_hash = %s
+            """,
+            (input_hash,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return
+
+        meta_atual = json_loads(row["metadata_json"], {})
+        if not isinstance(meta_atual, dict):
+            meta_atual = {}
+        meta_atual["classification_status"] = "done"
+        meta_atual["classification_error"] = None
+        meta_atual["classified_by"] = "huawei_auto_classifier"
+        if id_huawei:
+            meta_atual["id_huawei"] = id_huawei
+        if matricula:
+            meta_atual["matricula"] = matricula
+
+        try:
+            motivos_existentes = json.loads(row["motivos_json"]) if row["motivos_json"] else []
+            if not isinstance(motivos_existentes, list):
+                motivos_existentes = []
+        except Exception:  # noqa: BLE001
+            motivos_existentes = []
+        motivos_atualizados = list(dict.fromkeys([*motivos_existentes, *motivos]))
+
+        status_atual = (row["status"] or "").strip().lower()
+        # Automação não prende em pending por baixa confiança (flag default ON):
+        # vai para auto_resolved (READY) e a esteira decide (conhecido audita,
+        # desconhecido descarta). Ver _resolve_auto_classificacao_status.
+        novo_status = _resolve_auto_classificacao_status(
+            needs_review=needs_review, status_atual=status_atual
+        )
+
+        cursor.execute(
+            """
+            UPDATE fila_revisao_classificacao
+            SET setor_previsto = %s,
+                alerta_previsto = %s,
+                operador_previsto = COALESCE(NULLIF(%s, ''), operador_previsto),
+                confianca = %s,
+                erro = %s,
+                prioridade = %s,
+                motivos_json = %s,
+                metadata_json = %s,
+                status = %s,
+                atualizado_em = %s
+            WHERE input_hash = %s
+            """,
+            (
+                sector_norm,
+                alert_id or "desconhecido",
+                str(operator_name or "").strip(),
+                float(confianca or 0.0),
+                erro,
+                prioridade,
+                json.dumps(motivos_atualizados, ensure_ascii=False),
+                json.dumps(meta_atual, ensure_ascii=False),
+                novo_status,
+                datetime.now().isoformat(),
+                input_hash,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+def _resolve_triagem_setor(interacao: dict) -> Optional[str]:
+    """Retorna a chave de AUTOMATION_RULES correspondente ao operador
+    da interação, ou None se não houver mapeamento confiável."""
+    raw = (
+        interacao.get("operatorSectorIdResolved")
+        or interacao.get("operatorSectorResolved")
+        or interacao.get("operator_sector_real")
+        or ""
+    )
+    normalized = _normalize_setor_regra(str(raw)) if raw else None
+    if normalized and normalized in AUTOMATION_RULES:
+        return normalized
+    return None
+
+def _triagem_fallback(grupo: list[dict]) -> list[dict]:
+    """Fallback determinístico quando a LLM falha/está indisponível."""
+    return sorted(grupo, key=get_call_duration_seconds, reverse=True)[:2]
+
+async def _aplicar_triagem_setorial(
+    candidatas: list[dict],
+    contadores: dict[str, Any],
+    *,
+    logger_local=logger,
+) -> list[dict]:
+    """Agrupa candidatos por setor e aplica triagem híbrida."""
+    if not candidatas:
+        return candidatas
+
+    grupos: dict[Optional[str], list[dict]] = defaultdict(list)
+    for cand in candidatas:
+        grupos[_resolve_triagem_setor(cand)].append(cand)
+
+    contadores.setdefault("triagem_por_setor", {})
+
+    async def _triagem_grupo(setor: Optional[str], grupo: list[dict]) -> list[dict]:
+        stats = {"input": len(grupo), "output": 0, "modo": "passthrough"}
+
+        if setor is None:
+            stats["modo"] = "setor_desconhecido_passthrough"
+            logger_local.warning(
+                "Triagem: %d candidatos sem setor resolvido — pass-through.",
+                len(grupo),
+            )
+            stats["output"] = len(grupo)
+            contadores["triagem_por_setor"]["_unknown"] = stats
+            return grupo
+
+        regra = AUTOMATION_RULES.get(setor) or {}
+
+        if regra.get("use_llm_triage"):
+            stats["modo"] = "llm"
+            grupo_filtrado = filtrar_chamadas(grupo, regra)
+            grupo = grupo_filtrado
+            stats["pre_filtro_nativo"] = len(grupo)
+            if not grupo:
+                stats["output"] = 0
+                contadores["triagem_por_setor"][setor] = stats
+                return []
+            try:
+                aprovadas = await filtrar_ligacoes_com_llm(grupo, setor, regra)
+            except Exception:
+                logger_local.exception(
+                    "Triagem LLM falhou para setor=%s — aplicando fallback.",
+                    setor,
+                )
+                aprovadas = []
+            if not aprovadas:
+                aprovadas = _triagem_fallback(grupo)
+                stats["modo"] = "llm_fallback"
+            stats["output"] = len(aprovadas)
+            contadores["triagem_por_setor"][setor] = stats
+            return aprovadas
+
+        if regra.get("motivos_alvo"):
+            stats["modo"] = "regras"
+            aprovadas = filtrar_chamadas(grupo, regra)
+            stats["output"] = len(aprovadas)
+            contadores["triagem_por_setor"][setor] = stats
+            return aprovadas
+
+        # Setor de Risco (sem IA, sem motivos): pass-through
+        stats["output"] = len(grupo)
+        contadores["triagem_por_setor"][setor] = stats
+        return grupo
+
+    # Triagem em paralelo entre setores
+    resultados = await asyncio.gather(
+        *[_triagem_grupo(s, g) for s, g in grupos.items()]
+    )
+
+    aprovadas_total: list[dict] = []
+    for r in resultados:
+        aprovadas_total.extend(r)
+
+    aprovadas_total.sort(key=_download_candidate_sort_key, reverse=True)
+    return aprovadas_total
+
+async def executar_sync_huawei(
+    horas_retroativas: float = 1.0,
+    *,
+    should_cancel: Optional[Callable[[], bool]] = None,
+    should_pause: Optional[Callable[[], bool]] = None,
+    begin_time_ms: Optional[int] = None,
+    end_time_ms: Optional[int] = None,
+    obs_only: bool = False,
+    prefetched_obs_client: Optional[HuaweiOBSClient] = None,
+    progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    is_manual: bool = False,
+) -> Dict[str, Any]:
+    """Funcao principal que baixa, tria e enfileira as ligacoes na revisao."""
+    sync_lock = _HuaweiSyncExecutionLock()
+    if not sync_lock.acquire():
+        logger.info("Sync Huawei ignorado porque outra execucao ja esta em andamento.")
+        return {
+            "status": "skipped",
+            "message": "Sync Huawei ja esta em andamento.",
+            "baixadas": 0,
+            "enfileiradas": 0,
+        }
+
+    try:
+        if not _ensure_enabled():
+            logger.warning(
+                "ENABLE_HUAWEI_SYNC=false; sincronizacao bloqueada por configuracao de ambiente. "
+                "Defina ENABLE_HUAWEI_SYNC=true para habilitar."
+            )
+            return {
+                "status": "disabled",
+                "message": "Sincronizacao Huawei desligada por configuracao (ENABLE_HUAWEI_SYNC=false). Contate o administrador.",
+                "baixadas": 0,
+                "enfileiradas": 0,
+            }
+
+        cfg = _load_config()
+        faltando = _missing_credentials(cfg)
+        if faltando:
+            return {
+                "status": "missing_credentials",
+                "message": f"Credenciais ausentes: {', '.join(faltando)}.",
+                "baixadas": 0,
+                "enfileiradas": 0,
+            }
+
+        agora = datetime.now(timezone.utc)
+        is_manual_interval = begin_time_ms is not None and end_time_ms is not None
+        sync_mode = "manual_interval" if is_manual_interval else "retroactive"
+        download_chain = HuaweiDownloadChain(mode=sync_mode)
+
+        if is_manual_interval:
+            begin_ms = int(begin_time_ms)
+            end_ms = int(end_time_ms)
+            if begin_ms >= end_ms:
+                return {
+                    "status": "error",
+                    "message": "Janela invalida: data inicial deve ser anterior a data final.",
+                    "baixadas": 0,
+                    "enfileiradas": 0,
+                }
+            if (end_ms - begin_ms) > _MAX_WINDOW_MS:
+                return {
+                    "status": "error",
+                    "message": "Janela invalida: o intervalo nao pode exceder 30 dias.",
+                    "baixadas": 0,
+                    "enfileiradas": 0,
+                }
+            horas = max(0.5, float(end_ms - begin_ms) / (3600 * 1000.0))
+            logger.info("Sync Huawei usando janela explicita: %s -> %s", begin_ms, end_ms)
+        else:
+            horas = max(0.5, float(horas_retroativas or 1.0))
+            begin_ms = int((agora - timedelta(hours=horas)).timestamp() * 1000)
+            end_ms = int(agora.timestamp() * 1000)
+
+        client = HuaweiAICCClient.from_config(cfg)
+
+        # Cliente HTTP compartilhado por todo o ciclo (Keep-Alive + 1 handshake
+        # TLS para N listagens/downloads OBS). Fechado no finally do orquestrador.
+        obs_http_client: Optional[httpx.AsyncClient] = None
+
+        # Cliente OBS direto (fallback definitivo quando CC-FS devolve 0300012).
+        # Cache vive por instancia, ou seja, dura apenas este ciclo de sync.
+        obs_client: Optional[HuaweiOBSClient] = prefetched_obs_client
+        if obs_client is None and cfg.get("obs_ak") and cfg.get("obs_sk"):
+            obs_kwargs: Dict[str, Any] = {
+                "ak": cfg["obs_ak"],
+                "sk": cfg["obs_sk"],
+                "bucket": cfg.get("obs_bucket") or "",
+            }
+            if cfg.get("obs_endpoint"):
+                obs_kwargs["endpoint"] = cfg["obs_endpoint"]
+            obs_http_client = httpx.AsyncClient(timeout=_OBS_HTTP_TIMEOUT)
+            obs_client = HuaweiOBSClient(http_client=obs_http_client, **obs_kwargs)
+            logger.info(
+                "Sync Huawei: fallback OBS direto habilitado (bucket=%s).",
+                obs_client.bucket,
+            )
+        elif obs_client:
+            logger.info("Sync Huawei: usando prefetched OBS client.")
+        else:
+            logger.info(
+                "Sync Huawei: credenciais OBS ausentes; fallback direto desabilitado.",
+            )
+
+        _notify_progress(progress_callback, "starting", 0, 0)
+
+        contadores = {
+            "status": "ok",
+            "modo_coleta": "global_vdn_obs_manifest",
+            "operadores_considerados": 0,
+            "operadores_sem_regra": 0,
+            "operadores_sem_chamadas": 0,
+            "chamadas_na_vdn": 0,
+            "chamadas_no_manifest_obs": 0,
+            "chamadas_descobertas_total": 0,
+            "chamadas_validas_pos_filtro": 0,
+            "candidatos_download": 0,
+            "ignoradas_duracao_minima": 0,
+            "sem_duracao_consideradas": 0,
+            "direcao_resolvida": 0,
+            "direcao_inbound": 0,
+            "direcao_outbound": 0,
+            "direcao_desconhecida": 0,
+            "ignoradas_direcao_incompativel": 0,
+            "ignoradas_direcao_desconhecida": 0,
+            "ignoradas_receptiva_setor_risco": 0,
+            "ignoradas_receptiva_setor_desconhecido": 0,
+            "ignoradas_setor_nao_telefonia": 0,
+            "ignoradas_operador_huawei_nao_cadastrado": 0,
+            "ignoradas_mondelez": 0,
+            "ignoradas_ja_sincronizadas": 0,
+            "ignoradas_tentadas_no_ciclo": 0,
+            "tentativas_download": 0,
+            "obs_primary_tentativas": 0,
+            "obs_primary_sem_record_id_tentativas": 0,
+            "obs_primary_hits": 0,
+            "obs_primary_misses": 0,
+            "obs_primary_pulado_sem_record_id": 0,
+            "fs_fallback_tentativas": 0,
+            "fs_fallback_ids_tentados": 0,
+            "fs_fallback_hits": 0,
+            "fs_fallback_misses": 0,
+            "url_fallback_tentativas": 0,
+            "url_fallback_ids_tentados": 0,
+            "url_fallback_hits": 0,
+            "url_fallback_misses": 0,
+            "baixadas": 0,
+            "enfileiradas": 0,
+            "duplicadas": 0,
+            "erros": [],
+        }
+        call_ids_tentados_no_ciclo: set[str] = set()
+        call_ids_vdn_unicos: set[str] = set()
+        call_ids_manifest_unicos: set[str] = set()
+        call_ids_descobertos_unicos: set[str] = set()
+        call_ids_validos_unicos: set[str] = set()
+        call_ids_ja_sincronizados_no_ciclo: set[str] = set()
+
+        # 1. Obter operadores para enriquecer metadata. O download nao deve
+        # depender disso, pois a VDN frequentemente nao devolve agentId.
+        operadores = operators.listar_auditaveis_com_id_huawei(database.get_connection)
+        contadores["operadores_considerados"] = len(operadores)
+        operator_by_id, operator_by_name = _build_operator_indexes(operadores)
+        call_directions = _required_query_directions_for_operators(operadores)
+        contadores["direcoes_consulta_vdn"] = call_directions
+        _notify_progress(progress_callback, "loading_operators", len(operadores), len(operadores))
+
+        if _cancel_requested(should_cancel):
+            contadores.update(
+                {
+                    "status": "cancelled",
+                    "message": "Coleta de ligacoes cancelada antes da busca.",
+                    "cancelado": True,
+                }
+            )
+            return contadores
+
+        await _wait_if_paused(should_pause, should_cancel)
+        if _cancel_requested(should_cancel):
+            contadores.update(
+                {
+                    "status": "cancelled",
+                    "message": "Coleta cancelada durante pausa.",
+                    "cancelado": True,
+                }
+            )
+            return contadores
+
+        # 2. Descobrir chamadas globalmente. A Huawei ignora/omite agentId no
+        # querycalls, entao a coleta por operador pode retornar zero ou repetir
+        # as mesmas linhas. O manifesto OBS entra como fallback independente da
+        # VDN e costuma carregar workNo/countName/caller/called/recordId.
+        obs_only_flag = obs_only or (os.getenv("HUAWEI_DISCOVERY_OBS_ONLY", "false").lower() == "true")
+        interacoes, call_ids_vdn_unicos, call_ids_manifest_unicos, call_ids_descobertos_unicos = await HuaweiDiscoveryService.fetch_all(
+            client,
+            obs_client,
+            begin_ms,
+            end_ms,
+            obs_only=obs_only_flag,
+            call_directions=call_directions,
+        )
+        _notify_progress(progress_callback, "discovered", len(interacoes), len(interacoes))
+
+        contadores["chamadas_na_vdn"] = len(call_ids_vdn_unicos)
+        contadores["chamadas_no_manifest_obs"] = len(call_ids_manifest_unicos)
+        contadores["chamadas_descobertas_total"] = len(call_ids_descobertos_unicos)
+
+        for interacao in interacoes:
+            direction = _resolve_huawei_is_call_in(interacao)
+            if direction is True:
+                contadores["direcao_resolvida"] += 1
+                contadores["direcao_inbound"] += 1
+            elif direction is False:
+                contadores["direcao_resolvida"] += 1
+                contadores["direcao_outbound"] += 1
+            else:
+                contadores["direcao_desconhecida"] += 1
+
+        if not interacoes:
+            logger.info("Sync Huawei: nenhuma chamada descoberta na VDN nem no manifesto OBS.")
+            return contadores
+
+        logger.info(
+            "Sync Huawei descoberta: vdn=%s, manifest=%s, total=%s, direcao_resolvida=%s, direcao_desconhecida=%s, query_directions=%s",
+            contadores["chamadas_na_vdn"],
+            contadores["chamadas_no_manifest_obs"],
+            contadores["chamadas_descobertas_total"],
+            contadores["direcao_resolvida"],
+            contadores["direcao_desconhecida"],
+            ",".join(call_directions),
+        )
+
+        # 2.1 Pré-carga de cotas mensais (otimização D-1)
+        unique_op_keys: list[tuple[str, str]] = []
+        seen_op_keys_set: set[tuple[str, str]] = set()
+        for interacao in interacoes:
+            op = _resolve_operador_interacao(interacao, operator_by_id, operator_by_name)
+            if _should_skip_call(interacao, op):
+                continue
+            name_norm = str(op.get("nome") or op.get("name") or "").strip().lower()
+            id_norm = str(op.get("id_telefonia") or op.get("id_huawei") or "").strip().lower()
+            key = (name_norm, id_norm)
+            if (name_norm or id_norm) and key not in seen_op_keys_set:
+                unique_op_keys.append((op.get("nome") or op.get("name") or "", op.get("id_telefonia") or op.get("id_huawei") or ""))
+                seen_op_keys_set.add(key)
+        
+        from repositories.audits import get_operator_audit_counts_for_month_bulk
+        hoje = datetime.now()
+        quota_by_operator = get_operator_audit_counts_for_month_bulk(
+            database.get_connection,
+            unique_op_keys,
+            hoje.year,
+            hoje.month
+        )
+
+        min_duration_seconds = max(
+            0,
+            _runtime_int_config(
+                "HUAWEI_SYNC_MIN_DURATION_SECONDS",
+                ("huawei_sync_min_duration_seconds", "huawei_d1_min_duration_seconds"),
+                DEFAULT_HUAWEI_SYNC_MIN_DURATION_SECONDS,
+            ),
+        )
+        max_duration_seconds = max(
+            0,
+            _runtime_int_config(
+                "HUAWEI_SYNC_MAX_DURATION_SECONDS",
+                ("huawei_sync_max_duration_seconds", "huawei_d1_max_duration_seconds"),
+                DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS,
+            ),
+        )
+        max_download_attempts = _effective_download_attempt_limit()
+        contadores["min_duracao_padrao_segundos"] = min_duration_seconds
+        contadores["max_duracao_padrao_segundos"] = max_duration_seconds
+        contadores["limite_tentativas_download"] = max_download_attempts
+        contadores["limite_downloads"] = max_download_attempts
+
+        candidatas: list[dict] = []
+        sorted_interacoes = sorted(interacoes, key=_download_candidate_sort_key, reverse=True)
+        for index, interacao in enumerate(sorted_interacoes, start=1):
+            if index == 1 or index % 250 == 0 or index == len(sorted_interacoes):
+                _notify_progress(progress_callback, "selecting_candidates", index, len(sorted_interacoes))
+            if _cancel_requested(should_cancel):
+                contadores.update(
+                    {
+                        "status": "cancelled",
+                        "message": "Coleta de ligacoes cancelada antes de selecionar novos downloads.",
+                        "cancelado": True,
+                    }
+                )
+                break
+
+            call_id = _resolve_call_key(interacao)
+            if not call_id:
+                continue
+
+            operador_resolvido = _resolve_operador_interacao(
+                interacao,
+                operator_by_id,
+                operator_by_name,
+            )
+            _inject_operator_truth(interacao, operador_resolvido)
+
+            skip_reason = _should_skip_call(interacao, operador_resolvido)
+            if skip_reason:
+                _increment_skip_counter(contadores, skip_reason)
+                _debug_direction_skip(call_id, interacao, operador_resolvido, skip_reason)
+                _register_direction_skip(call_id, interacao, operador_resolvido, skip_reason)
+                continue
+
+            # Filtro de cota mensal pré-download
+            op_name_norm = str(operador_resolvido.get("nome") or operador_resolvido.get("name") or "").strip().lower()
+            op_id_norm = str(operador_resolvido.get("id_telefonia") or operador_resolvido.get("id_huawei") or "").strip().lower()
+            op_key = (op_name_norm, op_id_norm)
+            
+            cota_max = max(
+                1,
+                _coerce_int(database.get_config_value("huawei_cota_max_por_operador_mes", "2"), 2),
+            )
+            current_quota = quota_by_operator.get(op_key, 0)
+            
+            if (op_name_norm or op_id_norm) and current_quota >= cota_max:
+                contadores.setdefault("ignoradas_cota_mensal_pre_download", 0)
+                contadores["ignoradas_cota_mensal_pre_download"] += 1
+                database.huawei_sync_log_registrar(
+                    call_id=call_id,
+                    agent_id=op_id_norm or None,
+                    media_url=None,
+                    status="skipped_quota",
+                    failure_reason="cota_mensal_atingida",
+                    operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
+                    huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
+                )
+                continue
+
+            setor = str(operador_resolvido.get("setor") or "").strip()
+            min_sec, max_sec = _get_duration_limits_for_sector(
+                setor,
+                min_duration_seconds,
+                max_duration_seconds,
+            )
+
+            duration = get_call_duration_seconds(interacao)
+            duration_known = _call_duration_is_known(interacao)
+            if duration_known and duration < min_sec:
+                contadores.setdefault("ignoradas_duracao_minima", 0)
+                contadores["ignoradas_duracao_minima"] += 1
+                continue
+            if duration_known and max_sec > 0 and duration > max_sec:
+                contadores.setdefault("ignoradas_duracao_maxima", 0)
+                contadores["ignoradas_duracao_maxima"] += 1
+                continue
+            if not duration_known:
+                contadores["sem_duracao_consideradas"] += 1
+
+            call_ids_validos_unicos.add(call_id)
+            if len(candidatas) >= max_download_attempts:
+                continue
+            if call_id in call_ids_tentados_no_ciclo:
+                contadores["ignoradas_tentadas_no_ciclo"] += 1
+                continue
+            if database.huawei_sync_log_exists(call_id):
+                if call_id not in call_ids_ja_sincronizados_no_ciclo:
+                    call_ids_ja_sincronizados_no_ciclo.add(call_id)
+                    contadores["duplicadas"] += 1
+                    contadores["ignoradas_ja_sincronizadas"] += 1
+                continue
+            candidatas.append(interacao)
+            call_ids_tentados_no_ciclo.add(call_id)
+            # Incremento virtual da cota para candidatos do mesmo ciclo
+            quota_by_operator[op_key] = current_quota + 1
+
+
+        contadores["chamadas_validas_pos_filtro"] = len(call_ids_validos_unicos)
+        contadores["candidatos_download"] = len(candidatas)
+        _notify_progress(progress_callback, "candidates_selected", len(candidatas), len(candidatas))
+
+        if contadores.get("status") == "cancelled":
+            return contadores
+
+        candidatos_pre_triagem = len(candidatas)
+        candidatas = await _aplicar_triagem_setorial(candidatas, contadores)
+        contadores["candidatos_pos_triagem"] = len(candidatas)
+        contadores["triagem_descartados"] = candidatos_pre_triagem - len(candidatas)
+        _notify_progress(progress_callback, "triaged", len(candidatas), candidatos_pre_triagem)
+        if candidatos_pre_triagem:
+            logger.info(
+                "Triagem setorial: %d -> %d (descartados=%d).",
+                candidatos_pre_triagem,
+                len(candidatas),
+                candidatos_pre_triagem - len(candidatas),
+            )
+
+        concurrency = max(
+            1,
+            _coerce_int(
+                os.getenv("HUAWEI_SYNC_DOWNLOAD_CONCURRENCY"),
+                DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY,
+            ),
+        )
+        contadores["concurrency_downloads"] = concurrency
+        semaforo = asyncio.Semaphore(concurrency)
+        downloads_concluidos = 0
+
+        async def _wrap(interacao: dict) -> Dict[str, Any]:
+            nonlocal downloads_concluidos
+            async with semaforo:
+                try:
+                    return await _processar_candidato(
+                        interacao,
+                        client=client,
+                        obs_client=obs_client,
+                        download_chain=download_chain,
+                        operator_by_id=operator_by_id,
+                        operator_by_name=operator_by_name,
+                        should_cancel=should_cancel,
+                        is_manual=is_manual,
+                    )
+                finally:
+                    downloads_concluidos += 1
+                    _notify_progress(progress_callback, "downloading", downloads_concluidos, len(candidatas))
+
+        if candidatas:
+            await _wait_if_paused(should_pause, should_cancel)
+            if _cancel_requested(should_cancel) and contadores.get("status") != "cancelled":
+                contadores.update(
+                    {
+                        "status": "cancelled",
+                        "message": "Coleta cancelada antes de iniciar downloads.",
+                        "cancelado": True,
+                    }
+                )
+                return contadores
+            logger.info(
+                "Sync Huawei: %d candidatos sendo processados em paralelo (concurrency=%d).",
+                len(candidatas),
+                concurrency,
+            )
+            _notify_progress(progress_callback, "downloading", 0, len(candidatas))
+            resultados = await asyncio.gather(*[_wrap(i) for i in candidatas])
+            for delta in resultados:
+                if not isinstance(delta, dict):
+                    continue
+                for key in _PROCESS_DELTA_INT_KEYS:
+                    contadores[key] = contadores.get(key, 0) + int(delta.get(key, 0) or 0)
+                erros = delta.get("erros") or []
+                if erros:
+                    contadores["erros"].extend(erros)
+
+        if _cancel_requested(should_cancel) and contadores.get("status") != "cancelled":
+            contadores.update(
+                {
+                    "status": "cancelled",
+                    "message": "Coleta de ligacoes cancelada pelo usuario.",
+                    "cancelado": True,
+                }
+            )
+
+        # Fase 2 — Classificacao real (Whisper + GPT) dos itens recem enfileirados.
+        # Por padrao fica desligada: Telefonia baixa/enfileira e a triagem decide
+        # alerta/setor com contexto proprio. Reative temporariamente com
+        # HUAWEI_SYNC_ENABLE_CLASSIFY=true se precisar do comportamento legado.
+        if contadores.get("status") != "cancelled" and _should_run_auto_classification_after_sync():
+            classify_stats = await _classificar_pendentes_async(
+                concurrency=_coerce_int(
+                    os.getenv("HUAWEI_SYNC_CLASSIFY_CONCURRENCY"),
+                    DEFAULT_HUAWEI_SYNC_CLASSIFY_CONCURRENCY,
+                ),
+                operator_by_id=operator_by_id,
+                operator_by_name=operator_by_name,
+                should_cancel=should_cancel,
+                progress_callback=progress_callback,
+            )
+            contadores["classificadas"] = classify_stats.get("classificadas", 0)
+            contadores["erros_classificacao"] = classify_stats.get("erros", 0)
+            contadores["pendentes_classificacao"] = classify_stats.get("pendentes_restantes", 0)
+            contadores["classificacao_automatica"] = "enabled"
+        else:
+            contadores["classificadas"] = 0
+            contadores["erros_classificacao"] = 0
+            contadores["pendentes_classificacao"] = contadores.get("enfileiradas", 0)
+            contadores["classificacao_automatica"] = "disabled"
+
+        logger.info(
+            "Sync Huawei concluido: %(baixadas)d baixadas, %(enfileiradas)d enfileiradas, %(duplicadas)d duplicadas",
+            contadores,
+        )
+        return contadores
+
+    except Exception as exc:
+        logger.exception("Erro critico na sync Huawei: %s", exc)
+        return {
+            "status": "error",
+            "message": str(exc),
+            "baixadas": 0,
+            "enfileiradas": 0,
+        }
+    finally:
+        sync_lock.release()
+        if 'obs_http_client' in locals() and obs_http_client is not None:
+            try:
+                await obs_http_client.aclose()
+            except Exception:
+                logger.exception("Falha ao fechar httpx.AsyncClient compartilhado do OBS.")
+
+
+                logger.exception("Falha ao fechar httpx.AsyncClient compartilhado do OBS.")
+

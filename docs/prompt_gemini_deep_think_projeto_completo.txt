@@ -1,0 +1,73 @@
+RESUMO DO PROJETO
+
+Nome do sistema: Sistema de Auditoria nstech
+
+Objetivo principal:
+Aplicacao full stack para auditoria inteligente de ligacoes telefonicas e alguns fluxos documentais. O sistema recebe audio ou PDF, faz transcricao, avalia criterios operacionais com IA, gera nota e comentarios, salva historico, envia auditorias para fila de revisao/aprovacao e exporta relatorios em Excel, PDF e DOCX.
+
+Stack principal:
+- Frontend: React 19 + TypeScript + Vite
+- Estilo/UI: Tailwind CSS + componentes proprios
+- Backend: FastAPI em Python 3.11
+- Banco: SQLite local com sistema proprio de migracoes
+- IA de transcricao: Azure Speech, Azure Whisper, GPT-4o diarize, AssemblyAI
+- IA de avaliacao: Gemini e Azure OpenAI
+- Exportacao: Excel, PDF, DOCX
+- Deploy local/producao: Docker e scripts PowerShell
+
+Arquitetura geral:
+- O frontend segue organizacao por features em `src/features`.
+- O shell principal fica em `src/App.tsx`, com lazy loading para modulos maiores.
+- O backend sobe em `backend/main.py`, registra middlewares, CORS, rate limit global e routers FastAPI.
+- As rotas estao separadas por fluxo em `backend/routers`.
+- A persistencia esta em transicao: existem `backend/repositories/*` por dominio, mas `backend/database.py` ainda funciona como fachada grande e legada.
+- O schema e as migracoes vivem em `backend/db/`.
+
+Modulos de negocio do frontend:
+- `audit`: fluxo principal de auditoria
+- `dashboard`: indicadores, historico e consultas
+- `classifier`: triagem/classificacao de audios
+- `supervisor`: portal do supervisor para aprovar, contestar e acompanhar auditorias
+- `review`: revisao tecnica de contestacoes e fila relacionada
+- `saved-files`: consulta de artefatos salvos
+- `settings`: configuracoes e administracao
+- `colaboradores`: gestao de colaboradores e vinculacoes operacionais
+
+Principais fluxos de negocio:
+1. Usuario autentica no sistema.
+2. Seleciona setor/alerta/operador e envia um arquivo.
+3. O backend identifica tipo do arquivo.
+4. Se for audio, roda pipeline de transcricao com smart routing e fallback entre provedores.
+5. O sistema aplica avaliacao por IA sobre criterios do alerta/setor.
+6. O resultado inclui nota, detalhes por criterio, resumo, metadados de qualidade e transcricao.
+7. O usuario pode reavaliar manualmente a transcricao editada.
+8. A auditoria pode ser salva no dashboard/fila do supervisor.
+9. Supervisores aprovam ou contestam.
+10. Contestacoes seguem para revisao tecnica/admin.
+11. Relatorios podem ser exportados em formatos diferentes.
+
+Backend por dominio:
+- `routers/auth.py`: login, logout, sessao e controle de acesso
+- `routers/audit.py`: auditoria, reavaliacao e downloads/exportacoes
+- `routers/system.py`: health, configuracoes, dashboard e analytics
+- `routers/supervisor.py`: portal do supervisor, feedback, aprovacao, contestacao e exportacao gestorial
+- `routers/review.py`: fila de revisao tecnica e vereditos
+- `routers/admin.py`: usuarios, colaboradores e administracao
+- `routers/saved_files.py`: CRUD de arquivos salvos
+- `routers/classifier.py`: classificacao/triagem
+
+Pontos tecnicos importantes:
+- Existe controle de autenticacao por cookie e papeis como `admin` e `supervisor`.
+- O backend serve o frontend estatico a partir de `dist/` quando presente.
+- A camada de audio tem logica de diarizacao, normalizacao de falantes, heuristicas e avaliacao de qualidade.
+- O projeto possui muitos scripts operacionais e documentos internos que explicam regras de negocio e planejamento.
+- O banco possui migracoes nomeadas em `backend/db/migration_steps/`.
+- O projeto tem testes backend em `backend/tests/` e um teste de regressao frontend em `tests/frontend-regressions.test.mjs`.
+
+Pontos de atencao provaveis:
+- `backend/database.py` ainda concentra muita responsabilidade e compatibilidade legada.
+- Existem sinais de refatoracao em andamento entre fachada legada e repositories.
+- O sistema mistura regras de negocio, IA, persistencia e exportacao em alguns fluxos ainda acoplados.
+- O projeto tem muitas regras especificas por setor, alerta, criterio e fila de revisao.
+- Parte relevante do valor do sistema esta no comportamento do dominio, nao apenas na interface.
+mo melhorar o sistema inteiro com criterio tecnico, prioridade e plano de execucao.

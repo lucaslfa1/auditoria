@@ -1,0 +1,2963 @@
+[
+  {
+    "path": "D:\\auditoria\\Ligações\\CADASTRO\\BOAS\\ANTECEDENTES-agent-11214-5_11_2025_17_13_3-node01-1762373580-26728.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 54,
+        "diarization": {
+          "score": 0.56,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 4,
+          "segment_count": 54,
+          "human_segment_count": 53,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0,
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            3
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 53,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Atenção, ligação receptiva.",
+          "Cliente: Olá,",
+          "Operador: Cadastro Juliane Bourdier."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\CADASTRO\\RUINS\\ANTECEDENTES-agent-10362-8_10_2025_12_25_17-node01-1759937115-60427.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 36,
+        "diarization": {
+          "score": 0.43,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 36,
+          "human_segment_count": 36,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:20.250",
+              "end": "00:35.676",
+              "speaker": "cliente",
+              "text": "Cliente: Oi, Camila, tudo bem? Aqui é o Leandro. Eu sou o proprietário da TRF Ned. Nós temos... O trabalho com a frimexa aqui, o meu cadastro deu um probleminha ali, eu não estava "
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 35,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Operador: Cadastro, Camila, boa tarde.",
+          "Cliente: Oi, boa tarde. Com quem eu falo?",
+          "Operador: Com a Camila da Central de Cadastro, como posso lhe ajudar?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\ATRASO-MOTORISTA-20251230173926115_Danilo_Alves_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 15,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 15,
+          "human_segment_count": 15,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 15,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada"
+          ]
+        },
+        "preview": [
+          "Motorista: Obrigado.",
+          "Operador: Bom dia.",
+          "Operador: Bom dia. Está me ouvindo?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\DESVIO-MOTORISTA-agent-11218-19_11_2025_19_57_50-node01-1763593067-198710.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 38,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 38,
+          "human_segment_count": 38,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 38,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô, boa",
+          "Operador: Alô, boa noite.",
+          "Motorista: noite."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\PARADA-MOTORISTA-agent-11406-1_10_2025_8_19_35-node01-1759317573-76676.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 27,
+        "diarization": {
+          "score": 0.42,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 27,
+          "human_segment_count": 27,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "01:33.148",
+              "end": "01:34.398",
+              "speaker": "motorista",
+              "text": "Motorista: tchau."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 26,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Motorista: Hello!",
+          "Operador: Oi, bom dia, tudo bem?",
+          "Motorista: Tudo ótimo, tudo maravilhoso. O céu está lindo hoje."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\POSIÇÃO-MOTORISTA-20251230112504541_Camila_Florindo_Reinert_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 18,
+        "diarization": {
+          "score": 0.43,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 18,
+          "human_segment_count": 18,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0,
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:27.632",
+              "end": "00:28.432",
+              "speaker": "operador",
+              "text": "Operador: Quem gostaria?"
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 17,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Operador: Alô?",
+          "Operador: Alô?",
+          "Operador: Alô, falou com o senhor Anderson?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\TEMPERATURA-CLIENTE-agent-11426-20_10_2025_17_11_46-node01-1760991104-2103.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 56,
+        "diarization": {
+          "score": 0.22,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 56,
+          "human_segment_count": 56,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:19.386",
+              "end": "00:19.436",
+              "speaker": "cliente",
+              "text": "Cliente: Boa"
+            },
+            {
+              "start": "00:19.636",
+              "end": "00:19.786",
+              "speaker": "cliente",
+              "text": "Cliente: tarde."
+            },
+            {
+              "start": "00:22.036",
+              "end": "00:22.486",
+              "speaker": "cliente",
+              "text": "Cliente: Isso."
+            },
+            {
+              "start": "00:30.986",
+              "end": "00:31.686",
+              "speaker": "cliente",
+              "text": "Cliente: Qual veículo?"
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 52,
+            "high": 4
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Cliente: Oi.",
+          "Cliente: Alô.",
+          "Operador: Alô, boa tarde. Eu falo com a"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\TEMPERATURA-MOTORISTA-agent-11426-9_10_2025_16_58_31-node01-1760039909-75917.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 25,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 25,
+          "human_segment_count": 25,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 25,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô?",
+          "Motorista: Alô?",
+          "Operador: Alô, boa tarde. Eu falo Boa com você,"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\ATRASO-MOTORISTA-agent-112100-17_11_2025_12_24_58-node01-1763393095-166233.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 24,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 24,
+          "human_segment_count": 24,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 24,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô,",
+          "Operador: Alô, boa tarde.",
+          "Motorista: boa tarde, sim,"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\DESVIO-MOTORISTA-agent-11427-23_10_2025_19_58_11-node01-1761260289-29732.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 15,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 15,
+          "human_segment_count": 15,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 15,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alo,",
+          "Operador: Alô, seu Fabiano?",
+          "Motorista: oi, boa"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\PARADA-MOTORISTA-20-08-2025_11-11-04_112790_21995342893.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 32,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 32,
+          "human_segment_count": 32,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 32,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô.",
+          "Motorista: Alô.",
+          "Motorista: Alô."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\POSIÇÃO-MOTORISTA-20260108142611955_Bruno_Roberto_da_Silva_Logistica_Taborda_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 22,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 22,
+          "human_segment_count": 22,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 22,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada"
+          ]
+        },
+        "preview": [
+          "Operador: I mean, something just now.",
+          "Operador: Alô, bom dia?",
+          "Operador: Alô?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\TEMPERATURA-CLIENTE-20251230105252398_David_João_Cardoso_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 9,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 9,
+          "human_segment_count": 9,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 9,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Cliente: O carro era bom de ver.",
+          "Operador: Bom dia. Aqui é o David da Opentech, eu estou ligando referente temperatura.",
+          "Cliente: Opa, qual placa seria?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\TEMPERATURA-MOTORISTA-20260108100935776_Jaqueline_Frazao_de_Souza_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 29,
+        "diarization": {
+          "score": 0.42,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 4,
+          "segment_count": 29,
+          "human_segment_count": 29,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1,
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            3
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:33.204",
+              "end": "00:37.204",
+              "speaker": "operador",
+              "text": "Operador: Alo Alô, boa noite, eu falo com o Daniel."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 28,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Motorista: Gracias.",
+          "Operador: Alo Alô, boa noite, eu falo com o Daniel.",
+          "Operador: Oi Daniel, Jaqueline aqui do setor de temperatura da Alpentec. Descobri como o senhor é horário, a gente está com uma média de temperatura desde as 20h57 na sua viagem de Olímpia de Moura para Bagé. Você está c"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\LOGÍSTICA REVERSA-fe4558bec880fd7cd33187ad42b730f1.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 53,
+        "diarization": {
+          "score": 0.76,
+          "quality": "regular",
+          "swap_risk": "medium",
+          "raw_speaker_count": 2,
+          "segment_count": 53,
+          "human_segment_count": 51,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 51,
+            "high": 0
+          },
+          "notes": [
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondeleze. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para...",
+          "Telefonia: Atenção, ligação recebida. Falou que o escoteiro mandou em mim, escoteou a gente. Oi, eu queria abrir uma conta. De volta, aviso até ocorrer saber que estou adorando.",
+          "Operador: Quando vai dar ocorrência?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\MONITORAMENTO I-2025_09_25-10_34_49-11996521135-4721016123-175880728936577582.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 16,
+        "diarization": {
+          "score": 0.1,
+          "quality": "muito_baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 1,
+          "segment_count": 16,
+          "human_segment_count": 15,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "03:12.884",
+              "end": "03:16.484",
+              "speaker": "operador",
+              "text": "Operador: E é só o MP3. Vou fazer sua primeira vez no ponto de dança."
+            },
+            {
+              "start": "03:38.772",
+              "end": "03:39.822",
+              "speaker": "operador",
+              "text": "Operador: Quem está falando?"
+            },
+            {
+              "start": "03:40.922",
+              "end": "03:49.072",
+              "speaker": "operador",
+              "text": "Operador: Eu estou falando de um papete que você viu hoje. É o papete que você ouviu antes e depois de ter feito a sua função."
+            },
+            {
+              "start": "03:54.022",
+              "end": "03:56.822",
+              "speaker": "operador",
+              "text": "Operador: Onde tem 20 dólares, quem é que você paga?"
+            },
+            {
+              "start": "04:04.322",
+              "end": "04:06.022",
+              "speaker": "operador",
+              "text": "Operador: Eu perdi o meu dólar."
+            },
+            {
+              "start": "04:12.404",
+              "end": "04:13.604",
+              "speaker": "operador",
+              "text": "Operador: A professora Leonida,"
+            },
+            {
+              "start": "04:16.754",
+              "end": "04:19.854",
+              "speaker": "operador",
+              "text": "Operador: está na sua maternidade, senhor, no momento. É interessante."
+            },
+            {
+              "start": "04:22.854",
+              "end": "04:24.404",
+              "speaker": "operador",
+              "text": "Operador: Quero a sua enciclopédia."
+            },
+            {
+              "start": "04:28.454",
+              "end": "04:29.554",
+              "speaker": "operador",
+              "text": "Operador: O que é que você quer, seu filho?"
+            },
+            {
+              "start": "04:29.604",
+              "end": "04:33.654",
+              "speaker": "operador",
+              "text": "Operador: O que é que você quer, seu filho? O que é que você quer, seu filho?"
+            },
+            {
+              "start": "04:39.604",
+              "end": "04:41.604",
+              "speaker": "operador",
+              "text": "Operador: Agora vamos na sua primeira pesquisa, olhem."
+            },
+            {
+              "start": "05:14.238",
+              "end": "05:17.688",
+              "speaker": "operador",
+              "text": "Operador: Boa noite. É só mandar mais a sua comissão."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 0,
+            "high": 15
+          },
+          "notes": [
+            "apenas_um_speaker_detectado",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas em...",
+          "Operador: E é só o MP3. Vou fazer sua primeira vez no ponto de dança.",
+          "Operador: Quem está falando?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\MONITORAMENTO II-11a59f8be22d44a74aa0a096f9487e18.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 31,
+        "diarization": {
+          "score": 0.34,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 31,
+          "human_segment_count": 29,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "02:51.884",
+              "end": "02:54.134",
+              "speaker": "cliente",
+              "text": "Cliente: Abriu uma ocorrência, demorou?"
+            },
+            {
+              "start": "02:57.634",
+              "end": "02:58.834",
+              "speaker": "cliente",
+              "text": "Cliente: Giovanni Laferga."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 27,
+            "high": 2
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega.",
+          "Telefonia: Ligação recebida.",
+          "Operador: Eu vim de controle amarelo, Felipe, boa tarde, no que posso ajudar?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\LOGÍSTICA REVERSA-2025_09_15-14_59_52-38997222947-4721016123-175795919297847943.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 37,
+        "diarization": {
+          "score": 0.58,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 37,
+          "human_segment_count": 35,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 35,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mandelei. Digite um se você está com devolução parcial ou total. Digite dois se você está com problemas na entrega. Digite três para outros motivos ou fique na linha para ser atendido.",
+          "Operador: Bom, eu vou sair agora e sair na devolução.",
+          "Telefonia: Olá, bem-vindo à Torre Mandelei. Digite um se você está com devolução parcial ou total. Digite dois se você está com problemas na entrega."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\MONITORAMENTO I-2025_08_06-10_43_40-11995396051-4721016123-175448782075528041.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 28,
+        "diarization": {
+          "score": 0.46,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 4,
+          "segment_count": 28,
+          "human_segment_count": 26,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            3,
+            4
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "03:01.460",
+              "end": "03:10.560",
+              "speaker": "cliente",
+              "text": "Cliente: Boa noite, Estou com zero, zero quarenta e dois."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 25,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelei. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para outros motivos.",
+          "Telefonia: Atenção, ligação recebida. Muito obrigado.",
+          "Cliente: Oi, bom dia, como é que você está?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\MONITORAMENTO II-8ec063aeaa80dd36d5ab7a458c1ec9f9.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 37,
+        "diarization": {
+          "score": 0.6,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 37,
+          "human_segment_count": 34,
+          "telephony_segment_count": 3,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 34,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para outros motivos ou fique na linha para ser atendido.",
+          "Telefonia: Olá, bem-vindo à Torre Mendeleev. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para outros motivos. Ou fique na linha para ser atendido.",
+          "Cliente: Atenção!"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\DESVIO-CLIENTE-03-08-2025_21-23-06_11237_11953859270.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 35,
+        "diarization": {
+          "score": 0.3,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 35,
+          "human_segment_count": 35,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0,
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:26.292",
+              "end": "00:34.342",
+              "speaker": "operador",
+              "text": "Operador: Oi, Alô, boa noite. Meu nome é Jâncio da Central de Rastreamento da Paintech. Eu falo com o Flávio da Rua do Rei Transportes. Boa noite, Flávio. Tudo bem?"
+            },
+            {
+              "start": "00:34.342",
+              "end": "00:51.342",
+              "speaker": "operador",
+              "text": "Operador: boa noite. Seu sinal de contato a respeito de um veículo aqui com carga de origem Guarulhos, destino Manaus, placa AFW9J12, encaminhei via WhatsApp também. O veículo está"
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 33,
+            "high": 2
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Operador: Oi, Alô, boa noite. Meu nome é Jâncio da Central de Rastreamento da Paintech. Eu falo com o Flávio da Rua do Rei Transportes. Boa noite, Flávio. Tudo bem?",
+          "Operador: boa noite. Seu sinal de contato a respeito de um veículo aqui com carga de origem Guarulhos, destino Manaus, placa AFW9J12, encaminhei via WhatsApp também. O veículo está fora de rota, mandou marco de parada de",
+          "Operador: Eu estou entrando em contato para verificar se o condutor recebeu o plano de viagem com a rota cadastrada ou se o senhor tem algum contato atualizado do condutor, alguma informação de mudança de itinerário."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\PARADA-CLIENTE-27-08-2025_14-32-21_11387_11975608715.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 36,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 36,
+          "human_segment_count": 36,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:20.596",
+              "end": "00:24.946",
+              "speaker": "operador",
+              "text": "Operador: Bom dia, aqui é Maria Eduarda do setor de rastreamento da Opentech, tudo bem?"
+            },
+            {
+              "start": "00:26.946",
+              "end": "00:28.796",
+              "speaker": "operador",
+              "text": "Operador: Por gentileza, com quem eu falo?"
+            },
+            {
+              "start": "00:30.596",
+              "end": "00:38.296",
+              "speaker": "operador",
+              "text": "Operador: Ah, Bruno, eu estou entrando em contato devido a um alerta de parada indevida detectada aqui no sistema. Eu preciso verificar a situação."
+            },
+            {
+              "start": "00:43.156",
+              "end": "00:53.156",
+              "speaker": "operador",
+              "text": "Operador: Apaga aqui agora. Romeu, bravo, Fox, nono, golf, quarto, negativo."
+            },
+            {
+              "start": "00:55.906",
+              "end": "00:57.406",
+              "speaker": "cliente",
+              "text": "Cliente: Qual é a placa? RBN."
+            },
+            {
+              "start": "01:08.532",
+              "end": "01:10.132",
+              "speaker": "operador",
+              "text": "Operador: Quarto negativo."
+            },
+            {
+              "start": "01:15.082",
+              "end": "01:16.582",
+              "speaker": "cliente",
+              "text": "Cliente: Certo, estou colocando na tela aqui."
+            },
+            {
+              "start": "01:18.632",
+              "end": "01:20.882",
+              "speaker": "operador",
+              "text": "Operador: O horário"
+            },
+            {
+              "start": "01:25.982",
+              "end": "01:30.782",
+              "speaker": "operador",
+              "text": "Operador: da parada dele, peraí, só estou chegando"
+            },
+            {
+              "start": "01:30.782",
+              "end": "01:32.482",
+              "speaker": "cliente",
+              "text": "Cliente: Eu tenho 50 paradas somente, vamos lá."
+            },
+            {
+              "start": "01:34.532",
+              "end": "01:36.932",
+              "speaker": "cliente",
+              "text": "Cliente: Ele tem que abrir um descanso de refeição, uma hora."
+            },
+            {
+              "start": "01:37.780",
+              "end": "01:38.980",
+              "speaker": "operador",
+              "text": "Operador: Foi meio dia 17."
+            }
+          ],
+          "risk_counts": {
+            "low": 36,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Cliente: Alô?",
+          "Operador: Bom dia, aqui é Maria Eduarda do setor de rastreamento da Opentech, tudo bem?",
+          "Cliente: Bom dia, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\POSIÇÃO-CLIENTE-agent-11237-20_11_2025_22_50_29-node01-1763689827-211796.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 49,
+        "diarization": {
+          "score": 0.55,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 49,
+          "human_segment_count": 49,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 49,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Operador: Alô?",
+          "Cliente: Olá.",
+          "Operador: Boa noite, meu nome é Jean, sou da central de assinamento da Pentex. Eu falo com o Michel da Transrome Transportes."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\PRIORITÁRIO-CLIENTE-03-08-2025_14-45-31_10788_43991394271.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 47,
+        "diarization": {
+          "score": 0.23,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 47,
+          "human_segment_count": 47,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:23.540",
+              "end": "00:31.640",
+              "speaker": "operador",
+              "text": "Operador: O Cristiano, eu estou Lucas aqui da Operação Opentech e Jaguarfrangos. Eu preciso de uma ajuda aqui com uma situação de um veículo de vocês em São Paulo."
+            },
+            {
+              "start": "00:33.940",
+              "end": "00:39.740",
+              "speaker": "operador",
+              "text": "Operador: É um veículo aqui, a placa BW 4B99, motorista Edivaldo."
+            },
+            {
+              "start": "00:41.528",
+              "end": "01:04.228",
+              "speaker": "operador",
+              "text": "Operador: Ele apertou o botão de pânico num posto ali em Palmital, São Paulo, e no caso a gente não conseguiu falar mais com ele. Ele tinha mandado um comando de bloqueio e ele aca"
+            },
+            {
+              "start": "01:07.228",
+              "end": "01:08.678",
+              "speaker": "operador",
+              "text": "Operador: Ele está... é?"
+            },
+            {
+              "start": "01:09.978",
+              "end": "01:19.778",
+              "speaker": "operador",
+              "text": "Operador: Porque eles tinham até então apertado esse botão de fônico, né? A gente achou que podia existir alguma coisa relevante porque ele parou de comunicar."
+            },
+            {
+              "start": "01:25.128",
+              "end": "01:36.748",
+              "speaker": "operador",
+              "text": "Operador: Certo. E no caso a gente também considera o retorno, né? Porque até agora a regra de vocês é que ele retorne... arrastreado né não"
+            },
+            {
+              "start": "01:39.698",
+              "end": "01:56.244",
+              "speaker": "operador",
+              "text": "Operador: não consegui falar com ele e no caso ele ficou sem sem comunicar né ele tá no whatsapp ali ele não chega a receber ele não dá nenhum retorno então por conta disso a gente"
+            },
+            {
+              "start": "02:03.494",
+              "end": "02:09.494",
+              "speaker": "operador",
+              "text": "Operador: É, a gente acredita, eu acredito que ele tenha apertado também por esse motivo, né?"
+            },
+            {
+              "start": "02:09.694",
+              "end": "02:16.844",
+              "speaker": "operador",
+              "text": "Operador: Mas como ele não respondeu nada, então a gente está mantendo ele no radar para confirmar com ele, pelo menos."
+            },
+            {
+              "start": "02:19.344",
+              "end": "02:25.140",
+              "speaker": "operador",
+              "text": "Operador: Já, já tentei ligar, já tentei ligar pelo WhatsApp, já mandei mensagem no WhatsApp. Eu"
+            },
+            {
+              "start": "02:25.440",
+              "end": "02:35.390",
+              "speaker": "operador",
+              "text": "Operador: sei que na tecnologia não tem violação no veículo, mas ficou essa situação pendente, né? Ele estava numa região que não é uma região muito confiável ali, São Paulo, né?"
+            },
+            {
+              "start": "02:36.090",
+              "end": "02:43.240",
+              "speaker": "operador",
+              "text": "Operador: Então eu queria saber só se o motorista está tudo certo, que ele pudesse pelo menos confirmar pra gente."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 21,
+            "high": 26
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Cliente: Alô?",
+          "Operador: Alô, oi, boa tarde, tudo bem, Cristina?",
+          "Cliente: Tudo bem."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\DESVIO-CLIENTE-20-08-2025_16-52-53_11185_41991369072.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 12,
+        "diarization": {
+          "score": 0.24,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 4,
+          "segment_count": 12,
+          "human_segment_count": 12,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0,
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2,
+            3
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:38.564",
+              "end": "00:39.014",
+              "speaker": "operador",
+              "text": "Operador: O I?"
+            },
+            {
+              "start": "00:39.614",
+              "end": "00:42.214",
+              "speaker": "operador",
+              "text": "Operador: Luiz Renato, ele aqui do rastreamento pentecostal do BI."
+            },
+            {
+              "start": "00:44.014",
+              "end": "00:53.614",
+              "speaker": "operador",
+              "text": "Operador: Luiz, eu mandei um veículo para você ali no seu WhatsApp e no seu WhatsApp eu precisava que você desse uma olhadinha. É um veículo que precisa de ajuste de rota."
+            },
+            {
+              "start": "01:02.450",
+              "end": "01:07.750",
+              "speaker": "operador",
+              "text": "Operador: Ah, sim, não, mas é que daí ajustou, mas o motorista tá fora. Não sei se tu chegou a ver ali."
+            },
+            {
+              "start": "01:10.000",
+              "end": "01:13.350",
+              "speaker": "operador",
+              "text": "Operador: Só se você puder dar uma olhadinha e me dar um retorno aí no WhatsApp, tá bom?"
+            },
+            {
+              "start": "01:15.200",
+              "end": "01:16.000",
+              "speaker": "operador",
+              "text": "Operador: Obrigada, tchau, tchau."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 6,
+            "high": 6
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Operador: Oi, boa tarde, eu falo com o I?",
+          "Operador: Alô?",
+          "Operador: Alô?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\PARADA-CLIENTE-12-08-2025_13-17-49_11371_4733551674.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 28,
+        "diarization": {
+          "score": 0.22,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 28,
+          "human_segment_count": 27,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:51.924",
+              "end": "00:52.574",
+              "speaker": "cliente",
+              "text": "Cliente: Felipe, boa tarde."
+            },
+            {
+              "start": "00:58.524",
+              "end": "00:59.774",
+              "speaker": "cliente",
+              "text": "Cliente: Olá, deixa"
+            },
+            {
+              "start": "01:06.024",
+              "end": "01:06.574",
+              "speaker": "cliente",
+              "text": "Cliente: eu ver aqui."
+            },
+            {
+              "start": "01:09.524",
+              "end": "01:10.474",
+              "speaker": "cliente",
+              "text": "Cliente: Qual que é a placa?"
+            },
+            {
+              "start": "01:22.538",
+              "end": "01:23.788",
+              "speaker": "cliente",
+              "text": "Cliente: Poder repetir, por favor?"
+            },
+            {
+              "start": "01:25.488",
+              "end": "01:26.788",
+              "speaker": "cliente",
+              "text": "Cliente: Poder repetir, por favor?"
+            },
+            {
+              "start": "01:35.888",
+              "end": "01:37.038",
+              "speaker": "cliente",
+              "text": "Cliente: Nome do genérico."
+            },
+            {
+              "start": "01:38.538",
+              "end": "01:39.138",
+              "speaker": "cliente",
+              "text": "Cliente: Motorista, sim?"
+            },
+            {
+              "start": "01:44.338",
+              "end": "01:45.138",
+              "speaker": "cliente",
+              "text": "Cliente: Qual que é o problema?"
+            },
+            {
+              "start": "01:54.484",
+              "end": "01:58.834",
+              "speaker": "cliente",
+              "text": "Cliente: Parece que ele está na última entrega aqui. Eu vou tentar contato no WhatsApp com ele."
+            },
+            {
+              "start": "02:04.184",
+              "end": "02:05.734",
+              "speaker": "cliente",
+              "text": "Cliente: Não sei, vamos perguntar para ele aqui."
+            },
+            {
+              "start": "02:37.390",
+              "end": "02:39.090",
+              "speaker": "cliente",
+              "text": "Cliente: Oi, a Elisabeth me respondeu aqui."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 13,
+            "high": 14
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, você ligou para JR Transportes. Digite 1 para coleta, 2 saque, 3 faturamento, 4 financeiro, 5 RH, 6 administrativo ou aguarde atendimento.",
+          "Cliente: Felipe, boa tarde.",
+          "Operador: Boa tarde, me chamo Stephanie, falo da Opentech, área de rastreamento."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\POSIÇÃO-CLIENTE-agent-11233-25_11_2025_13_21_2-node01-1764087659-265979.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 12,
+        "diarization": {
+          "score": 0.44,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 12,
+          "human_segment_count": 12,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:26.662",
+              "end": "00:27.512",
+              "speaker": "cliente",
+              "text": "Cliente: E qual sua placa?"
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 11,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Operador: Muito obrigado.",
+          "Cliente: Alô?",
+          "Operador: Alô, boa tarde, meu nome é Juan."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\PRIORITÁRIO-CLIENTE-09-08-2025_21-38-19_11296_11981820231.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 25,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 25,
+          "human_segment_count": 25,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 25,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: José, boa noite.",
+          "Operador: Alô?",
+          "Cliente: O pintor teste realmente Juliana, boa noite?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\DESVIO-MOT-02-08-2025_15-45-28_10858_18997246914.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 86,
+        "diarization": {
+          "score": 0.45,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 86,
+          "human_segment_count": 86,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:46.190",
+              "end": "00:47.140",
+              "speaker": "motorista",
+              "text": "Motorista: Deixa eu ver aqui."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 85,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Motorista: You're gonna erase that in two seconds.",
+          "Motorista: No, I like it. I'd like to take my phone.",
+          "Motorista: Tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\PARADA-MOT-agent-4218-4_10_2025_10_41_55-node01-1759585314-17302.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 50,
+        "diarization": {
+          "score": 0.42,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 4,
+          "segment_count": 50,
+          "human_segment_count": 50,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1,
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            3
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:20.532",
+              "end": "00:25.982",
+              "speaker": "motorista",
+              "text": "Motorista: Sua ligação foi encaminhada ao voicemail. A pessoa que você está tentando contatar não está disponível."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 49,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Motorista: Sua ligação foi encaminhada ao voicemail. A pessoa que você está tentando contatar não está disponível.",
+          "Operador: Alô?",
+          "Operador: Falou bom dia, falou com o senhor Fábio?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\POSIÇÃO-MOT-12-09-2025_08-20-17_1697_63993043486.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 35,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 35,
+          "human_segment_count": 35,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 35,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, bom",
+          "Motorista: dia. Oh, bom dia!",
+          "Operador: Boa noite, boa noite. Daí, ele é que deu o piencach, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\PRIORITÁRIO-MOT-agent-11201-1_11_2025_7_30_31-node01-1761993029-138033.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 21,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 21,
+          "human_segment_count": 21,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 21,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Hola, bon dia. A la vegada que ha entrado a Bentecki, estoy hablando con la señora de Nilsson.",
+          "Operador: seguridad, por gentileza.",
+          "Motorista: Não tem que passar sem segurança não, moça."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\DESVIO-MOT-agent-1622-2_10_2025_8_58_47-node01-1759406325-90466.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 19,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 19,
+          "human_segment_count": 19,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 19,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Hello, I'm a friend of",
+          "Operador: Ah, olá, isso aí.",
+          "Operador: Bom dia, já conseguiu um monitoramento do Pentelex falando, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\PARADA-MOT-20251229174101210_Solange_Miranda_de_Araujo_G2L_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 25,
+        "diarization": {
+          "score": 0.56,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 25,
+          "human_segment_count": 25,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0,
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 25,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Operador: Alô?",
+          "Operador: Alô, bom dia. Bom dia.",
+          "Operador: Falo com o senhor Manuel?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\POSIÇÃO-MOT-02-09-2025_18-58-55_11368_11953819293.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 21,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 21,
+          "human_segment_count": 21,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 21,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada"
+          ]
+        },
+        "preview": [
+          "Operador: Alô, boa noite.",
+          "Motorista: Boa noite.",
+          "Operador: Aqui é o Eliane do setor de distribuição da Pentex, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\PRIORITÁRIO-MOT-agent-11242-28_10_2025_8_15_52-node01-1761650149-82216.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 30,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 30,
+          "human_segment_count": 30,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 30,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô?",
+          "Operador: Oi.",
+          "Operador: Alô, bom dia. Aqui é Bianca do departamento da Opentech. Falo com José Eustão de Arujo."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\212313123.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 43,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 43,
+          "human_segment_count": 43,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 43,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Policia: Se tiver online, eu falo.",
+          "Operador: Alô, bom dia.",
+          "Operador: Oi, tudo bem? Você fala com o Milani. Eu falo em nome do rastreamento da OpenStack. A gente trabalha com monitorização de carga. Tem um veículo nosso que acabou perdendo sinal. A gente está atuando numa suspeit"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\BOA-POLICIA-22-09-2025_01-58-05_1700_8633026366.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 45,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 45,
+          "human_segment_count": 45,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 45,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, bom dia, com quem eu falo?",
+          "Policia: Com o PRF Alves.",
+          "Operador: Quem fala aqui é o Flávio da base de sinistro do Peteco, trabalho com o rastreamento de autocarros, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\RUIM-POLICIA-agent-10610-4_11_2025_1_55_31-node01-1762232128-715 - Copia.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 48,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 48,
+          "human_segment_count": 48,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 48,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada"
+          ]
+        },
+        "preview": [
+          "Policia: Esquivar o André.",
+          "Operador: Bom dia.",
+          "Policia: Com quem falo?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\PONTO DE APOIO\\RUIM-PONTO DE APOIO-20251223152017944_Priscila_Cabral_Fenix_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Ponto de Apoio",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 21,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 5,
+          "segment_count": 21,
+          "human_segment_count": 21,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1,
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            3,
+            4
+          ],
+          "conference_possible": true,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "01:27.732",
+              "end": "01:28.582",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: A cabeça da bola."
+            },
+            {
+              "start": "01:33.232",
+              "end": "01:34.382",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Quem é que caminhão quer?"
+            },
+            {
+              "start": "02:00.116",
+              "end": "02:02.666",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Agora dá uma olhada que você consegue encontrar alguma coisa."
+            },
+            {
+              "start": "02:07.616",
+              "end": "02:08.066",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Ótimo."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 21,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Ponto de Apoio: Yeah",
+          "Operador: Olá, bom dia. Aqui é a Priscila do Aferiamento da Opentech. Tudo bem?",
+          "Operador: Então, eu estou com um diagnóstico aí, gostaria do parte aí do posto. Gostaria de saber se você conseguiria verificar para mim ali que eu não estou conseguindo contato com o motorista."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\COMPORTAMENTO INADEQUADO-agent-106760-12_11_2025_16_39_34-node01-1762976372-111187.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 32,
+        "diarization": {
+          "score": 0.43,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 32,
+          "human_segment_count": 32,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": true,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0,
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:39.110",
+              "end": "00:39.860",
+              "speaker": "operador",
+              "text": "Operador: 8549."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 31,
+            "high": 1
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Operador: Boa noite.",
+          "Operador: Boa tarde, é a Jéssica do rastreamento da Opentech?",
+          "Operador: Falou com o Kaique?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\DICA DE SENHA-10-08-2025_16-56-52_11209_11947829472.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 31,
+        "diarization": {
+          "score": 0.32,
+          "quality": "muito_baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 3,
+          "segment_count": 31,
+          "human_segment_count": 31,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:31.088",
+              "end": "00:31.688",
+              "speaker": "motorista",
+              "text": "Motorista: Entendi."
+            },
+            {
+              "start": "00:44.238",
+              "end": "00:45.438",
+              "speaker": "motorista",
+              "text": "Motorista: Acho que é 386."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 29,
+            "high": 2
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada",
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "abertura_humana_curta_com_peso_reduzido"
+          ]
+        },
+        "preview": [
+          "Motorista: Alô?",
+          "Operador: Está funcionando?",
+          "Operador: Tem certeza?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\INFORMAÇÃO ANTES SENHA-04-08-2025_11-47-02_11188_66996625159.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 35,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 35,
+          "human_segment_count": 35,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 35,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, bom",
+          "Motorista: Oi,",
+          "Operador: dia, aqui é o Lucas da Opentech Rastreamento, eu falo com o Gerson."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\INFORMOU INÍCIO SENHA ERRADA-20251226135711775_Daniella_Gomes_Distribuição_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 64,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 64,
+          "human_segment_count": 64,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 64,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Bom dia, senhor. A senhora deu?",
+          "Operador: Aqui na Daniela do Opentech, o senhor consegue me passar uma sua senha de segurança, por gentileza?",
+          "Operador: Muito obrigada pela confirmação. Só um momento."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\NÃO CONFIRMOU SNEHA-20260107164848396_Ruan_Richeli_da_Silva_Distribuição_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 8,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 8,
+          "human_segment_count": 8,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 8,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada"
+          ]
+        },
+        "preview": [
+          "Motorista: E é isso que eu queria.",
+          "Operador: Alô, boa tarde, meu nome é João, falo da Opentech, falo com o seu Adonir. Eu me rebatoar. Boa tarde. Então, o seu veículo perdeu posição aqui pra gente, mandei mensagem ali no WhatsApp, seria possível o senhor ",
+          "Motorista: Cara, eu tô chegando perto do primeiro preto, perto da entrega do Pega. Deixa eu ver uma coisa aqui, só um pouquinho."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\SOLICITOU SENHA OU CPF-agent-11216-3_11_2025_10_25_30-node01-1762176327-158835.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 26,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 26,
+          "human_segment_count": 26,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 26,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi, bom dia, eu falo com Raolino?",
+          "Operador: Aqui fala Valentina, eu recentemente cantei aqui, tudo bem?",
+          "Motorista: Tudo bem, graças a Deus."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\ATUAÇÃO TRATATIVA-CLIENTE-agent-11409-2_10_2025_11_49_14-node01-1759416552-92649.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 15,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 15,
+          "human_segment_count": 15,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 15,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, boa tarde. Fala com o Márcio Roberto.",
+          "Cliente: E, senhor,",
+          "Operador: Eu sou o Kevin Luiz, da logística da Opentech. Eu tenho uma entrega com possibilidade de devolução. Você poderia me auxiliar?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\CABINETS-CLIENTE-agent-11244-20_10_2025_16_26_11-node01-1760988369-1482.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 12,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 12,
+          "human_segment_count": 12,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 12,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Cliente: Alô?",
+          "Cliente: Alô?",
+          "Operador: Boa tarde, eu falo com a doutora Daniel."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\DEVOLUÇÃO-CLIENTE-agent-11444-25_11_2025_8_12_40-node01-1764069157-261200.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 18,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 18,
+          "human_segment_count": 18,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            0
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 18,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Cliente: Olá, bom dia.",
+          "Operador: Bom dia, falo com o supervisor Fábio?",
+          "Operador: Ok, só um instante."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\RUINS\\ATUAÇÃO TRATATIVA-CLIENTE-05-09-2025_12-57-32_11353_11953217745.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 34,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 34,
+          "human_segment_count": 34,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 34,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada"
+          ]
+        },
+        "preview": [
+          "Operador: Pode falar o que o senhor quiser.",
+          "Cliente: Oi.",
+          "Operador: Aqui é a Maria da logística da Pentak. Eu estou ligando referente ao cliente Serviço Automotivo Santa Rita, lá no Paulo César Duarte, número 25, Jardim Takolome, Itapê, São Paulo. O código desse cliente é 3756."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\RUINS\\DEVOLUÇÃO-CLIENTE-22-08-2025_11-33-33_11231_11976013982.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "gpt4o_diarize": {
+        "status": "ok",
+        "segment_count": 11,
+        "diarization": {
+          "score": 0.54,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 3,
+          "segment_count": 11,
+          "human_segment_count": 11,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": true,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": true,
+          "operator_speaker_ids": [
+            0
+          ],
+          "interlocutor_speaker_ids": [
+            1,
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 0,
+            "medium": 11,
+            "high": 0
+          },
+          "notes": [
+            "fragmentacao_de_speaker_detectada"
+          ]
+        },
+        "preview": [
+          "Operador: Alô, bom dia. Fala com Igor?",
+          "Cliente: Bom dia, tudo bem?",
+          "Operador: Aqui é a área da logística da Opentech, tudo bem?"
+        ]
+      }
+    }
+  }
+]

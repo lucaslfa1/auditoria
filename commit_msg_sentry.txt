@@ -1,0 +1,6 @@
+feat(sentry): enhance integration and forward frontend logs
+
+- Refactor Sentry initialization in backend/main.py for defensive loading and PII scrubbing.
+- Add mapping in routers/system.py to forward UI errors/warnings to Sentry.
+- Add comprehensive test coverage for Sentry configuration and log forwarding in test_sentry_monitoring.py.
+- Update global .env.example with Sentry env vars.

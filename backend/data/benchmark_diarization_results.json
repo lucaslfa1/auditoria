@@ -1,0 +1,448 @@
+[
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\PARADA-MOTORISTA-agent-11406-1_10_2025_8_19_35-node01-1759317573-76676.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 17,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 17,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 17,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi, bom dia, tudo bem?",
+          "Motorista: Tudo ótimo, tudo maravilhoso!",
+          "Operador: Ah que ótimo!"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\DESVIO-MOTORISTA-agent-11427-23_10_2025_19_58_11-node01-1761260289-29732.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 12,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 12,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 12,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô.",
+          "Operador: Alô, seu Fabiano.",
+          "Motorista: Oi."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\POSIÇÃO-MOT-12-09-2025_08-20-17_1697_63993043486.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 32,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 32,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 32,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, bom dia!",
+          "Motorista: Bom dia!",
+          "Operador: Bom dia, é a Daiane aqui da Opentech, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\PARADA-CLIENTE-27-08-2025_14-32-21_11387_11975608715.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 38,
+        "diarization": {
+          "score": 0.6,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 2,
+          "segment_count": 38,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "ambiguous_ranges": [
+            {
+              "start": "00:17.520",
+              "end": "00:17.920",
+              "speaker": "cliente",
+              "text": "Cliente: Alô?"
+            },
+            {
+              "start": "00:20.960",
+              "end": "00:25.200",
+              "speaker": "operador",
+              "text": "Operador: Bom dia, aqui é a Maria Eduarda do setor de rastreamento da Opentech, tudo bem?"
+            },
+            {
+              "start": "00:25.520",
+              "end": "00:26.400",
+              "speaker": "cliente",
+              "text": "Cliente: Bom dia, tudo bem?"
+            },
+            {
+              "start": "00:27.360",
+              "end": "00:29.040",
+              "speaker": "operador",
+              "text": "Operador: Por gentileza, com quem eu falo?"
+            },
+            {
+              "start": "00:29.360",
+              "end": "00:29.680",
+              "speaker": "cliente",
+              "text": "Cliente: Bruno."
+            },
+            {
+              "start": "00:31.120",
+              "end": "00:38.800",
+              "speaker": "operador",
+              "text": "Operador: Ah, Bruno, eu estou entrando em contato devido a um alerta de parada indevida detectada aqui no sistema. Eu preciso verificar a situação."
+            },
+            {
+              "start": "00:40.080",
+              "end": "00:40.720",
+              "speaker": "cliente",
+              "text": "Cliente: Qual placa?"
+            },
+            {
+              "start": "00:42.800",
+              "end": "00:53.440",
+              "speaker": "operador",
+              "text": "Operador: Vou informar a placa aqui agora. Romeu. Bravo, Fox, nono, Golf, quarto, negativo."
+            },
+            {
+              "start": "00:55.280",
+              "end": "00:55.760",
+              "speaker": "operador",
+              "text": "Operador: Oi?"
+            },
+            {
+              "start": "00:56.160",
+              "end": "00:56.720",
+              "speaker": "cliente",
+              "text": "Cliente: Qual é a placa?"
+            },
+            {
+              "start": "00:56.880",
+              "end": "00:57.600",
+              "speaker": "cliente",
+              "text": "Cliente: RBN?"
+            },
+            {
+              "start": "01:00.000",
+              "end": "01:10.320",
+              "speaker": "operador",
+              "text": "Operador: Romeo, Bravo, Fox, nono, Golf, quarto, negativo."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 0,
+            "high": 38
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Cliente: Alô?",
+          "Operador: Bom dia, aqui é a Maria Eduarda do setor de rastreamento da Opentech, tudo bem?",
+          "Cliente: Bom dia, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\POSIÇÃO-CLIENTE-agent-11233-25_11_2025_13_21_2-node01-1764087659-265979.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 9,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 9,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 9,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: alo boa tarde meu nome é Ruan alo tá me ouvindo?",
+          "Operador: Oi boa tarde meu nome é Ruan falou da Opentech eu te mandei ali no pessoal no WhatsApp um veículo que ele tá com quase uma hora de posição em atraso a gente não conseguiu contato ali com o motorista",
+          "Cliente: É qual que é a placa?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\BOA-POLICIA-22-09-2025_01-58-05_1700_8633026366.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Policia",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 37,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 37,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 37,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Policia: Alô?",
+          "Operador: Alô, bom dia, com quem eu falo?",
+          "Policia: Com PRF."
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\RUIM-POLICIA-agent-10610-4_11_2025_1_55_31-node01-1762232128-715 - Copia.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Policia",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 39,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 39,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 39,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Bom dia!",
+          "Policia: Com quem falo?",
+          "Operador: Oi, tudo bem?"
+        ]
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\PONTO DE APOIO\\RUIM-PONTO DE APOIO-20251223152017944_Priscila_Cabral_Fenix_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Ponto de Apoio",
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 20,
+        "diarization": {
+          "score": 0.6,
+          "quality": "baixa",
+          "swap_risk": "high",
+          "raw_speaker_count": 2,
+          "segment_count": 20,
+          "fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "ambiguous_ranges": [
+            {
+              "start": "00:23.740",
+              "end": "00:28.460",
+              "speaker": "operador",
+              "text": "Operador: Olá, bom dia. Aqui é a Priscila do rastreamento da Opentech. Tudo bem?"
+            },
+            {
+              "start": "00:28.460",
+              "end": "00:29.820",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Oi, tudo bem?"
+            },
+            {
+              "start": "00:31.100",
+              "end": "00:42.240",
+              "speaker": "operador",
+              "text": "Operador: Então, eu estou com um de nossos veículos que está no pátio do posto. Gostaria de saber se você conseguiria verificar para mim que eu não estou conseguindo contato com mo"
+            },
+            {
+              "start": "00:45.480",
+              "end": "00:48.640",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Qual que é a empresa lá?"
+            },
+            {
+              "start": "00:48.640",
+              "end": "00:50.160",
+              "speaker": "operador",
+              "text": "Operador: É, ele é da Compran."
+            },
+            {
+              "start": "00:52.880",
+              "end": "00:55.520",
+              "speaker": "operador",
+              "text": "Operador: Nós somos da Opentech, a gente que faz o rastreamento."
+            },
+            {
+              "start": "00:55.520",
+              "end": "00:59.080",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Qual que é a placa dele?"
+            },
+            {
+              "start": "01:00.400",
+              "end": "01:14.410",
+              "speaker": "operador",
+              "text": "Operador: F, DB, não, faca, dado, bola, oitavo."
+            },
+            {
+              "start": "01:19.520",
+              "end": "01:29.050",
+              "speaker": "operador",
+              "text": "Operador: Águia 35 Faca dado bola."
+            },
+            {
+              "start": "01:31.130",
+              "end": "01:31.850",
+              "speaker": "operador",
+              "text": "Operador: Isso."
+            },
+            {
+              "start": "01:33.530",
+              "end": "01:36.850",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Que caminhão que é?"
+            },
+            {
+              "start": "01:36.850",
+              "end": "01:37.810",
+              "speaker": "operador",
+              "text": "Operador: Peraí, só um momento."
+            }
+          ],
+          "risk_counts": {
+            "low": 0,
+            "medium": 0,
+            "high": 20
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Operador: Olá, bom dia. Aqui é a Priscila do rastreamento da Opentech. Tudo bem?",
+          "Ponto de Apoio: Oi, tudo bem?",
+          "Operador: Então, eu estou com um de nossos veículos que está no pátio do posto. Gostaria de saber se você conseguiria verificar para mim que eu não estou conseguindo contato com motorista?"
+        ]
+      }
+    }
+  }
+]

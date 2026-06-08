@@ -1,0 +1,16 @@
+* Checklist - WhatsApp
+Não tem regra que zere a auditoria.
+* Cadastro - Ligação receptiva - Alerta: Antecedentes 
+Itens que zeram: Não atender em até 45 segundos. Comportamento hostil ou incomum. Abandono de ligação.
+* Logística - Ligação efetuada (Motorista ou Cliente) - Alertas: Atraso, Ativação de AE, Estadia, Controle de Temperatura, Desligamento Temperatura, Atraso de Entrega, Parada Indevida (LOG), Desvio de Rota (LOG), Posição em Atraso (LOG) e Operação Taborda (WhatsApp)
+Itens que zeram: Comportamento hostil ou incomum. Abandono de ligação.
+* Unilever - Ligação efetuada (Cliente) - Alertas: Devolução, Cabinets, Atuação Tratativa, Distribuição e Loss Tree. 
+Itens que zeram: Comportamento hostil ou incomum. Abandono de ligação.
+* Mondelez - Ligação Receptiva - Alertas: Monitoramento I, Monitoramento II e Logística Reversa. 
+Itens que zeram: Não atender em até 45 segundos. Comportamento hostil ou incomum. Abandono de ligação.
+* Célula - WhatsApp 
+Não tem regra que zere a auditoria.
+* Distribuição, Rastreamento e UTI - Ligação Efetuada. Alertas: Parada Indevida, Desvio de Rota, Posição em Atraso, Botão de Pânico, Violação de Antena, Violação de Painel, Perda de Bateria, Inteferência por Jammer e Teclado Desconectado. 
+Itens que zeram: Não solicitar a senha. Fornecer informações antes de confirmar a senha. Solicitar CPF no lugar da senha (exceto quando condutor não recebeu a senha ou esta dirigindo). Acatar senha incorreta. Dar dica da senha. Informar no início da ligação que a senha está incorreta. Comportamento hostil ou incomum. Abandono de ligação.
+* BAS - Acionamento Policial - Alertas:  Parada Indevida, Desvio de Rota, Posição em Atraso, Botão de Pânico, Violação de Antena, Violação de Painel, Perda de Bateria, Inteferência por Jammer, Teclado Desconectado, BAS - Tratativa de Ocorrências, Acidente, Roubo, Possível Roubo e Possível Sinistro - Combo de Alertas.
+Não tem regra que zere a auditoria.

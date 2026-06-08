@@ -1,0 +1,1332 @@
+{
+  "snapshot_date": "2026-05-18",
+  "reason": "BBM absorvido por Distribuicao. Snapshot para revert eventual.",
+  "version_log": "logs/versions/1.3.74-migracao-bbm-distribuicao.md",
+  "sector": {
+    "id": "bbm",
+    "label": "BBM",
+    "description": "Setor de rastreamento - BBM (operação dedicada)"
+  },
+  "alerts": [
+    {
+      "id": "BBM-DESVIO-CLI",
+      "sector_id": "bbm",
+      "label": "Desvio de Rota - Cliente",
+      "pop_ref": "4.1.8",
+      "context": "Critérios de Auditoria – Alerta Desvio de Rota no Contato com o Motorista"
+    },
+    {
+      "id": "BBM-DESVIO-MOT",
+      "sector_id": "bbm",
+      "label": "Desvio de Rota - Motorista",
+      "pop_ref": "4.1.7",
+      "context": "Critérios de Auditoria – Alerta Desvio de Rota no Contato com o Motorista"
+    },
+    {
+      "id": "BBM-PARADA-CLI",
+      "sector_id": "bbm",
+      "label": "Parada Indevida - Cliente",
+      "pop_ref": "4.1.6",
+      "context": "Critérios de Auditoria – Alerta Parada Indevida no Contato com o Motorista"
+    },
+    {
+      "id": "BBM-PARADA-MOT",
+      "sector_id": "bbm",
+      "label": "Parada Indevida - Motorista",
+      "pop_ref": "4.1.5",
+      "context": "Critérios de Auditoria – Alerta Parada Indevida no Contato com o Motorista"
+    },
+    {
+      "id": "BBM-PONTO-APOIO",
+      "sector_id": "bbm",
+      "label": "Contato com Ponto de Apoio",
+      "pop_ref": "4.1.9",
+      "context": "Processo de Auditoria Telefônica – Ponto de Apoio"
+    },
+    {
+      "id": "BBM-POSICAO-CLI",
+      "sector_id": "bbm",
+      "label": "Posição em Atraso - Cliente",
+      "pop_ref": "4.1.4",
+      "context": "Critérios de Auditoria – Alerta Posição em Atraso no Contato com o Cliente"
+    },
+    {
+      "id": "BBM-POSICAO-MOT",
+      "sector_id": "bbm",
+      "label": "Posição em Atraso - Motorista",
+      "pop_ref": "4.1.3",
+      "context": "Critérios de Auditoria – Alerta Posição em Atraso no Contato com o Motorista"
+    },
+    {
+      "id": "BBM-PRIORITARIO-CLI",
+      "sector_id": "bbm",
+      "label": "Alerta Prioritário - Cliente",
+      "pop_ref": "4.1.2",
+      "context": "Critérios de Auditoria – Alerta Prioritário no Contato com o Cliente"
+    },
+    {
+      "id": "BBM-PRIORITARIO-MOT",
+      "sector_id": "bbm",
+      "label": "Alerta Prioritário - Motorista",
+      "pop_ref": "4.1.1",
+      "context": "Critérios de Auditoria – Alerta Prioritário no Contato com o Motorista"
+    },
+    {
+      "id": "BBM-PRIORITARIO-POLICIA",
+      "sector_id": "bbm",
+      "label": "Alerta Prioritario - Policia",
+      "pop_ref": "4.1.10",
+      "context": "Processo de Auditoria Telefônica – Acionamento Policial"
+    }
+  ],
+  "criteria": [
+    {
+      "id": 321467,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321468,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321469,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321470,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Confirmou com quem está falando?",
+      "weight": 0.4,
+      "description": "Garante que a informação seja passada para a pessoa correta. | Exemplo oficial: \"Por gentileza, com quem eu falo?\"",
+      "chave": null
+    },
+    {
+      "id": 321471,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.2,
+      "description": "O cliente precisa entender rapidamente a situação para fornecer informações precisas. | Exemplo oficial: \"Estou entrando em contato devido a um alerta de desvio de rota detectado no sistema. Preciso verificar a situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321472,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+      "weight": 1.3,
+      "description": "Alerta o cliente sobre a gravidade da situação, reforçando a necessidade de atenção e suporte imediato. | Exemplo oficial: \"Estamos tratando este caso como uma suspeita de sinistro e intensificando as tratativas para garantir a segurança da carga e do veículo.\"",
+      "chave": null
+    },
+    {
+      "id": 321473,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador informou as ações adotadas até o momento? (Resumir os contatos/tratativas com ou sem sucesso)",
+      "weight": 1.15,
+      "description": "Garante que o cliente tenha clareza sobre as tratativas realizadas e próximos passos. | Exemplo oficial: \"Já tentamos contato com o motorista e não obtivemos retorno. Também acionamos o ponto de apoio mais próximo e seguimos monitorando a movimentação do veículo.\"",
+      "chave": null
+    },
+    {
+      "id": 321474,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador informou o trajeto que o motorista está realizando e o que estava programado na rota?",
+      "weight": 1.0,
+      "description": "Ajuda o cliente a entender a divergência e avaliar o risco da situação. | Exemplo oficial: \"O motorista deveria seguir pela [Rodovia X], mas desviou para a [Rodovia Y] sem comunicação prévia.\"",
+      "chave": null
+    },
+    {
+      "id": 321475,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador questionou se o cliente tem conhecimento do motivo do desvio? O motorista informou antecipadamente?",
+      "weight": 1.0,
+      "description": "Verifica se o cliente recebeu algum aviso do motorista, evitando alarmes desnecessários. | Exemplo oficial: \"O motorista entrou em contato com vocês para informar que iria desviar? Há alguma orientação interna sobre essa mudança de rota?\"",
+      "chave": null
+    },
+    {
+      "id": 321476,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento antes da viagem?",
+      "weight": 1.0,
+      "description": "Garante que o motorista tinha ciência da rota planejada e das regras de rastreamento. | Exemplo oficial: \"O motorista recebeu o plano de viagem com a rota definida e as instruções de rastreamento antes da viagem?\"",
+      "chave": null
+    },
+    {
+      "id": 321477,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador indicou medidas de segurança ao cliente? (Ex.: Retornar a rota correta ou realizar o ajuste no sistema)",
+      "weight": 1.3,
+      "description": "Sugere alternativas para mitigar riscos e reforçar a segurança da operação. | Exemplo oficial: \"Solicitamos que oriente o motorista a seguir pela rota correta ou que seja feita a alteração via SIL.\"",
+      "chave": null
+    },
+    {
+      "id": 321478,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321479,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321480,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321481,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: \"Contato registrado: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321482,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321483,
+      "alert_id": "BBM-DESVIO-CLI",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321451,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321452,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321453,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321454,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+      "weight": 2.0,
+      "description": "A verificação de senha protege a comunicação e evita repasses indevidos de informações. | Exemplo oficial: \"Antes de prosseguirmos, poderia me confirmar sua senha de segurança, por favor?\"",
+      "chave": null
+    },
+    {
+      "id": 321455,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.03,
+      "description": "O motorista precisa entender rapidamente o problema para colaborar com a solução. | Exemplo oficial: \"Estamos identificando um desvio de rota no seu trajeto e precisamos entender a situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321456,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "O operador confirmou o motivo do desvio de rota?",
+      "weight": 1.05,
+      "description": "Identificar o motivo do desvio é essencial para definir as próximas ações e validar se houve uma alteração planejada. | Exemplo oficial: \"O que aconteceu para que você saísse da rota planejada?\"",
+      "chave": null
+    },
+    {
+      "id": 321457,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento?",
+      "weight": 1.05,
+      "description": "Garante que o motorista tinha ciência do trajeto e das regras de monitoramento antes do desvio. | Exemplo oficial: \"Você recebeu o plano de viagem com as instruções de rastreamento antes do início da viagem?\"",
+      "chave": null
+    },
+    {
+      "id": 321458,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Orientou o motorista a retornar para a rota ou permanecer parado até confirmação com o cliente?",
+      "weight": 1.05,
+      "description": "Dependendo do motivo do desvio, é necessário orientar a retomada do trajeto ou aguardar autorização. | Exemplo oficial: \"Por segurança, oriento que retorne ao trajeto previsto. Caso haja alguma mudança, vamos confirmar com o cliente.\"",
+      "chave": null
+    },
+    {
+      "id": 321459,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Coletou qual itinerário o motorista está realizando?",
+      "weight": 1.05,
+      "description": "Ajuda a entender se houve uma falha na programação da rota ou se o motorista recebeu uma nova orientação de terceiros. | Exemplo oficial: \"Por onde o senhor vai seguir agora? Esse trajeto foi repassado por alguém?\"",
+      "chave": null
+    },
+    {
+      "id": 321460,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "O operador informou os riscos operacionais e de seguro caso o motorista continue fora da rota?",
+      "weight": 1.12,
+      "description": "Esclarece ao motorista que a saída não autorizada da rota pode impactar na cobertura do seguro em caso de sinistro. | Exemplo oficial: \"Caso ocorra um sinistro fora da rota homologada, pode haver problemas com a cobertura do seguro da carga e do veículo.\"",
+      "chave": null
+    },
+    {
+      "id": 321461,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321462,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321463,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321464,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: \"Contato registrado: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321465,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321466,
+      "alert_id": "BBM-DESVIO-MOT",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321435,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321436,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321437,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321438,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Confirmou com quem está falando?",
+      "weight": 0.4,
+      "description": "Garante que a informação seja passada para a pessoa correta. | Exemplo oficial: \"Por gentileza, com quem eu falo?\"",
+      "chave": null
+    },
+    {
+      "id": 321439,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.2,
+      "description": "O cliente precisa entender rapidamente a situação para fornecer informações precisas. | Exemplo oficial: \"Estou entrando em contato devido a um alerta parada indevida detectado no sistema. Preciso verificar ua situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321440,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O operador informou as ações adotadas até o momento?",
+      "weight": 1.15,
+      "description": "Garante que o cliente tenha clareza sobre as tratativas realizadas e próximos passos. | Exemplo oficial: \"Já realizamos tentativas de contato com o motorista e ponto de apoio, sem sucesso até o momento. Estamos acionando as autoridades locais.\"",
+      "chave": null
+    },
+    {
+      "id": 321441,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O operador informou corretamente o local da parada? (Cidade, estado, referência como rodovia, posto, mecânica, etc.)",
+      "weight": 1.4,
+      "description": "Ajuda o cliente a entender o contexto e avaliar o risco da situação. | Exemplo oficial: \"O veículo está parado em [cidade], próximo a [posto/mecânica/km da rodovia].\"",
+      "chave": null
+    },
+    {
+      "id": 321442,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O operador confirmou se os pontos de parada autorizada foram passados ao motorista antes do início da viagem?",
+      "weight": 1.4,
+      "description": "Verifica se o motorista tinha conhecimento prévio das regras de parada. | Exemplo oficial: \"O motorista recebeu os pontos de parada autorizada antes do início da viagem? Estava ciente das restrições?\"",
+      "chave": null
+    },
+    {
+      "id": 321443,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O operador informou ao cliente sobre os riscos operacionais e de seguro caso a parada indevida permaneça?",
+      "weight": 1.4,
+      "description": "Esclarece ao cliente o impacto da parada não autorizada na cobertura do seguro e segurança da carga. | Exemplo oficial: \"Caso ocorra um sinistro enquanto o veículo está fora dos pontos autorizados, pode haver impacto na cobertura do seguro da carga e do veículo.\"",
+      "chave": null
+    },
+    {
+      "id": 321444,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O operador indicou medidas de segurança ao cliente? (Ex.: Seguir até posto autorizado, acionar escolta, pronta resposta, etc.)",
+      "weight": 1.4,
+      "description": "Sugere alternativas para mitigar riscos e reforçar a segurança da operação. | Exemplo oficial: \"Solicitamos que oriente o motorista a seguir até o posto autorizado mais próximo. Caso a parada persista, poderá ter problemas com a seguradora.",
+      "chave": null
+    },
+    {
+      "id": 321445,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321446,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321447,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321448,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: \"Contato registrado: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321449,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321450,
+      "alert_id": "BBM-PARADA-CLI",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321420,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321421,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321422,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321423,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+      "weight": 2.0,
+      "description": "A verificação de senha protege a comunicação e evita repasses indevidos de informações. | Exemplo oficial: \"Antes de prosseguirmos, poderia me confirmar sua senha de segurança, por favor?\"",
+      "chave": null
+    },
+    {
+      "id": 321424,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.03,
+      "description": "O motorista precisa entender rapidamente a gravidade da situação para corrigir a ação. | Exemplo oficial: \"Estou efetuando contato pois identificamos que o veículo está parado em um local não autorizado. Precisamos verificar essa situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321425,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O operador confirmou o motivo pelo qual o motorista parou em local indevido?",
+      "weight": 1.3,
+      "description": "Identificar a razão da parada permite avaliar riscos e definir a melhor orientação. | Exemplo oficial: \"Você precisou parar por algum motivo específico? Houve alguma falha no veículo?\"",
+      "chave": null
+    },
+    {
+      "id": 321426,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O operador confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento?",
+      "weight": 1.3,
+      "description": "Garantir que o motorista esteja ciente das regras e que tenha em mãos os locais homologados. | Exemplo oficial: \"Você recebeu todas as orientações sobre os locais homologados para parada?\"",
+      "chave": null
+    },
+    {
+      "id": 321427,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O operador orientou o motorista a reiniciar a viagem e seguir para um local homologado?",
+      "weight": 1.32,
+      "description": "A saída imediata do local reduz riscos operacionais e de segurança. | Exemplo oficial: \"Por favor, retome sua viagem e siga para um local autorizado o mais breve possível.\"",
+      "chave": null
+    },
+    {
+      "id": 321428,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O operador informou os riscos operacionais da parada indevida, incluindo problemas com seguro?",
+      "weight": 1.4,
+      "description": "Deixar claro os impactos de uma parada irregular faz com que o motorista compreenda a importância da orientação. | Exemplo oficial: \"Essa parada pode comprometer a cobertura do seguro em caso de sinistro. Precisamos que o veículo esteja em um local adequado.\"",
+      "chave": null
+    },
+    {
+      "id": 321429,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321430,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321431,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321432,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: Exemplo: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321433,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321434,
+      "alert_id": "BBM-PARADA-MOT",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321484,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321485,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321486,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321487,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Confirmou com quem está falando?",
+      "weight": 0.4,
+      "description": "Garante que a informação seja passada para a pessoa correta. | Exemplo oficial: \"Por gentileza, com quem eu falo?\"",
+      "chave": null
+    },
+    {
+      "id": 321488,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.2,
+      "description": "O atendente precisa entender rapidamente o objetivo da ligação para colaborar com a solução. | Exemplo oficial: \"Estamos monitorando um veículo que deve realizar parada no seu ponto de apoio e gostaríamos de confirmar algumas informações.\"",
+      "chave": null
+    },
+    {
+      "id": 321489,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "O operador informou os dados e as características do veículo? (cor, placa, modelo)",
+      "weight": 1.95,
+      "description": "Garante que a verificação seja feita no veículo correto. | Exemplo oficial: \"O veículo que estamos monitorando é um [modelo] de cor [cor], placa [placa].\"",
+      "chave": null
+    },
+    {
+      "id": 321490,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "O operador passou detalhes da última posição do veículo? (Referência dentro do posto)",
+      "weight": 1.6,
+      "description": "Confirma se o veículo realmente está no local indicado pelo sistema. | Exemplo oficial: \"O sistema mostra que ele está na área de abastecimento do posto. Pode confirmar essa informação?\"",
+      "chave": null
+    },
+    {
+      "id": 321491,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "O operador solicitou que o atendente verificasse se o conjunto (cavalo/carreta) estava no local sem violações?",
+      "weight": 1.6,
+      "description": "Certifica que não houve irregularidades ou violações durante a parada. | Exemplo oficial: \"Pode verificar se o conjunto esta sem nenhuma violação?\"",
+      "chave": null
+    },
+    {
+      "id": 321492,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "O operador orientou o atendente a chamar o motorista?",
+      "weight": 1.6,
+      "description": "Em alguns casos, falar diretamente com o motorista pode acelerar a verificação da situação. | Exemplo oficial: \"Poderia solicitar que o motorista venha até o telefone para conversarmos?\"",
+      "chave": null
+    },
+    {
+      "id": 321493,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321494,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321495,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321496,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: \"Contato registrado: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321497,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321498,
+      "alert_id": "BBM-PONTO-APOIO",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321403,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321404,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321405,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321406,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Confirmou com quem está falando?",
+      "weight": 0.4,
+      "description": "Garante que a informação seja passada para a pessoa correta. | Exemplo oficial: \"Por gentileza, com quem eu falo?\"",
+      "chave": null
+    },
+    {
+      "id": 321407,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.2,
+      "description": "O cliente precisa entender rapidamente a situação para fornecer informações precisas. | Exemplo oficial: \"Estou entrando em contato devido a um alerta de perda de posição detectado no sistema. Preciso verificar a situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321408,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+      "weight": 1.2,
+      "description": "Alerta o cliente sobre a gravidade da situação, reforçando a necessidade de atenção e suporte imediato. | Exemplo oficial: \"Estamos tratando este caso como uma suspeita de sinistro.\"",
+      "chave": null
+    },
+    {
+      "id": 321409,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador informou as ações adotadas, resumindo os contatos/tratativas realizados (com ou sem sucesso)?",
+      "weight": 1.15,
+      "description": "Garante que o cliente tenha visibilidade sobre os esforços da equipe e os próximos passos. | Exemplo oficial: \"Já realizamos tentativas de contato com o motorista e ponto de apoio, sem sucesso até o momento.\"",
+      "chave": null
+    },
+    {
+      "id": 321410,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador informou corretamente o local onde perdeu a posição? (Estado, cidade, parado/movimento, referência como posto, mecânica, rodovia)",
+      "weight": 1.1,
+      "description": "Ajuda o cliente a entender o contexto e avaliar o risco da situação. | Exemplo oficial: \"A última posição do veículo foi na cidade [cidade], no estado de [estado], com o veículo parado no posto [nome] na rodovia [rodovia].\"",
+      "chave": null
+    },
+    {
+      "id": 321411,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador questionou se o conjunto possui equipamento de contingência? (Ex.: isca, rastreador secundário, bloqueio remoto)",
+      "weight": 1.1,
+      "description": "Identifica possíveis alternativas para recuperar a visibilidade do veículo. | Exemplo oficial: \"Esse veículo possui algum equipamento de contingência, como segundo rastreador ou isca?\"",
+      "chave": null
+    },
+    {
+      "id": 321412,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador questionou se o cliente tem informações recentes sobre o veículo e o motorista? (Ex.: manutenção, revisão, problemas no rastreador)",
+      "weight": 1.1,
+      "description": "Permite cruzar informações, pois o motorista pode ter informado o cliente antes da gerenciadora. | Exemplo oficial: \"O motorista mencionou recentemente alguma manutenção, revisão ou problemas no rastreador diretamente com vocês?\"",
+      "chave": null
+    },
+    {
+      "id": 321413,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador confirmou os contatos atuais do condutor?",
+      "weight": 1.1,
+      "description": "Garante que os números utilizados estão corretos, evitando tentativas de contato desatualizadas. | Exemplo oficial: \"O número de telefone que temos registrado para o condutor é [número]. Pode me confirmar se é esse mesmo?\"",
+      "chave": null
+    },
+    {
+      "id": 321414,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321415,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321416,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321417,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: Exemplo: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321418,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321419,
+      "alert_id": "BBM-POSICAO-CLI",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321388,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321389,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321390,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321391,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+      "weight": 2.0,
+      "description": "A verificação de senha protege a comunicação e evita repasses indevidos de informações. | Exemplo oficial: \"Antes de prosseguirmos, poderia me confirmar sua senha de segurança, por favor?\"",
+      "chave": null
+    },
+    {
+      "id": 321392,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.03,
+      "description": "O motorista precisa entender rapidamente o problema para colaborar com a solução. | Exemplo oficial: \"Estamos identificando a perda do sinal do rastreador e precisamos entender a situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321393,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "O operador confirmou a localização atual do motorista? (Em movimento/parado, cidade e referência de local)",
+      "weight": 1.22,
+      "description": "É essencial identificar se a falta de sinal está relacionada ao deslocamento ou a um local de sombra de sinal. | Exemplo oficial: \"O caminhão está parado ou em movimento? Você pode me passar um ponto de referência posto, km da rodovia? Qual a cidade?\"",
+      "chave": null
+    },
+    {
+      "id": 321394,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Passou orientações para forçar posicionamento do rastreador? (Envio de mensagem, reset de bateria, etc.)",
+      "weight": 2.0,
+      "description": "Medidas corretivas ajudam a restabelecer o sinal, garantindo continuidade no monitoramento. | Exemplo oficial: \"Precisamos tentar restabelecer o sinal. Você pode desligar e religar a chave geral do veículo? Ou enviar uma mensagem no teclado?\"",
+      "chave": null
+    },
+    {
+      "id": 321395,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "O operador procurou identificar o motivo da perda de sinal? (Embaixo de cobertura, área sem sinal de celular, falha no rastreador, etc.)",
+      "weight": 1.05,
+      "description": "Compreender a causa ajuda na tomada de decisão e no suporte adequado ao motorista. | Exemplo oficial: \"Você está em um local coberto, como um túnel ou garagem? Sabe me informar se a região é ruim de sinal?\"",
+      "chave": null
+    },
+    {
+      "id": 321396,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "O operador informou os riscos operacionais e de seguro caso o sinal não restabelecer?",
+      "weight": 1.05,
+      "description": "Evita prejuízos, melhora a segurança e assegura responsabilidade e garante monitoramento contínuo. | Exemplo oficial: \"Caso ocorra um sinistro com o sinal desatualizado, pode haver problemas com a cobertura do seguro da carga e do veículo.\"",
+      "chave": null
+    },
+    {
+      "id": 321397,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321398,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321399,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321400,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: \"Contato registrado: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321401,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321402,
+      "alert_id": "BBM-POSICAO-MOT",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321373,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321374,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321375,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321376,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Confirmou com quem está falando?",
+      "weight": 0.4,
+      "description": "Garante que a informação seja passada para a pessoa correta. | Exemplo oficial: \"Por gentileza, com quem eu falo?\"",
+      "chave": null
+    },
+    {
+      "id": 321377,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.2,
+      "description": "O cliente precisa entender rapidamente a situação para fornecer informações precisas. | Exemplo oficial: \"Estou entrando em contato devido a um alerta prioritário detectado no sistema. Preciso verificar a situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321378,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+      "weight": 2.0,
+      "description": "Alerta o cliente sobre a gravidade da situação, reforçando a necessidade de atenção e suporte imediato. | Exemplo oficial: \"Estamos tratando este caso como uma suspeita de sinistro e intensificando as tratativas para garantir a segurança da carga e do veículo.\"",
+      "chave": null
+    },
+    {
+      "id": 321379,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "O operador informou as ações adotadas até o momento?",
+      "weight": 1.15,
+      "description": "Garante que o cliente tenha clareza sobre as tratativas realizadas e próximos passos. | Exemplo oficial: \"Já realizamos tentativas de contato com o motorista e ponto de apoio, além de enviar comandos ao rastreador, sem sucesso até o momento.\"",
+      "chave": null
+    },
+    {
+      "id": 321380,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "O operador informou corretamente o local onde gerou o alerta? (Cidade, estado, referência como rodovia, posto, mecânica, etc.)",
+      "weight": 1.8,
+      "description": "Ajuda o cliente a entender o contexto e avaliar o risco da situação. | Exemplo oficial: \"O veículo estava na cidade de [cidade], próximo ao [posto/mecânica/km da rodovia].\"",
+      "chave": null
+    },
+    {
+      "id": 321381,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "O operador confirmou os contatos atuais do condutor?",
+      "weight": 1.8,
+      "description": "Garante que os números utilizados estão corretos, evitando tentativas de contato desatualizadas. | Exemplo oficial: \"O número de telefone que temos registrado para o condutor é [número]. Confirma se está correto ou há outro contato atualizado?\"",
+      "chave": null
+    },
+    {
+      "id": 321382,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321383,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321384,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321385,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: Exemplo: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321386,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321387,
+      "alert_id": "BBM-PRIORITARIO-CLI",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321359,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321360,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321361,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321362,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+      "weight": 2.0,
+      "description": "A verificação de senha protege a comunicação e evita repasses indevidos de informações. | Exemplo oficial: \"Antes de prosseguirmos, poderia me confirmar sua senha de segurança, por favor?\"",
+      "chave": null
+    },
+    {
+      "id": 321363,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "O operador informou claramente o motivo do contato?",
+      "weight": 1.03,
+      "description": "O motorista precisa entender rapidamente a situação para fornecer informações precisas. | Exemplo oficial: \"Estou entrando em contato devido a um alerta detectado no sistema. Preciso verificar sua situação.\"",
+      "chave": null
+    },
+    {
+      "id": 321364,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "O operador confirmou a localização e a condição do motorista?",
+      "weight": 1.7,
+      "description": "Ter a posição exata e saber se há risco permite uma melhor análise da ocorrência. | Exemplo oficial: \"Pode me confirmar onde exatamente você está agora? Movimento ou parado?\"",
+      "chave": null
+    },
+    {
+      "id": 321365,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "O operador identificou o motivo do alerta? (Sinistro, manutenção, problema técnico, acionamento indevido, etc.)",
+      "weight": 1.92,
+      "description": "A causa do alerta precisa ser identificada rapidamente para tomada de decisão. | Exemplo oficial: \"Consegue me informar o que ocorreu para esse alerta ter subido para mim?\"",
+      "chave": null
+    },
+    {
+      "id": 321366,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "O operador solicitou vídeo do veículo nos casos necessários (Painel violado, Botão de pânico, Perda de Bateria, Teclado Desconectado, Sensor de desengate e baú)?",
+      "weight": 1.7,
+      "description": "A solicitação do vídeo é essencial para análise mais detalhada e para garantir a segurança do motorista e da carga. | Exemplo oficial: \"O senhor consegue enviar para nós um vídeo no WhatsApp? No vídeo precisa falar seu nome, senha de segurança, data e horário atuais”",
+      "chave": null
+    },
+    {
+      "id": 321367,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321368,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321369,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321370,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: Exemplo: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Motorista/Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321371,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321372,
+      "alert_id": "BBM-PRIORITARIO-MOT",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    },
+    {
+      "id": 321499,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Saudação?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321500,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Nome?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321501,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Setor/Empresa?",
+      "weight": 0.1,
+      "description": "Fracionamento do critério oficial: O operador se identificou informando saudação, nome, setor e empresa? | Exemplo oficial: \"Bom dia/Boa tarde/Boa noite, aqui é [Nome], do setor [setor] da Opentech.\"",
+      "chave": null
+    },
+    {
+      "id": 321502,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Confirmou com quem está falando?",
+      "weight": 0.4,
+      "description": "Garante que a informação seja passada para a pessoa correta. | Exemplo oficial: \"Por gentileza, com quem eu falo?\"",
+      "chave": null
+    },
+    {
+      "id": 321503,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O operador passou detalhes do evento que indicam a suspeita?",
+      "weight": 1.3,
+      "description": "O operador informou claramente o motivo do contato? | Exemplo oficial: \"Somos uma Gerenciadora de Risco, e estamos monitorando um veículo que gerou um alerta de [alerta] e não temos contato com o motorista, gostaríamos de solicitar apoio nessa ocorrência\".",
+      "chave": null
+    },
+    {
+      "id": 321504,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O operador informou os dados e as características do conjunto e do motorista? (cavalo, carreta, cor, modelo)",
+      "weight": 1.35,
+      "description": "Garante que a abordagem seja feita no veículo correto. | Exemplo oficial: \"Trata-se de um [modelo] de cor [cor], placa [placa], puxando uma carreta [tipo].\"",
+      "chave": null
+    },
+    {
+      "id": 321505,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O operador passou detalhes do local da ocorrência? (Rodovia, Referência, KM)",
+      "weight": 1.3,
+      "description": "Ajuda a equipe policial a identificar com precisão a localização para uma resposta mais rápida. | Exemplo oficial: \"O último posicionamento do veículo foi na BR-101, próximo ao KM 75, sentido sul.\"",
+      "chave": null
+    },
+    {
+      "id": 321506,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O operador solicitou deslocamento e/ou reporte da ocorrência para patrulhamento?",
+      "weight": 1.5,
+      "description": "Garante que a solicitação seja clara e direta, aumentando a chance de uma abordagem rápida. | Exemplo oficial: \"Solicitamos apoio para patrulhamento e abordagem do veículo em situação suspeita.\"",
+      "chave": null
+    },
+    {
+      "id": 321507,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O operador deixou telefone de contato para retorno?",
+      "weight": 1.3,
+      "description": "Garante um canal de comunicação aberto para atualizações e suporte adicional. | Exemplo oficial: \"Podem retornar para o número 0800 727 6101 Opção 3 para qualquer atualização.\"",
+      "chave": null
+    },
+    {
+      "id": 321508,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O operador utilizou o alfabeto fonético ao passar informações?",
+      "weight": 1.2,
+      "description": "Evita erros na transmissão de placas e códigos, garantindo clareza. | Exemplo oficial: \"Placa do veículo: Alfa, Bravo, Charlie, primeiro, segundo, terceiro, quarto.\"",
+      "chave": null
+    },
+    {
+      "id": 321509,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Realizou a despedida padrão com cordialidade?",
+      "weight": 0.3,
+      "description": "Um encerramento educado mantém a postura profissional do atendimento. | Exemplo oficial: \"Obrigado por sua atenção. Tenha um excelente dia!\"",
+      "chave": null
+    },
+    {
+      "id": 321510,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+      "weight": 0.3,
+      "description": "O uso correto do mudo evita interferências e mantém a qualidade da chamada. | Exemplo oficial: \"Vou colocar no mudo enquanto verifico as informações. Já volto com você.\"",
+      "chave": null
+    },
+    {
+      "id": 321511,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+      "weight": 0.15,
+      "description": "O preenchimento do silêncio mantém o contato ativo e evita que o motorista pense que a ligação caiu. | Exemplo oficial: \"Estou verificando os dados no sistema. Aguarde um momento enquanto faço a consulta.\"",
+      "chave": null
+    },
+    {
+      "id": 321512,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+      "weight": 0.2,
+      "description": "Garante rastreabilidade e facilita acompanhamentos posteriores. | Exemplo oficial: \"Contato registrado: Cliente [Nome], Telefone: (XX) XXXX-XXXX, Responsável: [Nome], Resumo: Cliente informou que...",
+      "chave": null
+    },
+    {
+      "id": 321513,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+      "weight": 0.3,
+      "description": "Encerrar a ligação de forma objetiva evita atrasos no atendimento.",
+      "chave": null
+    },
+    {
+      "id": 321514,
+      "alert_id": "BBM-PRIORITARIO-POLICIA",
+      "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+      "weight": 0.1,
+      "description": "O tom de voz adequado reforça confiança e profissionalismo, garantindo que o motorista siga as instruções corretamente.",
+      "chave": null
+    }
+  ]
+}

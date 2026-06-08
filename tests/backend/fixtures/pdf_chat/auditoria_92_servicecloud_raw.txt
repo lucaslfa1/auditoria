@@ -1,0 +1,63 @@
+Joao da Silva2026-05-04 06:41:51
+Joao da Silva2026-05-04 06:42:22
+Joao da Silva2026-05-04 06:42:59
+Joao da Silva2026-05-04 06:43:17
+Bom dia
+BOT Geral2026-05-04 06:41:51
+Português
+Español
+Por favor selecione o idioma (Por favor, seleccione el idioma.) Português
+BOT Geral2026-05-04 06:42:22
+Olá! Sou a *Tati*, atendente virtual da _Opentech_. Seja muito bem-vindo(a), ao n
+osso canal de atendimento.
+BOT Geral2026-05-04 06:42:22
+Por gentiliza, escolha uma das opções no menu abaixo, digite o número correspo
+ndente para seguir com o atendimento. *Em qual setor você desejar ser atendido?
+* 1️⃣ Rastreamento - Opção Motorista 2️⃣ Rastreamento - Opção Cliente 3️⃣ Check
+List - Realizar teste agendado 4️⃣ Checklist Minerva Athena – Realizar Teste Agend
+ado 5️⃣ Rastreamento – Atendimento exclusivo Minerva Athena 0️⃣ Encerrar Atendi
+mento
+2
+BOT Geral2026-05-04 06:43:00
+Você entrou em contato com nosso rastreamento através da opção cliente.
+BOT Geral2026-05-04 06:43:00
+Selecione uma opção para sequência do atendimento: 1️⃣ Autorização de embarqu
+e 2️⃣ CPF
+2
+06/05/2026, 15:59 Service Cloud
+file:///C:/Users/auditor/Downloads/contact-record-content-2026-05-06 15-59-08.html 1/3 Joao da Silva2026-05-04 06:43:26
+Joao da Silva2026-05-04 06:43:33
+Joao da Silva2026-05-04 06:44:42
+Joao da Silva2026-05-04 06:45:34
+Joao da Silva2026-05-04 06:45:42
+BOT Geral2026-05-04 06:43:17
+Digite seu CPF (Informe somente números):
+00000000000
+BOT Geral2026-05-04 06:43:26
+Por Favor, Digite sua senha.
+0000
+BOT Geral2026-05-04 06:43:33
+Aguarde um momento enquanto transfiro seu atendimento.
+Atendente - Célula2026-05-04 06:43:35
+Leitura
+Bem-vindo ao sistema de atendimento ao cliente online!
+Atendente - Célula2026-05-04 06:43:41
+Leitura
+Olá bom dia! Espero que esteja tudo bem! Em que posso te ajudar?
+Estou com um caminhão bloqueado e com sirene alarmada
+Atendente - Célula2026-05-04 06:45:06
+Leitura
+Qual a AE?
+Placa ABC1D23
+gerei uma nova AE 00000000
+06/05/2026, 15:59 Service Cloud
+file:///C:/Users/auditor/Downloads/contact-record-content-2026-05-06 15-59-08.html 2/3 Atendente - Célula2026-05-04 06:46:40
+Leitura
+O seu comando foi enviado. Ele pode levar até 5 minutos para ser executado.Por f
+avor, aguarde com as portas fechadas e a ignição ligada. Posso ajudar emalgo mai
+s?
+Atendente - Célula2026-05-04 06:48:01
+Leitura
+Obrigada por entrar em contato conosco, tenha um ótimo dia!
+06/05/2026, 15:59 Service Cloud
+file:///C:/Users/auditor/Downloads/contact-record-content-2026-05-06 15-59-08.html 3/3

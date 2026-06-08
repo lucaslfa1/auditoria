@@ -1,0 +1,12 @@
+feat: improve automation robustness, manual sync concurrency, and add Sentry
+
+- Add Sentry SDK to backend for error tracking and observability.
+- Fix concurrency bug in manual interval sync using database lock.
+- Propagate cancellation to D-1 and interrupt before auditing.
+- Persist cycle heartbeat during D-1 execution to reduce false stale.
+- Elevate D-1 internal statuses (partial/error/cancelled) to the engine.
+- Resolve audit_id from cached PDF audit before marking queue as audited.
+- Reject path traversal and absolute paths in classified media paths.
+- Ensure invalid numeric configs fallback to safe defaults.
+- Update UI terminology from 'Limite de arquivos' to 'Limite de downloads'.
+- Add comprehensive test coverage for D-1 cancellation, heartbeat, and path traversal.

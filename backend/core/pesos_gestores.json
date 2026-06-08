@@ -1,0 +1,5463 @@
+{
+  "ALERTAS PRIORITÁRIOS|Motorista": {
+    "alert_id": "UTI-PRIORITARIO-MOT",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou a localização e a condição do motorista?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 7,
+        "label": "O operador identificou o motivo do alerta? (Sinistro, manutenção, problema técnico, acionamento indevido, etc.)",
+        "peso": 1.92,
+        "deflator": -1.92,
+        "weight_original": 1.92
+      },
+      {
+        "num": 8,
+        "label": "O operador solicitou vídeo do veículo nos casos necessários (Painel violado, Botão de pânico, Perda de Bateria, Teclado Desconectado, Sensor de desengate e baú)?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 9,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 12,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ALERTAS PRIORITÁRIOS|Cliente": {
+    "alert_id": "UTI-PRIORITARIO-CLI",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 7,
+        "label": "O operador informou as ações adotadas até o momento?",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 8,
+        "label": "O operador informou corretamente o local onde gerou o alerta? (Cidade, estado, referência como rodovia, posto, mecânica, etc.)",
+        "peso": 1.8,
+        "deflator": -1.8,
+        "weight_original": 1.8
+      },
+      {
+        "num": 9,
+        "label": "O operador confirmou os contatos atuais do condutor?",
+        "peso": 1.8,
+        "deflator": -1.8,
+        "weight_original": 1.8
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "POSIÇÃO EM ATRASO|Motorista": {
+    "alert_id": "UTI-POSICAO-MOT",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou a localização atual do motorista? (Em movimento/parado, cidade e referência de local)",
+        "peso": 1.22,
+        "deflator": -1.22,
+        "weight_original": 1.22
+      },
+      {
+        "num": 7,
+        "label": "Passou orientações para forçar posicionamento do rastreador? (Envio de mensagem, reset de bateria, etc.)",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 8,
+        "label": "O operador procurou identificar o motivo da perda de sinal? (Embaixo de cobertura, área sem sinal de celular, falha no rastreador, etc.)",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 9,
+        "label": "O operador informou os riscos operacionais e de seguro caso o sinal não restabelecer?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "POSIÇÃO EM ATRASO|Cliente": {
+    "alert_id": "UTI-POSICAO-CLI",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 7,
+        "label": "O operador informou as ações adotadas, resumindo os contatos/tratativas realizados (com ou sem sucesso)?",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 8,
+        "label": "O operador informou corretamente o local onde perdeu a posição? (Estado, cidade, parado/movimento, referência como posto, mecânica, rodovia)",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 9,
+        "label": "O operador questionou se o conjunto possui equipamento de contingência? (Ex.: isca, rastreador secundário, bloqueio remoto)",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 10,
+        "label": "O operador questionou se o cliente tem informações recentes sobre o veículo e o motorista? (Ex.: manutenção, revisão, problemas no rastreador)",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 11,
+        "label": "O operador confirmou os contatos atuais do condutor?",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 12,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 15,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 16,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 17,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PARADA INDEVIDA|Motorista": {
+    "alert_id": "UTI-PARADA-MOT",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou o motivo pelo qual o motorista parou em local indevido?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 7,
+        "label": "O operador confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 8,
+        "label": "O operador orientou o motorista a reiniciar a viagem e seguir para um local homologado?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 9,
+        "label": "O operador informou os riscos operacionais da parada indevida, incluindo problemas com seguro?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PARADA INDEVIDA|Cliente": {
+    "alert_id": "UTI-PARADA-CLI",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador informou as ações adotadas até o momento?",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 7,
+        "label": "O operador informou corretamente o local da parada? (Cidade, estado, referência como rodovia, posto, mecânica, etc.)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 8,
+        "label": "O operador confirmou se os pontos de parada autorizada foram passados ao motorista antes do início da viagem?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 9,
+        "label": "O operador informou ao cliente sobre os riscos operacionais e de seguro caso a parada indevida permaneça?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 10,
+        "label": "O operador indicou medidas de segurança ao cliente? (Ex.: Seguir até posto autorizado, acionar escolta, pronta resposta, etc.)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DESVIO DE ROTA|Motorista": {
+    "alert_id": "UTI-DESVIO-MOT",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou o motivo do desvio de rota?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 7,
+        "label": "Confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 8,
+        "label": "Orientou o motorista a retornar para a rota ou permanecer parado até confirmação com o cliente?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 9,
+        "label": "Coletou qual itinerário o motorista está realizando?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 10,
+        "label": "O operador informou os riscos operacionais e de seguro caso o motorista continue fora da rota?",
+        "peso": 1.12,
+        "deflator": -1.12,
+        "weight_original": 1.12
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DESVIO DE ROTA|Cliente": {
+    "alert_id": "UTI-DESVIO-CLI",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 7,
+        "label": "O operador informou as ações adotadas até o momento? (Resumir os contatos/tratativas com ou sem sucesso)",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 8,
+        "label": "O operador informou o trajeto que o motorista está realizando e o que estava programado na rota?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 9,
+        "label": "O operador questionou se o cliente tem conhecimento do motivo do desvio? O motorista informou antecipadamente?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 10,
+        "label": "O operador confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento antes da viagem?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 11,
+        "label": "O operador indicou medidas de segurança ao cliente? (Ex.: Retornar a rota correta ou realizar o ajuste no sistema)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 12,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 15,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 16,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 17,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PONTO DE APOIO|Ponto de Apoio": {
+    "alert_id": "UTI-PONTO-APOIO",
+    "sector": "uti",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador informou os dados e as características do veículo? (cor, placa, modelo)",
+        "peso": 1.95,
+        "deflator": -1.95,
+        "weight_original": 1.95
+      },
+      {
+        "num": 7,
+        "label": "O operador passou detalhes da última posição do veículo? (Referência dentro do posto)",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 8,
+        "label": "O operador solicitou que o atendente verificasse se o conjunto (cavalo/carreta) estava no local sem violações?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 9,
+        "label": "O operador orientou o atendente a chamar o motorista?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ALERTA PRIORITARIO - POLICIA|Polícia": {
+    "alert_id": "TRANSFERENCIA-PRIORITARIO-POLICIA",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador passou detalhes do evento que indicam a suspeita?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "O operador informou os dados e as características do conjunto e do motorista? (cavalo, carreta, cor, modelo)",
+        "peso": 1.35,
+        "deflator": -1.35,
+        "weight_original": 1.35
+      },
+      {
+        "num": 7,
+        "label": "O operador passou detalhes do local da ocorrência? (Rodovia, Referência, KM)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 8,
+        "label": "O operador solicitou deslocamento e/ou reporte da ocorrência para patrulhamento?",
+        "peso": 1.5,
+        "deflator": -1.5,
+        "weight_original": 1.5
+      },
+      {
+        "num": 9,
+        "label": "O operador deixou telefone de contato para retorno?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 10,
+        "label": "O operador utilizou o alfabeto fonético ao passar informações?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ACIONAMENTO POLICIAL|Polícia": {
+    "alert_id": "BAS-PRIORITARIO-POLICIA",
+    "sector": "bas",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador passou detalhes do evento que indicam a suspeita?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "O operador informou os dados e as características do conjunto e do motorista? (cavalo, carreta, cor, modelo)",
+        "peso": 1.35,
+        "deflator": -1.35,
+        "weight_original": 1.35
+      },
+      {
+        "num": 7,
+        "label": "O operador passou detalhes do local da ocorrência? (Rodovia, Referência, KM)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 8,
+        "label": "O operador solicitou deslocamento e/ou reporte da ocorrência para patrulhamento?",
+        "peso": 1.5,
+        "deflator": -1.5,
+        "weight_original": 1.5
+      },
+      {
+        "num": 9,
+        "label": "O operador deixou telefone de contato para retorno?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 10,
+        "label": "O operador utilizou o alfabeto fonético ao passar informações?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ANTECEDENTES|Receptiva": {
+    "alert_id": "CADASTRO-ANTECEDENTES",
+    "sector": "cadastro",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador solicitou CPF/Placa para iniciar o atendimento?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 5,
+        "label": "O operador enfatizou sobre bloqueio/cadastro negativado?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 6,
+        "label": "O operador informou se o cliente possui inquérito/processo/apontamento?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 7,
+        "label": "O operador informou qual o estado/justiça federal?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 8,
+        "label": "O operador informou qual documento é necessário?",
+        "peso": 1.65,
+        "deflator": -1.65,
+        "weight_original": 1.65
+      },
+      {
+        "num": 9,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Evitou silêncios prolongados (mais de 60 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 12,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 13,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DEVOLUÇÃO|Cliente": {
+    "alert_id": "UNILEVER-DEVOLUCAO",
+    "sector": "logistica_unilever",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou que a devolução foi confirmada e qual o próximo passo?",
+        "peso": 0.76,
+        "deflator": -0.38,
+        "weight_original": 0.76
+      },
+      {
+        "num": 6,
+        "label": "Informou o nome do cliente corretamente?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 7,
+        "label": "Informou o endereço correto do cliente?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 8,
+        "label": "Informou o código do cliente?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 9,
+        "label": "Confirmou a quantidade de caixas a serem devolvidas?",
+        "peso": 0.81,
+        "deflator": -0.405,
+        "weight_original": 0.81
+      },
+      {
+        "num": 10,
+        "label": "Ação resultante (e-mail, ligação, mobile) foi registrada corretamente?",
+        "peso": 1.58,
+        "deflator": -1.58,
+        "weight_original": 1.58
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "CABINETS|Cliente": {
+    "alert_id": "UNILEVER-CABINETS",
+    "sector": "logistica_unilever",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou que irá comunicar um insucesso?",
+        "peso": 1.57,
+        "deflator": -1.57,
+        "weight_original": 1.57
+      },
+      {
+        "num": 6,
+        "label": "Informou o nome do cliente corretamente?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 7,
+        "label": "Informou o endereço correto do cliente?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 8,
+        "label": "Informou o código do cliente?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 9,
+        "label": "Ação resultante (e-mail, ligação, mobile) foi registrada corretamente?",
+        "peso": 1.58,
+        "deflator": -1.58,
+        "weight_original": 1.58
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ATUAÇÃO TRATATIVA|Cliente": {
+    "alert_id": "UNILEVER-TRATATIVA",
+    "sector": "logistica_unilever",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 6,
+        "label": "Informou o nome do cliente corretamente?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 7,
+        "label": "Informou o endereço correto do cliente?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 8,
+        "label": "Informou o código do cliente?",
+        "peso": 0.85,
+        "deflator": -0.425,
+        "weight_original": 0.85
+      },
+      {
+        "num": 9,
+        "label": "Informou o motivo da devolução?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 10,
+        "label": "Informou a quantidade de caixas?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 11,
+        "label": "Informou o tempo de espera?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 12,
+        "label": "Ação resultante (e-mail, ligação, mobile). Ação final ao atendimento",
+        "peso": 0.78,
+        "deflator": -0.39,
+        "weight_original": 0.78
+      },
+      {
+        "num": 13,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 16,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 17,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 18,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DISTRIBUIÇÃO|Cliente": {
+    "alert_id": "UNILEVER-DISTRIBUICAO",
+    "sector": "logistica_unilever",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.35,
+        "deflator": -1.35,
+        "weight_original": 1.35
+      },
+      {
+        "num": 6,
+        "label": "Informou a Placa do veículo?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 7,
+        "label": "Informou o nome do cliente?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 8,
+        "label": "Informou o endereço do cliente?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 9,
+        "label": "Informou a quantidade de caixas?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 10,
+        "label": "Ação resultante (e-mail, ligação, mobile) foi registrada corretamente?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "LOSS TREE|Cliente": {
+    "alert_id": "UNILEVER-LOSSTREE",
+    "sector": "logistica_unilever",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.59,
+        "deflator": -1.59,
+        "weight_original": 1.59
+      },
+      {
+        "num": 6,
+        "label": "Informou o nome do cliente?",
+        "peso": 1.59,
+        "deflator": -1.59,
+        "weight_original": 1.59
+      },
+      {
+        "num": 7,
+        "label": "Informou a data que ocorreu a devolução?",
+        "peso": 1.59,
+        "deflator": -1.59,
+        "weight_original": 1.59
+      },
+      {
+        "num": 8,
+        "label": "Confirmou o motivo que gerou o pedido não solicitado?",
+        "peso": 1.59,
+        "deflator": -1.59,
+        "weight_original": 1.59
+      },
+      {
+        "num": 9,
+        "label": "Ação resultante. Registrar o retorno no relatório.",
+        "peso": 1.59,
+        "deflator": -1.59,
+        "weight_original": 1.59
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ESTADIA|Motorista": {
+    "alert_id": "LOGISTICA-ESTADIA",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 6,
+        "label": "Questionou se há previsão para descarga?",
+        "peso": 3.0,
+        "deflator": -3.0,
+        "weight_original": 3.0
+      },
+      {
+        "num": 7,
+        "label": "Verificou se houve alguma intercorrência no processo?",
+        "peso": 2.95,
+        "deflator": -2.95,
+        "weight_original": 2.95
+      },
+      {
+        "num": 8,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 9,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 11,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 12,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "CONTROLE DE TEMPERATURA|Motorista": {
+    "alert_id": "LOGISTICA-TEMPERATURA-MOT",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "Questionou a temperatura do aparelho de frio?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 7,
+        "label": "Questionou o módulo de ajuste? (Contínuo/Automático)",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 8,
+        "label": "Orientou a seguir o padrão de temperatura da Unidade?",
+        "peso": 1.33,
+        "deflator": -1.33,
+        "weight_original": 1.33
+      },
+      {
+        "num": 9,
+        "label": "Perguntou sobre o funcionamento do aparelho?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "CONTROLE DE TEMPERATURA|Cliente": {
+    "alert_id": "LOGISTICA-TEMPERATURA-CLI",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.5,
+        "deflator": -1.5,
+        "weight_original": 1.5
+      },
+      {
+        "num": 6,
+        "label": "Informou ações adotadas?",
+        "peso": 1.75,
+        "deflator": -1.75,
+        "weight_original": 1.75
+      },
+      {
+        "num": 7,
+        "label": "Questionou se possui conhecimento do ajuste?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 8,
+        "label": "Verificou se há alguma falha ou motorista reportou algo?",
+        "peso": 1.5,
+        "deflator": -1.5,
+        "weight_original": 1.5
+      },
+      {
+        "num": 9,
+        "label": "Orientou a seguir o padrão de temperatura da Unidade?",
+        "peso": 1.5,
+        "deflator": -1.5,
+        "weight_original": 1.5
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DESLIGAMENTO (TEMPERATURA)|Motorista": {
+    "alert_id": "LOGISTICA-DESLIG-TEMP-MOT",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "Confirmou ajuste do aparelho?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 7,
+        "label": "Confirmou se houve desligamento?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 8,
+        "label": "Confirmou a causa do desligamento?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 9,
+        "label": "Reforçou sobre riscos de devolução devido ao desligamento?",
+        "peso": 1.37,
+        "deflator": -1.37,
+        "weight_original": 1.37
+      },
+      {
+        "num": 10,
+        "label": "Caso esteja desligado, orientou religamento imediato, se necessário?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DESLIGAMENTO (TEMPERATURA)|Cliente": {
+    "alert_id": "LOGISTICA-DESLIG-TEMP-CLI",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.5,
+        "deflator": -1.5,
+        "weight_original": 1.5
+      },
+      {
+        "num": 6,
+        "label": "Informou ações adotadas?",
+        "peso": 1.55,
+        "deflator": -1.55,
+        "weight_original": 1.55
+      },
+      {
+        "num": 7,
+        "label": "Questionou se possui conhecimento do ajuste?",
+        "peso": 1.5,
+        "deflator": -1.5,
+        "weight_original": 1.5
+      },
+      {
+        "num": 8,
+        "label": "Reforçou sobre riscos de devolução devido desligamento?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 9,
+        "label": "Orientou religamento imediato, se necessário?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ATRASO DE ENTREGA|Motorista": {
+    "alert_id": "LOGISTICA-ATRASO-ENTREGA",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.9,
+        "deflator": -1.9,
+        "weight_original": 1.9
+      },
+      {
+        "num": 6,
+        "label": "Questionou o motivo do atraso?",
+        "peso": 2.05,
+        "deflator": -2.05,
+        "weight_original": 2.05
+      },
+      {
+        "num": 7,
+        "label": "Questionou se há previsão de chegada? (Caso não tenha chego ainda no cliente)",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 8,
+        "label": "Confirmou se foi comunicado a base ou cliente sobre o atraso?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 9,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 12,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 13,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PARADA INDEVIDA (LOG)|Motorista": {
+    "alert_id": "LOGISTICA-PARADA",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando nome, setor e empresa?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 3,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.95,
+        "deflator": -1.95,
+        "weight_original": 1.95
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou o motivo pelo qual o motorista parou em local indevido?",
+        "peso": 3.0,
+        "deflator": -3.0,
+        "weight_original": 3.0
+      },
+      {
+        "num": 5,
+        "label": "O operador orientou o motorista a realizar paradas somente em locais homologados?",
+        "peso": 3.0,
+        "deflator": -3.0,
+        "weight_original": 3.0
+      },
+      {
+        "num": 6,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 7,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 8,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 9,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 10,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DESVIO DE ROTA (LOG)|Motorista": {
+    "alert_id": "LOGISTICA-DESVIO",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando nome, setor e empresa?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 3,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.95,
+        "deflator": -1.95,
+        "weight_original": 1.95
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou o motivo do desvio de rota?",
+        "peso": 3.0,
+        "deflator": -3.0,
+        "weight_original": 3.0
+      },
+      {
+        "num": 5,
+        "label": "Orientou o motorista a seguir a rota informada pela transportadora?",
+        "peso": 3.0,
+        "deflator": -3.0,
+        "weight_original": 3.0
+      },
+      {
+        "num": 6,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 7,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 8,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 9,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 10,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ATIVAÇÃO DE AE|Cliente": {
+    "alert_id": "LOGISTICA-ATIVACAO-AE",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.95,
+        "deflator": -1.95,
+        "weight_original": 1.95
+      },
+      {
+        "num": 6,
+        "label": "Informou nº da programação ou outra informação semelhante?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 7,
+        "label": "Se estiver atrasada, questionou o motivo do atraso na emissão?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 8,
+        "label": "Solicitou emissão?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 9,
+        "label": "Reforçou com o cliente a importância da emissão dentro do prazo?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ATRASO|Cliente": {
+    "alert_id": "LOGISTICA-ATRASO",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "Informou o número da OS, Placa ou AE?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 7,
+        "label": "Questionou o motivo do atraso?",
+        "peso": 1.95,
+        "deflator": -1.95,
+        "weight_original": 1.95
+      },
+      {
+        "num": 8,
+        "label": "Questionou se há previsão de chegada?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 9,
+        "label": "Reforçou o impacto do atraso na operação e no cliente?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "POSIÇÃO EM ATRASO (LOG)|Motorista": {
+    "alert_id": "LOGISTICA-POSICAO",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando nome, setor e empresa?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 3,
+        "label": "Informou o motivo do contato?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a localização atual do motorista? (Em movimento/parado, cidade e referência de local)",
+        "peso": 2.95,
+        "deflator": -2.95,
+        "weight_original": 2.95
+      },
+      {
+        "num": 5,
+        "label": "O operador procurou identificar o motivo da perda de sinal? (Embaixo de cobertura, área sem sinal de celular, falha no rastreador, etc.)",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 6,
+        "label": "Passou orientações para forçar posicionamento do rastreador? (Envio de mensagem, reset de bateria, etc.)",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 7,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 8,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 9,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 10,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 11,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "OPERAÇÃO TABORDA|Receptiva": {
+    "alert_id": "LOGISTICA-TABORDA",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Utilizou linguagem apropriada? (Sem usar gírias ou estereótipos de apoio)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 3,
+        "label": "Fluxo do atendimento correspondeu à solicitação inicial? (Foco no atendimento)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 4,
+        "label": "Realizou o preenchimento de ociosidade? (Não deixando atendimento sem retorno por mais de 3min)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 5,
+        "label": "Realizou um atendimento cordial com educação? (Utilizando \"obrigado\"/\"por favor\"/\"senhor\")",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "Questionou se podia encerrar o atendimento?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 7,
+        "label": "Encerrou somente no tempo ocioso padrão? (3min)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 8,
+        "label": "Foi realizado a despedida final padrão?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 9,
+        "label": "Foi realizada a qualificação correta do atendimento?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      }
+    ]
+  },
+  "ATRASO NO INÍCIO DE VIAGEM - MOTORISTA|Motorista": {
+    "alert_id": "LOGISTICA-ATRASO-INICIO",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o motivo do contato?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 6,
+        "label": "Questionou o motivo de não haver iniciado a viagem?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 7,
+        "label": "Questionou se há previsão de início?",
+        "peso": 1.98,
+        "deflator": -1.98,
+        "weight_original": 1.98
+      },
+      {
+        "num": 8,
+        "label": "Confirmou se foi comunicado a base ou cliente sobre o atraso no início?",
+        "peso": 1.97,
+        "deflator": -1.97,
+        "weight_original": 1.97
+      },
+      {
+        "num": 9,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 12,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 13,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "VIAGEM SEM ESPELHAMENTO|Cliente": {
+    "alert_id": "LOGISTICA-VIAGEM-SEM-ESPELHAMENTO-CLI",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação, nome, setor e empresa?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 3,
+        "label": "Informou o motivo do contato?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2
+      },
+      {
+        "num": 4,
+        "label": "Informou o número da OS, Placa ou AE?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2
+      },
+      {
+        "num": 5,
+        "label": "O operador informou que o espelhamento foi retirado da conta da Opentech?",
+        "peso": 1.95,
+        "deflator": -1.95,
+        "weight_original": 1.95
+      },
+      {
+        "num": 6,
+        "label": "Operador solicitou ao cliente para refazer o espelhamento do veículo?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2
+      },
+      {
+        "num": 7,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 8,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 9,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 10,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 11,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PERDA DE POSIÇÃO|Cliente": {
+    "alert_id": "LOGISTICA-PERDA-POSICAO-CLI",
+    "sector": "logistica",
+    "total_weight_yaml": 11.0,
+    "scale_factor": 0.909091,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação, nome, setor e empresa?",
+        "peso": 0.272727,
+        "deflator": -0.136363,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.363636,
+        "deflator": -0.181818,
+        "weight_original": 0.4
+      },
+      {
+        "num": 3,
+        "label": "Informou o motivo do contato?",
+        "peso": 1.818182,
+        "deflator": -1.818182,
+        "weight_original": 2
+      },
+      {
+        "num": 4,
+        "label": "Informou o número da OS, Placa ou AE?",
+        "peso": 1.818182,
+        "deflator": -1.818182,
+        "weight_original": 2
+      },
+      {
+        "num": 5,
+        "label": "O operador informou corretamente o local onde perdeu a posição? (Estado, cidade, parado/movimento, referência como posto, mecânica, rodovia)",
+        "peso": 1.818182,
+        "deflator": -1.818182,
+        "weight_original": 2
+      },
+      {
+        "num": 6,
+        "label": "O operador informou as ações adotadas até o momento?",
+        "peso": 0.909091,
+        "deflator": -0.909091,
+        "weight_original": 1
+      },
+      {
+        "num": 7,
+        "label": "O operador questionou se o cliente tem informações recentes sobre o veículo e o motorista? (Ex.: manutenção, revisão, problemas no rastreador)",
+        "peso": 1.772727,
+        "deflator": -1.772727,
+        "weight_original": 1.95
+      },
+      {
+        "num": 8,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.272727,
+        "deflator": -0.136363,
+        "weight_original": 0.3
+      },
+      {
+        "num": 9,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.272727,
+        "deflator": -0.136363,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.136364,
+        "deflator": -0.068182,
+        "weight_original": 0.15
+      },
+      {
+        "num": 11,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.181818,
+        "deflator": -0.090909,
+        "weight_original": 0.2
+      },
+      {
+        "num": 12,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.272727,
+        "deflator": -0.136363,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.090909,
+        "deflator": -0.045455,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PARADA EXCESSIVA|Motorista": {
+    "alert_id": "LOGISTICA-PARADA-EXCESSIVA-MOT",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação, nome, setor e empresa?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 3,
+        "label": "Informou o motivo do contato?",
+        "peso": 2.45,
+        "deflator": -2.45,
+        "weight_original": 2.45
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou o motivo pelo qual o motorista está parado a tanto tempo?",
+        "peso": 2.5,
+        "deflator": -2.5,
+        "weight_original": 2.5
+      },
+      {
+        "num": 5,
+        "label": "Questionou se há previsão de reiniciar a viagem?",
+        "peso": 3.0,
+        "deflator": -3.0,
+        "weight_original": 3
+      },
+      {
+        "num": 6,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 7,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 8,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 9,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 10,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PARADA EXCESSIVA|Cliente": {
+    "alert_id": "LOGISTICA-PARADA-EXCESSIVA-CLI",
+    "sector": "logistica",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação, nome, setor e empresa?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 3,
+        "label": "Informou o motivo do contato?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2
+      },
+      {
+        "num": 4,
+        "label": "Informou o número da OS, Placa ou AE?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2
+      },
+      {
+        "num": 5,
+        "label": "O operador confirmou se o cliente sabe o motivo pelo qual o motorista está parado a tanto tempo?",
+        "peso": 1.98,
+        "deflator": -1.98,
+        "weight_original": 1.98
+      },
+      {
+        "num": 6,
+        "label": "Questionou se o cliente sabe se há previsão de reiniciar a viagem?",
+        "peso": 1.97,
+        "deflator": -1.97,
+        "weight_original": 1.97
+      },
+      {
+        "num": 7,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 8,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 9,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 10,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 11,
+        "label": "O operador realizou a qualificação do atendimento corretamente",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "LOGÍSTICA REVERSA|Receptiva": {
+    "alert_id": "MONDELEZ-LOGISTICA-REVERSA",
+    "sector": "mondelez",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Confirmou se a pessoa é motorista ou transportadora?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 6,
+        "label": "Solicitou o número da Nota Fiscal? (Confirmar 2x caso não localize)",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 7,
+        "label": "Confirmou o nome do cliente que está no nosso sistema? [Informe o cliente]",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 8,
+        "label": "Confirmou o telefone do motorista?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 9,
+        "label": "Questionou o motivo da ocorrência?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 10,
+        "label": "Solicitou o número da NF de devolução?",
+        "peso": 1.45,
+        "deflator": -1.45,
+        "weight_original": 1.45
+      },
+      {
+        "num": 11,
+        "label": "Solicitou informação dos produtos/itens/caixas devolvidos?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 12,
+        "label": "Informou o número da Ocorrência gerada no sistema?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 13,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "Evitou silêncios prolongados (mais de 60 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 16,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 17,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "MONITORAMENTO I|Receptiva": {
+    "alert_id": "MONDELEZ-MONITORAMENTO-I",
+    "sector": "mondelez",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Confirmou se a pessoa é motorista ou transportadora?",
+        "peso": 0.5,
+        "deflator": -0.25,
+        "weight_original": 0.5
+      },
+      {
+        "num": 6,
+        "label": "Solicitou o número da Nota Fiscal? (Confirmar 2x caso não localize)",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 7,
+        "label": "Confirmou o nome do cliente que está no nosso sistema? [Informe o cliente]",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 8,
+        "label": "Confirmou o telefone do motorista?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 9,
+        "label": "Questionou o motivo da ocorrência?",
+        "peso": 1.45,
+        "deflator": -1.45,
+        "weight_original": 1.45
+      },
+      {
+        "num": 10,
+        "label": "Confirmou quanto tempo que foi finalizado a descarga?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 11,
+        "label": "Informou o número da Ocorrência gerada no sistema?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 12,
+        "label": "Solicitou que retorne o contato após 2 horas para realizar uma atuação da ocorrência?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 13,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "Evitou silêncios prolongados (mais de 60 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 16,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 17,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "MONITORAMENTO II|Receptiva": {
+    "alert_id": "MONDELEZ-MONITORAMENTO-II",
+    "sector": "mondelez",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Confirmou se a pessoa é motorista ou transportadora?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 6,
+        "label": "Solicitou o número da Nota Fiscal? (Confirmar 2x caso não localize)",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 7,
+        "label": "Confirmou o nome do cliente que está no nosso sistema? [Informe o cliente]",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 8,
+        "label": "Confirmou o telefone do motorista?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 9,
+        "label": "Questionou o motivo da ocorrência?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 10,
+        "label": "Questionou a data de agendamento?",
+        "peso": 0.95,
+        "deflator": -0.475,
+        "weight_original": 0.95
+      },
+      {
+        "num": 11,
+        "label": "Questionou se possui notas de outros clientes?",
+        "peso": 0.95,
+        "deflator": -0.475,
+        "weight_original": 0.95
+      },
+      {
+        "num": 12,
+        "label": "Informou o número da Ocorrência gerada no sistema?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 13,
+        "label": "Solicitou que retorne o contato após 2 horas para realizar uma atuação da ocorrência?",
+        "peso": 0.95,
+        "deflator": -0.475,
+        "weight_original": 0.95
+      },
+      {
+        "num": 14,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "Evitou silêncios prolongados (mais de 60 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 17,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 18,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "CHECKLIST|Receptiva": {
+    "alert_id": "CHECKLIST-VEICULO",
+    "sector": "checklist",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação.",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Enviou o auto texto perguntando qual o tipo de veículo?",
+        "peso": 0.5,
+        "deflator": -0.25,
+        "weight_original": 0.5
+      },
+      {
+        "num": 3,
+        "label": "Seguiu corretamente o fluxo do checklist conforme a solicitação inicial?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 4,
+        "label": "Realizou um atendimento cordial, utilizando linguagem apropriada?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o status final do checklist (aprovado ou reprovado)?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "Se reprovado, informou corretamente o motivo da reprovação?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 7,
+        "label": "Anexou imagens dos testes no SIL, correspondentes ao veículo e tecnologia analisada?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 8,
+        "label": "A informação passada no atendimento corresponde ao que foi registrado no SIL?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 9,
+        "label": "Encerrou o checklist no SIL em até 5 minutos após informar o status final?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Encerrou o atendimento no Weon em até 5 minutos após informar o status final do checklist?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Realizou a qualificação correta do atendimento?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      }
+    ]
+  },
+  "PROCESSO CHECKLIST - RECEPTIVO WHATSAPP|Receptiva": {
+    "alert_id": "CHECKLIST-RECEPTIVO",
+    "sector": "checklist",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação.",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Enviou o auto texto perguntando qual o tipo de veículo?",
+        "peso": 0.5,
+        "deflator": -0.25,
+        "weight_original": 0.5
+      },
+      {
+        "num": 3,
+        "label": "Seguiu corretamente o fluxo do checklist conforme a solicitação inicial?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 4,
+        "label": "Realizou um atendimento cordial, utilizando linguagem apropriada?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "Informou o status final do checklist (aprovado ou reprovado)?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "Se reprovado, informou corretamente o motivo da reprovação?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 7,
+        "label": "Anexou imagens dos testes no SIL, correspondentes ao veículo e tecnologia analisada?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 8,
+        "label": "A informação passada no atendimento corresponde ao que foi registrado no SIL?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 9,
+        "label": "Encerrou o checklist no SIL em até 5 minutos após informar o status final?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Encerrou o atendimento no Weon em até 5 minutos após informar o status final do checklist?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Realizou a qualificação correta do atendimento?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      }
+    ]
+  },
+  "PROCESSO CHATBOT|Receptiva": {
+    "alert_id": "RECEPTIVO-CHATBOT",
+    "sector": "receptivo",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Utilizou linguagem apropriada? (Sem usar gírias ou estereótipos de apoio)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 3,
+        "label": "Fluxo do atendimento correspondeu à solicitação inicial? (Foco no atendimento)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 4,
+        "label": "Realizou o preenchimento de ociosidade? (Não deixando atendimento sem retorno por mais de 3min)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 5,
+        "label": "Realizou um atendimento cordial com educação? (Utilizando \"obrigado\"/\"por favor\"/\"senhor\")",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "Questionou se podia encerrar o atendimento?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 7,
+        "label": "Encerrou somente no tempo ocioso padrão? (3min)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 8,
+        "label": "Foi realizado a despedida final padrão?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 9,
+        "label": "Foi realizada a qualificação correta do atendimento?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      }
+    ]
+  },
+  "CHATBOT - RECEPTIVO WHATSAPP|Receptiva": {
+    "alert_id": "CELULA-RECEPTIVO",
+    "sector": "receptivo",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "O operador se identificou informando saudação?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 2,
+        "label": "Utilizou linguagem apropriada? (Sem usar gírias ou estereótipos de apoio)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 3,
+        "label": "Fluxo do atendimento correspondeu à solicitação inicial? (Foco no atendimento)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 4,
+        "label": "Realizou o preenchimento de ociosidade? (Não deixando atendimento sem retorno por mais de 3min)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 5,
+        "label": "Realizou um atendimento cordial com educação? (Utilizando \"obrigado\"/\"por favor\"/\"senhor\")",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 6,
+        "label": "Questionou se podia encerrar o atendimento?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 7,
+        "label": "Encerrou somente no tempo ocioso padrão? (3min)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 8,
+        "label": "Foi realizado a despedida final padrão?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 9,
+        "label": "Foi realizada a qualificação correta do atendimento?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      }
+    ]
+  },
+  "ALERTA PRIORITÁRIO - MOTORISTA|Motorista": {
+    "alert_id": "TRANSFERENCIA-PRIORITARIO-MOT",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou a localização e a condição do motorista?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 7,
+        "label": "O operador identificou o motivo do alerta? (Sinistro, manutenção, problema técnico, acionamento indevido, etc.)",
+        "peso": 1.92,
+        "deflator": -1.92,
+        "weight_original": 1.92
+      },
+      {
+        "num": 8,
+        "label": "O operador solicitou vídeo do veículo nos casos necessários (Painel violado, Botão de pânico, Perda de Bateria, Teclado Desconectado, Sensor de desengate e baú)?",
+        "peso": 1.7,
+        "deflator": -1.7,
+        "weight_original": 1.7
+      },
+      {
+        "num": 9,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 10,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 12,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 13,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "ALERTA PRIORITÁRIO - CLIENTE|Cliente": {
+    "alert_id": "TRANSFERENCIA-PRIORITARIO-CLI",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 7,
+        "label": "O operador informou as ações adotadas até o momento?",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 8,
+        "label": "O operador informou corretamente o local onde gerou o alerta? (Cidade, estado, referência como rodovia, posto, mecânica, etc.)",
+        "peso": 1.8,
+        "deflator": -1.8,
+        "weight_original": 1.8
+      },
+      {
+        "num": 9,
+        "label": "O operador confirmou os contatos atuais do condutor?",
+        "peso": 1.8,
+        "deflator": -1.8,
+        "weight_original": 1.8
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de gírias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "POSIÇÃO EM ATRASO - MOTORISTA|Motorista": {
+    "alert_id": "TRANSFERENCIA-POSICAO-MOT",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou a localização atual do motorista? (Em movimento/parado, cidade e referência de local)",
+        "peso": 1.22,
+        "deflator": -1.22,
+        "weight_original": 1.22
+      },
+      {
+        "num": 7,
+        "label": "Passou orientações para forçar posicionamento do rastreador? (Envio de mensagem, reset de bateria, etc.)",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 8,
+        "label": "O operador procurou identificar o motivo da perda de sinal? (Embaixo de cobertura, área sem sinal de celular, falha no rastreador, etc.)",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 9,
+        "label": "O operador informou os riscos operacionais e de seguro caso o sinal não restabelecer?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "POSIÇÃO EM ATRASO - CLIENTE|Cliente": {
+    "alert_id": "TRANSFERENCIA-POSICAO-CLI",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 7,
+        "label": "O operador informou as ações adotadas, resumindo os contatos/tratativas realizados (com ou sem sucesso)?",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 8,
+        "label": "O operador informou corretamente o local onde perdeu a posição? (Estado, cidade, parado/movimento, referência como posto, mecânica, rodovia)",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 9,
+        "label": "O operador questionou se o conjunto possui equipamento de contingência? (Ex.: isca, rastreador secundário, bloqueio remoto)",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 10,
+        "label": "O operador questionou se o cliente tem informações recentes sobre o veículo e o motorista? (Ex.: manutenção, revisão, problemas no rastreador)",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 11,
+        "label": "O operador confirmou os contatos atuais do condutor?",
+        "peso": 1.1,
+        "deflator": -1.1,
+        "weight_original": 1.1
+      },
+      {
+        "num": 12,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 15,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 16,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 17,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PARADA INDEVIDA - MOTORISTA|Motorista": {
+    "alert_id": "TRANSFERENCIA-PARADA-MOT",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou o motivo pelo qual o motorista parou em local indevido?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 7,
+        "label": "O operador confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 8,
+        "label": "O operador orientou o motorista a reiniciar a viagem e seguir para um local homologado?",
+        "peso": 1.32,
+        "deflator": -1.32,
+        "weight_original": 1.32
+      },
+      {
+        "num": 9,
+        "label": "O operador informou os riscos operacionais da parada indevida, incluindo problemas com seguro?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "PARADA INDEVIDA - CLIENTE|Cliente": {
+    "alert_id": "TRANSFERENCIA-PARADA-CLI",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador informou as ações adotadas até o momento?",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 7,
+        "label": "O operador informou corretamente o local da parada? (Cidade, estado, referência como rodovia, posto, mecânica, etc.)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 8,
+        "label": "O operador confirmou se os pontos de parada autorizada foram passados ao motorista antes do início da viagem?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 9,
+        "label": "O operador informou ao cliente sobre os riscos operacionais e de seguro caso a parada indevida permaneça?",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 10,
+        "label": "O operador indicou medidas de segurança ao cliente? (Ex.: Seguir até posto autorizado, acionar escolta, pronta resposta, etc.)",
+        "peso": 1.4,
+        "deflator": -1.4,
+        "weight_original": 1.4
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DESVIO DE ROTA - MOTORISTA|Motorista": {
+    "alert_id": "TRANSFERENCIA-DESVIO-MOT",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+        "peso": 2.0,
+        "deflator": -2.0,
+        "weight_original": 2.0
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.03,
+        "deflator": -1.03,
+        "weight_original": 1.03
+      },
+      {
+        "num": 6,
+        "label": "O operador confirmou o motivo do desvio de rota?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 7,
+        "label": "Confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 8,
+        "label": "Orientou o motorista a retornar para a rota ou permanecer parado até confirmação com o cliente?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 9,
+        "label": "Coletou qual itinerário o motorista está realizando?",
+        "peso": 1.05,
+        "deflator": -1.05,
+        "weight_original": 1.05
+      },
+      {
+        "num": 10,
+        "label": "O operador informou os riscos operacionais e de seguro caso o motorista continue fora da rota?",
+        "peso": 1.12,
+        "deflator": -1.12,
+        "weight_original": 1.12
+      },
+      {
+        "num": 11,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 14,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 15,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 16,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "DESVIO DE ROTA - CLIENTE|Cliente": {
+    "alert_id": "TRANSFERENCIA-DESVIO-CLI",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 7,
+        "label": "O operador informou as ações adotadas até o momento? (Resumir os contatos/tratativas com ou sem sucesso)",
+        "peso": 1.15,
+        "deflator": -1.15,
+        "weight_original": 1.15
+      },
+      {
+        "num": 8,
+        "label": "O operador informou o trajeto que o motorista está realizando e o que estava programado na rota?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 9,
+        "label": "O operador questionou se o cliente tem conhecimento do motivo do desvio? O motorista informou antecipadamente?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 10,
+        "label": "O operador confirmou se o motorista recebeu o plano de viagem e instruções de rastreamento antes da viagem?",
+        "peso": 1.0,
+        "deflator": -1.0,
+        "weight_original": 1.0
+      },
+      {
+        "num": 11,
+        "label": "O operador indicou medidas de segurança ao cliente? (Ex.: Retornar a rota correta ou realizar o ajuste no sistema)",
+        "peso": 1.3,
+        "deflator": -1.3,
+        "weight_original": 1.3
+      },
+      {
+        "num": 12,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 13,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 14,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 15,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 16,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 17,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  },
+  "CONTATO COM PONTO DE APOIO|Ponto de Apoio": {
+    "alert_id": "TRANSFERENCIA-PONTO-APOIO",
+    "sector": "transferencia",
+    "total_weight_yaml": 10.0,
+    "scale_factor": 1.0,
+    "criterios": [
+      {
+        "num": 1,
+        "label": "Saudação?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 2,
+        "label": "Nome?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 3,
+        "label": "Setor/Empresa?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      },
+      {
+        "num": 4,
+        "label": "Confirmou com quem está falando?",
+        "peso": 0.4,
+        "deflator": -0.2,
+        "weight_original": 0.4
+      },
+      {
+        "num": 5,
+        "label": "O operador informou claramente o motivo do contato?",
+        "peso": 1.2,
+        "deflator": -1.2,
+        "weight_original": 1.2
+      },
+      {
+        "num": 6,
+        "label": "O operador informou os dados e as características do veículo? (cor, placa, modelo)",
+        "peso": 1.95,
+        "deflator": -1.95,
+        "weight_original": 1.95
+      },
+      {
+        "num": 7,
+        "label": "O operador passou detalhes da última posição do veículo? (Referência dentro do posto)",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 8,
+        "label": "O operador solicitou que o atendente verificasse se o conjunto (cavalo/carreta) estava no local sem violações?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 9,
+        "label": "O operador orientou o atendente a chamar o motorista?",
+        "peso": 1.6,
+        "deflator": -1.6,
+        "weight_original": 1.6
+      },
+      {
+        "num": 10,
+        "label": "Realizou a despedida padrão com cordialidade?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 11,
+        "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 12,
+        "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+        "peso": 0.15,
+        "deflator": -0.075,
+        "weight_original": 0.15
+      },
+      {
+        "num": 13,
+        "label": "O operador registrou corretamente o contato no sistema, incluindo número de telefone, nome do responsável, e resumo da conversa?",
+        "peso": 0.2,
+        "deflator": -0.1,
+        "weight_original": 0.2
+      },
+      {
+        "num": 14,
+        "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+        "peso": 0.3,
+        "deflator": -0.15,
+        "weight_original": 0.3
+      },
+      {
+        "num": 15,
+        "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade, sem excesso de girias?",
+        "peso": 0.1,
+        "deflator": -0.05,
+        "weight_original": 0.1
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+Modulo de Triagem
+
+1 - Existem as ligações que passam pela detecção automática e vão automaticamente pela auditoria (em segundo plano e depois são salvas)
+
+2 - Existem as ligações que falta algum critério, essas ficam ali pendente de revisão, correto? Vamos deixar uma função para que o auditor ouça e avalie o setor que ela é e edite manualmente e possa decidir se ela segue o fluxo e será auditada
+
+3 - Existe também uma regra onde: São duas ligações auditadas por operador então se aquela operador foi já tem duas ligações ele não precisa ser auditado em outras ligações logo ao atingir duas ligações nos devemos: A) Ignorar alegando já ter sido auditada e seguir com os que ainda não foram auditados ou B) Colocar isso em alguma pasta? Preciso da sua opinião sobre
+
+4 - Após fazer um processo de triagem é preciso deixar o sistema em aberto para poder receber mais arquivos, o fluxo não pode travar apos classificações a não ser que chegue no limite de 50 ligações

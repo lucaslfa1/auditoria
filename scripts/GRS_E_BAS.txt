@@ -1,0 +1,1308 @@
+# Critérios de Auditoria: CRITÉRIOS DA AUDITORIA - GRS & BAS
+
+> [!ATENÇÃO - ATUALIZAÇÃO DE REGRA DE NEGÓCIO]
+> GRS (UTI) e BAS não fazem mais parte do mesmo setor.
+> Além disso, **NÃO SÃO AUDITADOS NA PARTE RECEPTIVA**, somente ATIVA.
+> A seção 'RECEPTIVA' foi completamente removida deste documento por ser obsoleta.
+
+
+
+## Página 1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+REVISÃO: 01 
+DATA REVISÃO: 30/06/2025 
+CONFIDENCIALIDADE: Interno 
+OPENTECH 
+CRITÉRIOS DA AUDITORIA 
+ 
+GRS & BAS 
+ 
+
+## Página 2
+USO INTERNO  
+ 
+ 
+## Página 3
+ 
+USO INTERNO  
+ 
+ 
+ALERTAS PRIORITÁRIOS – CONTATO MOTORISTA 
+Critério Avaliado Por que é importante Exemplo do que pode ser dito 
+O operador se identificou 
+informando saudação, nome, setor 
+e empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+O operador confirmou a senha de 
+segurança antes de prosseguir? 
+A verificação de senha protege a 
+comunicação e evita repasses indevidos de 
+informações. 
+"Antes de prosseguirmos, poderia 
+me confirmar sua senha de 
+segurança, por favor?" 
+O operador informou claramente o 
+motivo do contato? 
+O motorista precisa entender rapidamente 
+a situação para fornecer informações 
+precisas. 
+"Estou entrando em contato devido 
+a um alerta detectado no sistema. 
+Preciso verificar sua situação." 
+O operador confirmou a localização 
+e a condição do motorista? 
+Ter a posição exata e saber se há risco 
+permite uma melhor análise da 
+ocorrência. 
+"Pode me confirmar onde 
+exatamente você está agora? 
+Movimento ou parado?" 
+O operador identificou o motivo do 
+alerta? (Sinistro, manutenção, 
+problema técnico, acionamento 
+indevido, etc.) 
+A causa do alerta precisa ser identificada 
+rapidamente para tomada de decisão. 
+"Consegue me informar o que 
+ocorreu para esse alerta ter subido 
+para mim?" 
+O operador solicitou vídeo do 
+veículo nos casos necessários 
+(Painel violado, Botão de pânico, 
+Perda de Bateria, Teclado 
+Desconectado, Sensor de 
+desengate e baú)?  
+A solicitação do vídeo é essencial para 
+análise mais detalhada e para garantir a 
+segurança do motorista e da carga.  
+"O senhor consegue enviar para nós 
+um vídeo no WhatsApp? No vídeo 
+precisa falar seu nome, senha de 
+segurança, data e horário atuais” 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente 
+o contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da 
+conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+Exemplo: Cliente [Nome], Telefone: 
+(XX) XXXX-XXXX, Responsável: 
+[Nome], Resumo: Motorista/Cliente 
+informou que... 
+Após a resolução do alerta, 
+finalizou corretamente a ligação 
+sem reter a linha 
+desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva evita 
+atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada 
+transmitiram credibilidade e 
+cordialidade, sem excesso de 
+gírias? 
+O tom de voz adequado reforça confiança 
+e profissionalismo, garantindo que o 
+motorista siga as instruções corretamente. 
+  
+
+## Página 4
+USO INTERNO 
+ 
+ 
+POSIÇÃO EM ATRASO – CONTATO MOTORISTA 
+Critério Avaliado Por que é importante Exemplo do que pode ser 
+O operador se identificou 
+informando saudação, nome, setor 
+e empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+O operador confirmou a senha de 
+segurança antes de prosseguir? 
+A verificação de senha protege a 
+comunicação e evita repasses indevidos de 
+informações. 
+"Antes de prosseguirmos, poderia 
+me confirmar sua senha de 
+segurança, por favor?" 
+O operador informou claramente o 
+motivo do contato? 
+O motorista precisa entender rapidamente 
+o problema para colaborar com a solução. 
+"Estamos identificando a perda do 
+sinal do rastreador e precisamos 
+entender a situação." 
+O operador confirmou a localização 
+atual do motorista? (Em 
+movimento/parado, cidade e 
+referência de local) 
+É essencial identificar se a falta de sinal 
+está relacionada ao deslocamento ou a um 
+local de sombra de sinal. 
+"O caminhão está parado ou em 
+movimento? Você pode me passar 
+um ponto de referência posto, km da 
+rodovia? Qual a cidade?" 
+Passou orientações para forçar 
+posicionamento do rastreador? 
+(Envio de mensagem, reset de 
+bateria, etc.) 
+Medidas corretivas ajudam a restabelecer 
+o sinal, garantindo continuidade no 
+monitoramento. 
+"Precisamos tentar restabelecer o 
+sinal. Você pode desligar e religar a 
+chave geral do veículo? Ou enviar 
+uma mensagem no teclado?" 
+O operador procurou identificar o 
+motivo da perda de sinal? 
+(Embaixo de cobertura, área sem 
+sinal de celular, falha no 
+rastreador, etc.) 
+Compreender a causa ajuda na tomada de 
+decisão e no suporte adequado ao 
+motorista. 
+"Você está em um local coberto, 
+como um túnel ou garagem? Sabe 
+me informar se a região é ruim de 
+sinal?" 
+O operador informou os riscos 
+operacionais e de seguro caso o 
+sinal não restabelecer? 
+Evita prejuízos, melhora a segurança e 
+assegura responsabilidade e garante 
+monitoramento contínuo. 
+"Caso ocorra um sinistro com o sinal 
+desatualizado, pode haver 
+problemas com a cobertura do 
+seguro da carga e do veículo." 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente 
+o contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da 
+conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+"Contato registrado: Cliente [Nome], 
+Telefone: (XX) XXXX-XXXX, 
+Responsável: [Nome], Resumo: 
+Cliente informou que... 
+Após a resolução do alerta, 
+finalizou corretamente a ligação 
+sem reter a linha 
+desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva evita 
+atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada 
+transmitiram credibilidade e 
+cordialidade, sem excesso de 
+gírias? 
+O tom de voz adequado reforça confiança 
+e profissionalismo, garantindo que o 
+motorista siga as instruções corretamente. 
+  
+
+## Página 5
+USO INTERNO 
+ 
+ 
+PARADA INDEVIDA - CONTATO MOTORISTA 
+Critério Avaliado Por que é importante Exemplo do que pode ser dito 
+O operador se identificou 
+informando saudação, nome, setor 
+e empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+O operador confirmou a senha de 
+segurança antes de prosseguir? 
+A verificação de senha protege a 
+comunicação e evita repasses indevidos de 
+informações. 
+"Antes de prosseguirmos, poderia 
+me confirmar sua senha de 
+segurança, por favor?" 
+O operador informou claramente o 
+motivo do contato? 
+O motorista precisa entender rapidamente 
+a gravidade da situação para corrigir a 
+ação. 
+"Estou efetuando contato pois 
+identificamos que o veículo está 
+parado em um local não autorizado. 
+Precisamos verificar essa situação." 
+O operador confirmou o motivo 
+pelo qual o motorista parou em 
+local indevido? 
+Identificar a razão da parada permite 
+avaliar riscos e definir a melhor 
+orientação. 
+"Você precisou parar por algum 
+motivo específico? Houve alguma 
+falha no veículo?" 
+O operador confirmou se o 
+motorista recebeu o plano de 
+viagem e instruções de 
+rastreamento? 
+Garantir que o motorista esteja ciente das 
+regras e que tenha em mãos os locais 
+homologados. 
+"Você recebeu todas as orientações 
+sobre os locais homologados para 
+parada?" 
+O operador orientou o motorista a 
+reiniciar a viagem e seguir para um 
+local homologado? 
+A saída imediata do local reduz riscos 
+operacionais e de segurança. 
+"Por favor, retome sua viagem e siga 
+para um local autorizado o mais 
+breve possível." 
+O operador informou os riscos 
+operacionais da parada indevida, 
+incluindo problemas com seguro? 
+Deixar claro os impactos de uma parada 
+irregular fazem com que o motorista 
+compreenda a importância da orientação. 
+"Essa parada pode comprometer a 
+cobertura do seguro em caso de 
+sinistro. Precisamos que o veículo 
+esteja em um local adequado." 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente 
+o contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da 
+conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+Exemplo: Cliente [Nome], Telefone: 
+(XX) XXXX-XXXX, Responsável: 
+[Nome], Resumo: Cliente informou 
+que... 
+Após a resolução do alerta, 
+finalizou corretamente a ligação 
+sem reter a linha 
+desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva evita 
+atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada 
+transmitiram credibilidade e 
+cordialidade, sem excesso de 
+gírias? 
+O tom de voz adequado reforça confiança 
+e profissionalismo, garantindo que o 
+motorista siga as instruções corretamente. 
+  
+ 
+ 
+ 
+
+## Página 6
+ 
+USO INTERNO 
+ 
+DESVIO DE ROTA – CONTATO MOTORISTA 
+Critério Avaliado Por que é importante Exemplo do que pode ser 
+O operador se identificou 
+informando saudação, nome, setor 
+e empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+O operador confirmou a senha de 
+segurança antes de prosseguir? 
+A verificação de senha protege a 
+comunicação e evita repasses indevidos de 
+informações. 
+"Antes de prosseguirmos, poderia 
+me confirmar sua senha de 
+segurança, por favor?" 
+O operador informou claramente o 
+motivo do contato? 
+O motorista precisa entender rapidamente 
+o problema para colaborar com a solução. 
+"Estamos identificando um desvio de 
+rota no seu trajeto e precisamos 
+entender a situação." 
+O operador confirmou o motivo do 
+desvio de rota? 
+Identificar o motivo do desvio é essencial 
+para definir as próximas ações e validar se 
+houve uma alteração planejada. 
+"O que aconteceu para que você 
+saísse da rota planejada?" 
+Confirmou se o motorista recebeu 
+o plano de viagem e instruções de 
+rastreamento? 
+Garante que o motorista tinha ciência do 
+trajeto e das regras de monitoramento 
+antes do desvio. 
+"Você recebeu o plano de viagem 
+com as instruções de rastreamento 
+antes do início da viagem?" 
+Orientou o motorista a retornar 
+para a rota ou permanecer parado 
+até confirmação com o cliente? 
+Dependendo do motivo do desvio, é 
+necessário orientar a retomada do trajeto 
+ou aguardar autorização. 
+"Por segurança, oriento que retorne 
+ao trajeto previsto. Caso haja alguma 
+mudança, vamos confirmar com o 
+cliente." 
+Coletou qual itinerário o motorista 
+está realizando? 
+Ajuda a entender se houve uma falha na 
+programação da rota ou se o motorista 
+recebeu uma nova orientação de 
+terceiros. 
+"Por onde o senhor vai seguir agora? 
+Esse trajeto foi repassado por 
+alguém?" 
+O operador informou os riscos 
+operacionais e de seguro caso o 
+motorista continue fora da rota? 
+Esclarece ao motorista que a saída não 
+autorizada da rota pode impactar na 
+cobertura do seguro em caso de sinistro. 
+"Caso ocorra um sinistro fora da rota 
+homologada, pode haver problemas 
+com a cobertura do seguro da carga 
+e do veículo." 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente 
+o contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da 
+conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+"Contato registrado: Cliente [Nome], 
+Telefone: (XX) XXXX-XXXX, 
+Responsável: [Nome], Resumo: 
+Cliente informou que... 
+Após a resolução do alerta, 
+finalizou corretamente a ligação 
+sem reter a linha 
+desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva evita 
+atrasos no atendimento.   
+  
+
+## Página 7
+USO INTERNO 
+ 
+ 
+ALERTAS PRIORITÁRIOS – CONTATO CLIENTE 
+Critério Avaliado Por que é importante Exemplo do que pode ser dito 
+O operador se identificou 
+informando saudação, nome, setor e 
+empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+Confirmou com quem está falando? Garante que a informação seja passada 
+para a pessoa correta. "Por gentileza, com quem eu falo?" 
+O operador informou claramente o 
+motivo do contato? 
+O cliente precisa entender rapidamente 
+a situação para fornecer informações 
+precisas. 
+"Estou entrando em contato devido 
+a um alerta prioritário detectado no 
+sistema. Preciso verificar a situação." 
+O operador enfatizou ao cliente que 
+estava atuando em uma suspeita de 
+sinistro? 
+Alerta o cliente sobre a gravidade da 
+situação, reforçando a necessidade de 
+atenção e suporte imediato. 
+"Estamos tratando este caso como 
+uma suspeita de sinistro e 
+intensificando as tratativas para 
+garantir a segurança da carga e do 
+veículo." 
+O operador informou as ações 
+adotadas até o momento? 
+Garante que o cliente tenha clareza 
+sobre as tratativas realizadas e próximos 
+passos. 
+"Já realizamos tentativas de contato 
+com o motorista e ponto de apoio, 
+além de enviar comandos ao 
+rastreador, sem sucesso até o 
+momento." 
+O operador informou corretamente 
+o local onde gerou o alerta? (Cidade, 
+estado, referência como rodovia, 
+posto, mecânica, etc.) 
+Ajuda o cliente a entender o contexto e 
+avaliar o risco da situação. 
+"O veículo estava na cidade de 
+[cidade], próximo ao 
+[posto/mecânica/km da rodovia]." 
+O operador confirmou os contatos 
+atuais do condutor? 
+Garante que os números utilizados estão 
+corretos, evitando tentativas de contato 
+desatualizadas. 
+"O número de telefone que temos 
+registrado para o condutor é 
+[número]. Confirma se está correto 
+ou há outro contato atualizado?" 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente o 
+contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+Exemplo: Cliente [Nome], Telefone: 
+(XX) XXXX-XXXX, Responsável: 
+[Nome], Resumo: Cliente informou 
+que... 
+Após a resolução do alerta, finalizou 
+corretamente a ligação sem reter a 
+linha desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva 
+evita atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada 
+transmitiram credibilidade e 
+cordialidade, sem excesso de 
+gírias? 
+O tom de voz adequado reforça confiança 
+e profissionalismo, garantindo que o 
+motorista siga as instruções corretamente. 
+  
+
+## Página 8
+USO INTERNO 
+ 
+ 
+O volume de voz, entonação e 
+condução da chamada transmitiram 
+credibilidade e cordialidade, sem 
+excesso de gírias? 
+O tom de voz adequado reforça 
+confiança e profissionalismo, garantindo 
+que o motorista siga as instruções 
+corretamente. 
+  
+ 
+POSIÇÃO EM ATRASO – CONTATO CLIENTE 
+Critério Avaliado Por que é importante Exemplo do que pode ser dito 
+O operador se identificou 
+informando saudação, nome, setor e 
+empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+Confirmou com quem está falando? Garante que a informação seja passada 
+para a pessoa correta. "Por gentileza, com quem eu falo?" 
+O operador informou claramente o 
+motivo do contato? 
+O cliente precisa entender rapidamente 
+a situação para fornecer informações 
+precisas. 
+"Estou entrando em contato devido 
+a um alerta de perda de posição 
+detectado no sistema. Preciso 
+verificar a situação." 
+O operador enfatizou ao cliente que 
+estava atuando em uma suspeita de 
+sinistro? 
+Alerta o cliente sobre a gravidade da 
+situação, reforçando a necessidade de 
+atenção e suporte imediato. 
+"Estamos tratando este caso como 
+uma suspeita de sinistro." 
+O operador informou as ações 
+adotadas, resumindo os 
+contatos/tratativas realizados (com 
+ou sem sucesso)? 
+Garante que o cliente tenha visibilidade 
+sobre os esforços da equipe e os 
+próximos passos. 
+"Já realizamos tentativas de contato 
+com o motorista e ponto de apoio, 
+sem sucesso até o momento." 
+O operador informou corretamente 
+o local onde perdeu a posição? 
+(Estado, cidade, parado/movimento, 
+referência como posto, mecânica, 
+rodovia) 
+Ajuda o cliente a entender o contexto e 
+avaliar o risco da situação. 
+"A última posição do veículo foi na 
+cidade [cidade], no estado de 
+[estado], com o veículo parado no 
+posto [nome] na rodovia [rodovia]." 
+O operador questionou se o 
+conjunto possui equipamento de 
+contingência? (Ex.: isca, rastreador 
+secundário, bloqueio remoto) 
+Identifica possíveis alternativas para 
+recuperar a visibilidade do veículo. 
+"Esse veículo possui algum 
+equipamento de contingência, como 
+segundo rastreador ou isca?" 
+O operador questionou se o cliente 
+tem informações recentes sobre o 
+veículo e o motorista? (Ex.: 
+manutenção, revisão, problemas no 
+rastreador) 
+Permite cruzar informações, pois o 
+motorista pode ter informado o cliente 
+antes da gerenciadora. 
+"O motorista mencionou 
+recentemente alguma manutenção, 
+revisão ou problemas no rastreador 
+diretamente com vocês?" 
+O operador confirmou os contatos 
+atuais do condutor? 
+Garante que os números utilizados estão 
+corretos, evitando tentativas de contato 
+desatualizadas. 
+"O número de telefone que temos 
+registrado para o condutor é 
+[número]. Pode me confirmar se é 
+esse mesmo?" 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+  
+
+## Página 9
+USO INTERNO 
+ 
+ 
+O operador registrou corretamente o 
+contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+Exemplo: Cliente [Nome], Telefone: 
+(XX) XXXX-XXXX, Responsável: 
+[Nome], Resumo: Cliente informou 
+que... 
+Após a resolução do alerta, finalizou 
+corretamente a ligação sem reter a 
+linha desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva 
+evita atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada transmitiram 
+credibilidade e cordialidade, sem 
+excesso de gírias? 
+O tom de voz adequado reforça 
+confiança e profissionalismo, garantindo 
+que o motorista siga as instruções 
+corretamente. 
+  
+ 
+PARADA INDEVIDA – CONTATO CLIENTE 
+Critério Avaliado Por que é importante Exemplo do que pode ser dito 
+O operador se identificou 
+informando saudação, nome, setor e 
+empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+Confirmou com quem está falando? Garante que a informação seja passada 
+para a pessoa correta. "Por gentileza, com quem eu falo?" 
+O operador informou claramente o 
+motivo do contato? 
+O cliente precisa entender rapidamente 
+a situação para fornecer informações 
+precisas. 
+"Estou entrando em contato devido 
+a um alerta parada indevida 
+detectado no sistema. Preciso 
+verificar uma situação." 
+O operador informou as ações 
+adotadas até o momento? 
+Garante que o cliente tenha clareza 
+sobre as tratativas realizadas e próximos 
+passos. 
+"Já realizamos tentativas de contato 
+com o motorista e ponto de apoio, 
+sem sucesso até o momento. 
+Estamos acionando as autoridades 
+locais." 
+O operador informou corretamente 
+o local da parada? (Cidade, estado, 
+referência como rodovia, posto, 
+mecânica, etc.) 
+Ajuda o cliente a entender o contexto e 
+avaliar o risco da situação. 
+"O veículo está parado em [cidade], 
+próximo a [posto/mecânica/km da 
+rodovia]." 
+O operador confirmou se os pontos 
+de parada autorizada foram 
+passados ao motorista antes do 
+início da viagem? 
+Verifica se o motorista tinha 
+conhecimento prévio das regras de 
+parada. 
+"O motorista recebeu os pontos de 
+parada autorizada antes do início da 
+viagem? Estava ciente das 
+restrições?" 
+O operador informou ao cliente 
+sobre os riscos operacionais e de 
+seguro caso a parada indevida 
+permaneça? 
+Esclarece ao cliente o impacto da parada 
+não autorizada na cobertura do seguro e 
+segurança da carga. 
+"Caso ocorra um sinistro enquanto o 
+veículo está fora dos pontos 
+autorizados, pode haver impacto na 
+cobertura do seguro da carga e do 
+veículo." 
+O operador indicou medidas de 
+segurança ao cliente? (Ex.: Seguir até 
+posto autorizado, acionar escolta, 
+pronta resposta, etc.) 
+Sugere alternativas para mitigar riscos e 
+reforçar a segurança da operação. 
+"Solicitamos que oriente o motorista 
+a seguir até o posto autorizado mais 
+próximo. Caso a parada persista, 
+poderá ter problemas com a 
+seguradora. 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+  
+
+## Página 10
+USO INTERNO 
+ 
+ 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente o 
+contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+"Contato registrado: Cliente [Nome], 
+Telefone: (XX) XXXX-XXXX, 
+Responsável: [Nome], Resumo: 
+Cliente informou que... 
+Após a resolução do alerta, finalizou 
+corretamente a ligação sem reter a 
+linha desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva 
+evita atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada transmitiram 
+credibilidade e cordialidade, sem 
+excesso de gírias? 
+O tom de voz adequado reforça 
+confiança e profissionalismo, garantindo 
+que o motorista siga as instruções 
+corretamente. 
+  
+ 
+DESVIO DE ROTA – CONTATO CLIENTE 
+Critério Avaliado Por que é importante Exemplo do que pode ser dito 
+O operador se identificou 
+informando saudação, nome, setor e 
+empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+Confirmou com quem está falando? Garante que a informação seja passada 
+para a pessoa correta. "Por gentileza, com quem eu falo?" 
+O operador informou claramente o 
+motivo do contato? 
+O cliente precisa entender rapidamente 
+a situação para fornecer informações 
+precisas. 
+"Estou entrando em contato devido 
+a um alerta de desvio de rota 
+detectado no sistema. Preciso 
+verificar a situação." 
+O operador enfatizou ao cliente que 
+estava atuando em uma suspeita de 
+sinistro? 
+Alerta o cliente sobre a gravidade da 
+situação, reforçando a necessidade de 
+atenção e suporte imediato. 
+"Estamos tratando este caso como 
+uma suspeita de sinistro e 
+intensificando as tratativas para 
+garantir a segurança da carga e do 
+veículo." 
+O operador informou as ações 
+adotadas até o momento? (Resumir 
+os contatos/tratativas com ou sem 
+sucesso) 
+Garante que o cliente tenha clareza 
+sobre as tratativas realizadas e próximos 
+passos. 
+"Já tentamos contato com o 
+motorista e não obtivemos retorno. 
+Também acionamos o ponto de 
+apoio mais próximo e seguimos 
+monitorando a movimentação do 
+veículo." 
+O operador informou o trajeto que o 
+motorista está realizando e o que 
+estava programado na rota? 
+Ajuda o cliente a entender a divergência 
+e avaliar o risco da situação. 
+"O motorista deveria seguir pela 
+[Rodovia X], mas desviou para a 
+[Rodovia Y] sem comunicação 
+prévia." 
+O operador questionou se o cliente 
+tem conhecimento do motivo do 
+desvio? O motorista informou 
+antecipadamente? 
+Verifica se o cliente recebeu algum aviso 
+do motorista, evitando alarmes 
+desnecessários. 
+"O motorista entrou em contato com 
+vocês para informar que iria desviar? 
+Há alguma orientação interna sobre 
+essa mudança de rota?" 
+  
+
+## Página 11
+USO INTERNO 
+ 
+ 
+O operador confirmou se o motorista 
+recebeu o plano de viagem e 
+instruções de rastreamento antes da 
+viagem? 
+Garante que o motorista tinha ciência da 
+rota planejada e das regras de 
+rastreamento. 
+"O motorista recebeu o plano de 
+viagem com a rota definida e as 
+instruções de rastreamento antes da 
+viagem?" 
+O operador indicou medidas de 
+segurança ao cliente? (Ex.: Retornar 
+a rota correta ou realizar o ajuste no 
+sistema) 
+Sugere alternativas para mitigar riscos e 
+reforçar a segurança da operação. 
+"Solicitamos que oriente o motorista 
+a seguir pela rota correta ou que seja 
+feita a alteração via SIL." 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente o 
+contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+"Contato registrado: Cliente [Nome], 
+Telefone: (XX) XXXX-XXXX, 
+Responsável: [Nome], Resumo: 
+Cliente informou que... 
+Após a resolução do alerta, finalizou 
+corretamente a ligação sem reter a 
+linha desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva 
+evita atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada transmitiram 
+credibilidade e cordialidade, sem 
+excesso de gírias? 
+O tom de voz adequado reforça 
+confiança e profissionalismo, garantindo 
+que o motorista siga as instruções 
+corretamente. 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+## Página 12
+USO INTERNO 
+ 
+CONTATO PONTO DE APOIO 
+Critério Avaliado Por que é importante Exemplo do que pode ser 
+O operador se identificou 
+informando saudação, nome, setor e 
+empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+Confirmou com quem está falando? Garante que a informação seja passada 
+para a pessoa correta. "Por gentileza, com quem eu falo?" 
+O operador informou claramente o 
+motivo do contato? 
+O atendente precisa entender 
+rapidamente o objetivo da ligação para 
+colaborar com a solução. 
+"Estamos monitorando um veículo 
+que deve realizar parada no seu 
+ponto de apoio e gostaríamos de 
+confirmar algumas informações." 
+O operador informou os dados e as 
+características do veículo? (cor, 
+placa, modelo) 
+Garante que a verificação seja feita no 
+veículo correto. 
+"O veículo que estamos monitorando 
+é um [modelo] de cor [cor], placa 
+[placa]." 
+O operador passou detalhes da 
+última posição do veículo? 
+(Referência dentro do posto) 
+Confirma se o veículo realmente está no 
+local indicado pelo sistema. 
+"O sistema mostra que ele está na 
+área de abastecimento do posto. 
+Pode confirmar essa informação?" 
+O operador solicitou que o 
+atendente verificasse se o conjunto 
+(cavalo/carreta) estava no local sem 
+violações? 
+Certifica que não houve irregularidades 
+ou violações durante a parada. 
+"Pode verificar se o conjunto esta 
+sem nenhuma violação?" 
+O operador orientou o atendente a 
+chamar o motorista? 
+Em alguns casos, falar diretamente com 
+o motorista pode acelerar a verificação 
+da situação. 
+"Poderia solicitar que o motorista 
+venha até o telefone para 
+conversarmos?" 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente o 
+contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+"Contato registrado: Cliente [Nome], 
+Telefone: (XX) XXXX-XXXX, 
+Responsável: [Nome], Resumo: 
+Cliente informou que... 
+Após a resolução do alerta, finalizou 
+corretamente a ligação sem reter a 
+linha desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva 
+evita atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada transmitiram 
+credibilidade e cordialidade, sem 
+excesso de gírias? 
+O tom de voz adequado reforça 
+confiança e profissionalismo, garantindo 
+que o motorista siga as instruções 
+corretamente. 
+  
+ 
+ 
+ 
+ 
+
+## Página 13
+USO INTERNO 
+ 
+ACIONAMENTO POLICIAL 
+Critério Avaliado Por que é importante Exemplo do que pode ser 
+O operador se identificou 
+informando saudação, nome, setor e 
+empresa? 
+A identificação profissionaliza o 
+atendimento e garante clareza sobre 
+quem está ligando. 
+"Bom dia/Boa tarde/Boa noite, aqui 
+é [Nome], do setor [setor] da 
+Opentech." 
+Confirmou com quem está falando? Garante que a informação seja passada 
+para a pessoa correta. "Por gentileza, com quem eu falo?" 
+O operador passou detalhes do 
+evento que indicam a suspeita? 
+O operador informou claramente o 
+motivo do contato? 
+"Somos uma Gerenciadora de Risco, 
+e estamos monitorando um veículo 
+que gerou um alerta de [alerta] e 
+não temos contato com o motorista, 
+gostaríamos de solicitar apoio nessa 
+ocorrência". 
+O operador informou os dados e as 
+características do conjunto e do 
+motorista? (cavalo, carreta, cor, 
+modelo) 
+Garante que a abordagem seja feita no 
+veículo correto. 
+"Trata-se de um [modelo] de cor 
+[cor], placa [placa], puxando uma 
+carreta [tipo]." 
+O operador passou detalhes do local 
+da ocorrência? (Rodovia, Referência, 
+KM) 
+Ajuda a equipe policial a identificar com 
+precisão a localização para uma resposta 
+mais rápida. 
+"O último posicionamento do veículo 
+foi na BR-101, próximo ao KM 75, 
+sentido sul." 
+O operador solicitou deslocamento 
+e/ou reporte da ocorrência para 
+patrulhamento? 
+Garante que a solicitação seja clara e 
+direta, aumentando a chance de uma 
+abordagem rápida. 
+"Solicitamos apoio para 
+patrulhamento e abordagem do 
+veículo em situação suspeita." 
+O operador deixou telefone de 
+contato para retorno? 
+Garante um canal de comunicação 
+aberto para atualizações e suporte 
+adicional. 
+"Podem retornar para o número 
+0800 727 6101 Opção 3 para 
+qualquer atualização." 
+O operador utilizou o alfabeto 
+fonético ao passar informações? 
+Evita erros na transmissão de placas e 
+códigos, garantindo clareza. 
+"Placa do veículo: Alfa, Bravo, 
+Charlie, primeiro, segundo, terceiro, 
+quarto." 
+Realizou a despedida padrão com 
+cordialidade? 
+Um encerramento educado mantém a 
+postura profissional do atendimento. 
+"Obrigado por sua atenção. Tenha 
+um excelente dia!" 
+Utilizou a função mudo 
+corretamente para evitar ruídos 
+externos? 
+O uso correto do mudo evita 
+interferências e mantém a qualidade da 
+chamada. 
+"Vou colocar no mudo enquanto 
+verifico as informações. Já volto com 
+você." 
+Evitou silêncios prolongados (mais 
+de 45 segundos sem interação)? 
+O preenchimento do silêncio mantém o 
+contato ativo e evita que o motorista 
+pense que a ligação caiu. 
+"Estou verificando os dados no 
+sistema. Aguarde um momento 
+enquanto faço a consulta." 
+O operador registrou corretamente o 
+contato no sistema, incluindo 
+número de telefone, nome do 
+responsável, e resumo da conversa? 
+Garante rastreabilidade e facilita 
+acompanhamentos posteriores. 
+"Contato registrado: Cliente [Nome], 
+Telefone: (XX) XXXX-XXXX, 
+Responsável: [Nome], Resumo: 
+Cliente informou que... 
+Após a resolução do alerta, finalizou 
+corretamente a ligação sem reter a 
+linha desnecessariamente (10s)? 
+Encerrar a ligação de forma objetiva 
+evita atrasos no atendimento.   
+O volume de voz, entonação e 
+condução da chamada transmitiram 
+credibilidade e cordialidade, sem 
+excesso de gírias? 
+O tom de voz adequado reforça 
+confiança e profissionalismo, garantindo 
+que o motorista siga as instruções 
+corretamente. 
+  
+ 
+

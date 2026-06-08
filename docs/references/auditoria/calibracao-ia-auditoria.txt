@@ -1,0 +1,15 @@
+incluir filtro de mês no portal do supervisor
+
+restrição de senha 4 dígitos - Prioridade
+
+
+sempre que for parada: motorista nao pode decidir fora do plano; operador deve orientar retorno ao procedimento e nao pode acatar/normalizar recusa ou parada indevida - Calibrar
+
+despedidas podem ser flexíveis bom dia, boa viagem, bom almoço, obrigado sozinho não considera - Prioridade 
+
+
+falta campo de editar transcrição - Prioridade 
+
+
+remover auditoria de qualidade do áudio dos serviços de telefonia - prioritario
+

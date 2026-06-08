@@ -1,0 +1,2923 @@
+[
+  {
+    "path": "D:\\auditoria\\Ligações\\CADASTRO\\BOAS\\ANTECEDENTES-agent-11214-5_11_2025_17_13_3-node01-1762373580-26728.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 36,
+        "diarization": {
+          "score": 0.96,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 36,
+          "human_segment_count": 35,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:11.920",
+              "end": "00:13.120",
+              "speaker": "operador",
+              "text": "Operador: Tudo em que posso ajudar?"
+            },
+            {
+              "start": "00:13.520",
+              "end": "00:29.560",
+              "speaker": "cliente",
+              "text": "Cliente: Eu sou o Fabrício, eu estou tentando entrar na Del Pozo aqui de Ponta Grossa Paraná e a menina viu lá no sistema de vocês que está dando pendente a minha documentação com "
+            },
+            {
+              "start": "00:31.920",
+              "end": "00:39.840",
+              "speaker": "cliente",
+              "text": "Cliente: 298 30938. Como é que é o seu nome?"
+            },
+            {
+              "start": "00:40.680",
+              "end": "00:42.040",
+              "speaker": "cliente",
+              "text": "Cliente: Fabrício Melo Dias."
+            },
+            {
+              "start": "00:42.520",
+              "end": "00:43.840",
+              "speaker": "operador",
+              "text": "Operador: Ok, só um momento."
+            },
+            {
+              "start": "01:12.800",
+              "end": "01:19.680",
+              "speaker": "operador",
+              "text": "Operador: Está sendo solicitado, Fabrício, a cópia de um processo do ano de 2023 da comarca de Passo Fundo, Rio Grande do Sul."
+            },
+            {
+              "start": "01:21.920",
+              "end": "01:25.840",
+              "speaker": "cliente",
+              "text": "Cliente: Está dando como alguma coisa de crime ambiental, algo do tipo?"
+            },
+            {
+              "start": "01:26.240",
+              "end": "01:30.000",
+              "speaker": "operador",
+              "text": "Operador: Pra gente ele não traz o do que se trata, por isso que a gente está sendo solicitado."
+            },
+            {
+              "start": "01:33.280",
+              "end": "01:35.520",
+              "speaker": "cliente",
+              "text": "Cliente: E pra quem que eu envio esse documento, na verdade?"
+            },
+            {
+              "start": "01:35.840",
+              "end": "01:39.680",
+              "speaker": "operador",
+              "text": "Operador: Diretamente aqui pra gente ou pra transportadora, que fica mais fácil pra você."
+            },
+            {
+              "start": "01:41.640",
+              "end": "01:42.840",
+              "speaker": "cliente",
+              "text": "Cliente: Qual o número, na verdade, vocês?"
+            },
+            {
+              "start": "01:43.440",
+              "end": "01:44.480",
+              "speaker": "operador",
+              "text": "Operador: O nosso é por e-mail."
+            }
+          ],
+          "risk_counts": {
+            "low": 35,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Atenção ligação receptiva cadastro boa tarde Olá boa tarde, tudo bem?",
+          "Operador: Tudo em que posso ajudar?",
+          "Cliente: Eu sou o Fabrício, eu estou tentando entrar na Del Pozo aqui de Ponta Grossa Paraná e a menina viu lá no sistema de vocês que está dando pendente a minha documentação com vocês aí. Qual é o CPF do senhor?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\CADASTRO\\RUINS\\ANTECEDENTES-agent-10362-8_10_2025_12_25_17-node01-1759937115-60427.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 29,
+        "diarization": {
+          "score": 0.96,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 29,
+          "human_segment_count": 28,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 28,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Atenção! Ligação receptiva Cadastro Camila, boa tarde.",
+          "Cliente: Oi boa tarde, com quem eu falo?",
+          "Operador: Com a Camila da central de cadastro, como posso lhe ajudar?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\ATRASO-MOTORISTA-20251230173926115_Danilo_Alves_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 14,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 14,
+          "human_segment_count": 14,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 14,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: bom dia.",
+          "Operador: Opa, bom dia. Tá me ouvindo?",
+          "Motorista: Não, tô ouvindo."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\DESVIO-MOTORISTA-agent-11218-19_11_2025_19_57_50-node01-1763593067-198710.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 20,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 20,
+          "human_segment_count": 20,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 20,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô!",
+          "Operador: Alô boa noite boa noite nesse contato eu falo com o condutor Geovani ele mesmo boa noite seu Geovani aqui é Heloisa da base logística da NSC eu te ouvindo o meu contato ali é referente a sua viagem Camacari com",
+          "Motorista: Deixa eu te falar, o pessoal da transportadora pediu que eu viesse para a transportadora, eu estou dentro da transportadora nesse momento, na VBR porque eu já estava vindo fazendo deslocamento para descarregar"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\PARADA-MOTORISTA-agent-11406-1_10_2025_8_19_35-node01-1759317573-76676.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 17,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 17,
+          "human_segment_count": 17,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 17,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi, bom dia, tudo bem?",
+          "Motorista: Tudo ótimo, tudo maravilhoso!",
+          "Operador: Ah que ótimo!"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\POSIÇÃO-MOTORISTA-20251230112504541_Camila_Florindo_Reinert_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 22,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 22,
+          "human_segment_count": 22,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 22,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô?",
+          "Motorista: Alô?",
+          "Operador: Alô, falo com o senhor Alisson?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\TEMPERATURA-CLIENTE-agent-11426-20_10_2025_17_11_46-node01-1760991104-2103.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 42,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 42,
+          "human_segment_count": 42,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 42,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Cliente: Oi.",
+          "Cliente: Alô.",
+          "Operador: Alô, boa tarde. Eu falo com outra tarde."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\BOAS\\TEMPERATURA-MOTORISTA-agent-11426-9_10_2025_16_58_31-node01-1760039909-75917.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 17,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 17,
+          "human_segment_count": 17,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 17,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô! Alô!",
+          "Operador: Alô, boa tarde. *inaudivel*.",
+          "Motorista: É ele mesmo."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\ATRASO-MOTORISTA-agent-112100-17_11_2025_12_24_58-node01-1763393095-166233.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 21,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 21,
+          "human_segment_count": 21,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 21,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: alo alo boa tarde boa tarde Olá to falando com José Diógenes?",
+          "Operador: sim José eu me chamo Bruno falo aqui da base logística da Norcoach tudo bem?",
+          "Operador: tudo bem que ótimo bom José o que acontece nosso sistema aqui decodificou ali um atraso referente no cliente que o senhor tinha agora ali para as 10 horas da manhã correto?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\DESVIO-MOTORISTA-agent-11427-23_10_2025_19_58_11-node01-1761260289-29732.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 12,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 12,
+          "human_segment_count": 12,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 12,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô.",
+          "Operador: Alô, seu Fabiano.",
+          "Motorista: Oi."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\PARADA-MOTORISTA-20-08-2025_11-11-04_112790_21995342893.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 27,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 27,
+          "human_segment_count": 27,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 27,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô.",
+          "Motorista: Alô.",
+          "Motorista: Alô."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\POSIÇÃO-MOTORISTA-20260108142611955_Bruno_Roberto_da_Silva_Logistica_Taborda_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 16,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 16,
+          "human_segment_count": 16,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 16,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: I mean, I'm just ma'am.",
+          "Operador: alo bom dia alo bom dia Olá eu falo com o Marcos bom dia sim Marcos eu me chamo Bruno eu faço parte aqui da base logística da MSC tudo bem?",
+          "Operador: Tudo Que ótimo é bom Marcos o que acontece que nosso sistema aqui decodificou uma perda de sinal que o senhor teve ali às 9:28 e até agora não voltou o sinal do seu veículo. O senhor já se encontra no cliente?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\TEMPERATURA-CLIENTE-20251230105252398_David_João_Cardoso_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 9,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 9,
+          "human_segment_count": 9,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:20.160",
+              "end": "00:21.040",
+              "speaker": "operador",
+              "text": "Operador: Takahara, bom dia."
+            },
+            {
+              "start": "00:25.200",
+              "end": "00:28.960",
+              "speaker": "cliente",
+              "text": "Cliente: Bom dia, aqui é o David Dopentec, eu tô ligando referente a temperatura."
+            },
+            {
+              "start": "00:30.440",
+              "end": "00:32.880",
+              "speaker": "operador",
+              "text": "Operador: Opa, qual placa seria?"
+            },
+            {
+              "start": "00:34.160",
+              "end": "00:38.720",
+              "speaker": "cliente",
+              "text": "Cliente: É BCW7G79, ele tá sem ponto A temperatura."
+            },
+            {
+              "start": "00:40.400",
+              "end": "00:41.360",
+              "speaker": "operador",
+              "text": "Operador: 7G81?"
+            },
+            {
+              "start": "00:42.400",
+              "end": "00:43.600",
+              "speaker": "cliente",
+              "text": "Cliente: 7G79."
+            },
+            {
+              "start": "00:50.080",
+              "end": "00:56.880",
+              "speaker": "operador",
+              "text": "Operador: Eu vou verificar aqui se consegui mandar um WhatsApp por e-mail e do outro eu retorno."
+            },
+            {
+              "start": "00:57.200",
+              "end": "00:58.920",
+              "speaker": "cliente",
+              "text": "Cliente: Ok, então obrigado."
+            },
+            {
+              "start": "00:58.920",
+              "end": "01:00.240",
+              "speaker": "operador",
+              "text": "Operador: Tá bom, de nada."
+            }
+          ],
+          "risk_counts": {
+            "low": 9,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Operador: Takahara, bom dia.",
+          "Cliente: Bom dia, aqui é o David Dopentec, eu tô ligando referente a temperatura.",
+          "Operador: Opa, qual placa seria?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\LOGÍSTICA\\RUINS\\TEMPERATURA-MOTORISTA-20260108100935776_Jaqueline_Frazao_de_Souza_Logistica_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 17,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 17,
+          "human_segment_count": 17,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 17,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Bing, playing.",
+          "Operador: Alô alô boa noite, eu falo com sim oi aqui do setor de temperatura da Opentech desculpe comentar o senhor e esse horário a gente está com uma alerta de temperatura desde as 20:57 na sua viagem de para Bagé quer",
+          "Operador: Não nada do tipo Bom, nada. É que aqui pra gente chegou ao ponto ali em 7 graus positivo, ele está oscilando ali entre 5, 7, 6, o senhor não sabe me dizer o que aconteceu?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\LOGÍSTICA REVERSA-fe4558bec880fd7cd33187ad42b730f1.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 52,
+        "diarization": {
+          "score": 0.96,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 52,
+          "human_segment_count": 51,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 51,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo a Torre Mondelez Digite 1 se você está com devolução parcial ou total Digite 2 se você está com problemas na entrega Digite 3 para Atenção! Ligação recebida!",
+          "Operador: Fala de Controle Mondelez, como posso ajudar?",
+          "Cliente: Oi, é Eu queria abrir uma ocorrência de falta Ali já tem uma ocorrência aberta de horário"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\MONITORAMENTO I-2025_09_25-10_34_49-11996521135-4721016123-175880728936577582.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 29,
+        "diarization": {
+          "score": 0.98,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 29,
+          "human_segment_count": 27,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 27,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na empresa.",
+          "Telefonia: Atenção! Ligação recebida!",
+          "Operador: Você gostou de contribuir Mondelez, como estou ajudando?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\BOAS\\MONITORAMENTO II-11a59f8be22d44a74aa0a096f9487e18.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 21,
+        "diarization": {
+          "score": 0.46,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 1,
+          "segment_count": 21,
+          "human_segment_count": 19,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 19,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "apenas_um_speaker_detectado",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega.",
+          "Telefonia: Atenção! Ligação recebida.",
+          "Operador: Torre de controle amarelo, Felipe, boa tarde, em que posso ajudar?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\LOGÍSTICA REVERSA-2025_09_15-14_59_52-38997222947-4721016123-175795919297847943.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 40,
+        "diarization": {
+          "score": 0.48,
+          "quality": "baixa",
+          "swap_risk": "medium",
+          "raw_speaker_count": 1,
+          "segment_count": 40,
+          "human_segment_count": 37,
+          "telephony_segment_count": 3,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 37,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "apenas_um_speaker_detectado",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para outros motivos. Ou fique na linha para ser atendido.",
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega.",
+          "Telefonia: Atenção! Ligação recebida!"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\MONITORAMENTO I-2025_08_06-10_43_40-11995396051-4721016123-175448782075528041.WAV",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 34,
+        "diarization": {
+          "score": 0.96,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 34,
+          "human_segment_count": 33,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 33,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá! Bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para outros motivos. Ou Atenção! Ligação recebida. O nome dele é ",
+          "Operador: Boa.",
+          "Cliente: Ei irmão, eu estava fazendo uma ocorrência com a família aí, ela pediu o número da nota, eu passei o número aí e o número tava errado, aí me mandaram aqui o número certo aqui."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\MONDELEZ\\RUINS\\MONITORAMENTO II-8ec063aeaa80dd36d5ab7a458c1ec9f9.ogg",
+    "mime_type": "audio/ogg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 27,
+        "diarization": {
+          "score": 0.98,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 27,
+          "human_segment_count": 25,
+          "telephony_segment_count": 2,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 25,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, bem-vindo à Torre Mondelez. Digite 1 se você está com devolução parcial ou total. Digite 2 se você está com problemas na entrega. Digite 3 para outros motivos ou fique na linha para ser atendido.",
+          "Telefonia: Atenção. Ligação recebida.",
+          "Operador: Vanderlei, Felipe, boa tarde, em que posso te ajudar?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\DESVIO-CLIENTE-03-08-2025_21-23-06_11237_11953859270.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 36,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 36,
+          "human_segment_count": 36,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 36,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, boa noite, meu nome é Jeanson da central de rastreamento da Opentech, eu falo com o Flávio da Rua do Rei Transportes.",
+          "Cliente: Isso.",
+          "Operador: Boa noite, Flávio, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\PARADA-CLIENTE-27-08-2025_14-32-21_11387_11975608715.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 38,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 38,
+          "human_segment_count": 38,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:20.960",
+              "end": "00:25.200",
+              "speaker": "operador",
+              "text": "Operador: Bom dia, aqui é a Maria Eduarda do setor de rastreamento da Opentech, tudo bem?"
+            },
+            {
+              "start": "00:27.360",
+              "end": "00:29.040",
+              "speaker": "operador",
+              "text": "Operador: Por gentileza, com quem eu falo?"
+            },
+            {
+              "start": "00:29.360",
+              "end": "00:29.680",
+              "speaker": "cliente",
+              "text": "Cliente: Bruno."
+            },
+            {
+              "start": "00:31.120",
+              "end": "00:38.800",
+              "speaker": "operador",
+              "text": "Operador: Ah, Bruno, eu estou entrando em contato devido a um alerta de parada indevida detectada aqui no sistema. Eu preciso verificar a situação."
+            },
+            {
+              "start": "00:40.080",
+              "end": "00:40.720",
+              "speaker": "cliente",
+              "text": "Cliente: Qual placa?"
+            },
+            {
+              "start": "00:42.800",
+              "end": "00:53.440",
+              "speaker": "operador",
+              "text": "Operador: Vou informar a placa aqui agora. Romeu. Bravo, Fox, nono, Golf, quarto, negativo."
+            },
+            {
+              "start": "00:55.280",
+              "end": "00:55.760",
+              "speaker": "operador",
+              "text": "Operador: Oi?"
+            },
+            {
+              "start": "00:56.160",
+              "end": "00:56.720",
+              "speaker": "cliente",
+              "text": "Cliente: Qual é a placa?"
+            },
+            {
+              "start": "00:56.880",
+              "end": "00:57.600",
+              "speaker": "cliente",
+              "text": "Cliente: RBN?"
+            },
+            {
+              "start": "01:00.000",
+              "end": "01:10.320",
+              "speaker": "operador",
+              "text": "Operador: Romeo, Bravo, Fox, nono, Golf, quarto, negativo."
+            },
+            {
+              "start": "01:25.120",
+              "end": "01:31.320",
+              "speaker": "operador",
+              "text": "Operador: o horário da parada dele Peraí, só vou, só tô checando aqui."
+            },
+            {
+              "start": "01:31.320",
+              "end": "01:32.400",
+              "speaker": "cliente",
+              "text": "Cliente: Tem duas paradas somente."
+            }
+          ],
+          "risk_counts": {
+            "low": 38,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Cliente: Alô?",
+          "Operador: Bom dia, aqui é a Maria Eduarda do setor de rastreamento da Opentech, tudo bem?",
+          "Cliente: Bom dia, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\POSIÇÃO-CLIENTE-agent-11237-20_11_2025_22_50_29-node01-1763689827-211796.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 23,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 23,
+          "human_segment_count": 23,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 23,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: alo boa noite meu nome é Jean sou da central de rastreamento do Opentech eu falo com Michel do transdrome isso boa noite Michel tudo bem eu tô entrando em contato a respeito de uma suspeita de sinistro com veíc",
+          "Cliente: Eh já tentou contato com o motorista?",
+          "Operador: Feito tentativa de contato com o motorista, ponto de apoio, motorista próximos, proprietário do veículo eh foi efetuado o sinar do veículo também até o momento sem sucesso, né?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\BOAS\\PRIORITÁRIO-CLIENTE-03-08-2025_14-45-31_10788_43991394271.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 37,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 37,
+          "human_segment_count": 37,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 37,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Cliente: Alô.",
+          "Operador: Alô, oi, boa tarde, tudo bem, Cristina?",
+          "Cliente: Tudo bem."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\DESVIO-CLIENTE-20-08-2025_16-52-53_11185_41991369072.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 14,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 14,
+          "human_segment_count": 14,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 14,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi, boa tarde, eu falo com o Luiz.",
+          "Operador: Alô.",
+          "Operador: Alô."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\PARADA-CLIENTE-12-08-2025_13-17-49_11371_4733551674.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 21,
+        "diarization": {
+          "score": 0.96,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 21,
+          "human_segment_count": 20,
+          "telephony_segment_count": 1,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:51.680",
+              "end": "01:04.240",
+              "speaker": "operador",
+              "text": "Operador: JLP boa tarde boa tarde, eu me chamo Stephanie e falo da Opentech, área de rastreamento Olá Olá, eu queria falar sobre uma placa de vocês"
+            },
+            {
+              "start": "01:05.880",
+              "end": "01:10.720",
+              "speaker": "cliente",
+              "text": "Cliente: Deixa eu ver aqui Qual que é a placa?"
+            },
+            {
+              "start": "01:11.440",
+              "end": "01:16.800",
+              "speaker": "operador",
+              "text": "Operador: Tango, Papa, Keber, sétimo, Índia, sexto, quinto"
+            },
+            {
+              "start": "01:22.880",
+              "end": "01:23.920",
+              "speaker": "cliente",
+              "text": "Cliente: Pode repetir, por favor?"
+            },
+            {
+              "start": "01:24.560",
+              "end": "01:24.800",
+              "speaker": "operador",
+              "text": "Operador: Oi?"
+            },
+            {
+              "start": "01:25.800",
+              "end": "01:26.920",
+              "speaker": "cliente",
+              "text": "Cliente: Pode repetir, por favor?"
+            },
+            {
+              "start": "01:27.920",
+              "end": "01:33.040",
+              "speaker": "operador",
+              "text": "Operador: Frango, Papa, Quebec, sétimo, Índia, sexto, quinto."
+            },
+            {
+              "start": "01:36.240",
+              "end": "01:39.440",
+              "speaker": "cliente",
+              "text": "Cliente: Douglas Genésio, motorista, sim."
+            },
+            {
+              "start": "01:41.200",
+              "end": "01:45.370",
+              "speaker": "cliente",
+              "text": "Cliente: Qual que é o problema?"
+            },
+            {
+              "start": "01:45.850",
+              "end": "01:51.290",
+              "speaker": "operador",
+              "text": "Operador: Eu verifiquei que ele passou na maioria dos clientes e gostaria de saber se ele finalizou."
+            },
+            {
+              "start": "01:54.880",
+              "end": "01:59.040",
+              "speaker": "cliente",
+              "text": "Cliente: Parece que ele está na última entrega aqui. Eu vou tentar contato no WhatsApp com ele?"
+            },
+            {
+              "start": "01:59.680",
+              "end": "02:02.160",
+              "speaker": "operador",
+              "text": "Operador: Sim, ele está vazio e sem devolução?"
+            }
+          ],
+          "risk_counts": {
+            "low": 20,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante",
+            "segmentos_de_telefonia_ignorados_na_diarizacao"
+          ]
+        },
+        "preview": [
+          "Telefonia: Olá, você ligou para a JRP Transportes. Digite 1 para coleta, 2 saque, 3 faturamento, 4 financeiro, 5 RH, 6 administrativo ou aguarde atendimento.",
+          "Operador: JLP boa tarde boa tarde, eu me chamo Stephanie e falo da Opentech, área de rastreamento Olá Olá, eu queria falar sobre uma placa de vocês",
+          "Cliente: Deixa eu ver aqui Qual que é a placa?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\POSIÇÃO-CLIENTE-agent-11233-25_11_2025_13_21_2-node01-1764087659-265979.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 9,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 9,
+          "human_segment_count": 9,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 9,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: alo boa tarde meu nome é Ruan alo tá me ouvindo?",
+          "Operador: Oi boa tarde meu nome é Ruan falou da Opentech eu te mandei ali no pessoal no WhatsApp um veículo que ele tá com quase uma hora de posição em atraso a gente não conseguiu contato ali com o motorista",
+          "Cliente: É qual que é a placa?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\CLIENTE\\RUINS\\PRIORITÁRIO-CLIENTE-09-08-2025_21-38-19_11296_11981820231.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 24,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 24,
+          "human_segment_count": 24,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 24,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Diego GR, boa noite.",
+          "Operador: Alô?",
+          "Cliente: Opentech rastreamento, Juliana, boa noite."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\DESVIO-MOT-02-08-2025_15-45-28_10858_18997246914.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 79,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 79,
+          "human_segment_count": 79,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 79,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô?",
+          "Operador: Alô, boa tarde.",
+          "Motorista: Boa tarde."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\PARADA-MOT-agent-4218-4_10_2025_10_41_55-node01-1759585314-17302.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 45,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 45,
+          "human_segment_count": 45,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 45,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Sua ligação foi encaminhada ao voicemail. A pessoa que você está tentando contatar não está disponível. Alô?",
+          "Operador: Alô, bom dia, falo com o senhor.",
+          "Motorista: Bom dia. Isso."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\POSIÇÃO-MOT-12-09-2025_08-20-17_1697_63993043486.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 32,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 32,
+          "human_segment_count": 32,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 32,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, bom dia!",
+          "Motorista: Bom dia!",
+          "Operador: Bom dia, é a Daiane aqui da Opentech, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\BOAS\\PRIORITÁRIO-MOT-agent-11201-1_11_2025_7_30_31-node01-1761993029-138033.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 16,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 16,
+          "human_segment_count": 16,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 16,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi, bom dia, fala do rastreamento do Opentech. Estou falando com o senhor Adenilson.",
+          "Motorista: É ele.",
+          "Operador: Confirma a senha de segurança, por gentileza?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\DESVIO-MOT-agent-1622-2_10_2025_8_58_47-node01-1759406325-90466.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 16,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 16,
+          "human_segment_count": 16,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 16,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Tá bom?",
+          "Operador: Estão vai sim.",
+          "Operador: Bom dia, Jacques, querido monitoramento da Opentech falando, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\PARADA-MOT-20251229174101210_Solange_Miranda_de_Araujo_G2L_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 28,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 28,
+          "human_segment_count": 28,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 28,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô?",
+          "Operador: Alô, bom dia.",
+          "Operador: Falo com o senhor Manoel."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\POSIÇÃO-MOT-02-09-2025_18-58-55_11368_11953819293.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 17,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 17,
+          "human_segment_count": 17,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 17,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, boa noite, boa noite. Aqui é o Elian do setor de distribuição da Opentech, tudo bem?",
+          "Motorista: Tudo bem.",
+          "Operador: É, eu falo com quem por gentileza?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\MOTORISTA\\RUINS\\PRIORITÁRIO-MOT-agent-11242-28_10_2025_8_15_52-node01-1761650149-82216.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 12,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 12,
+          "human_segment_count": 12,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 12,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: Alô, alô.",
+          "Operador: Alô, bom dia, aqui é Bianca do rastreamento da Opentech. Fala com o Josilson de Araújo?",
+          "Motorista: É eu."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\212313123.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 39,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 39,
+          "human_segment_count": 39,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 39,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Bom dia!",
+          "Policia: Com quem falo?",
+          "Operador: Oi, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\BOA-POLICIA-22-09-2025_01-58-05_1700_8633026366.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 37,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 37,
+          "human_segment_count": 37,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 37,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Policia: Alô?",
+          "Operador: Alô, bom dia, com quem eu falo?",
+          "Policia: Com PRF."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\POLÍCIA\\RUIM-POLICIA-agent-10610-4_11_2025_1_55_31-node01-1762232128-715 - Copia.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Policia",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 39,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 39,
+          "human_segment_count": 39,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 39,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Bom dia!",
+          "Policia: Com quem falo?",
+          "Operador: Oi, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\PONTO DE APOIO\\RUIM-PONTO DE APOIO-20251223152017944_Priscila_Cabral_Fenix_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Ponto de Apoio",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 20,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 20,
+          "human_segment_count": 20,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": true,
+          "handoff_detected": false,
+          "ambiguous_ranges": [
+            {
+              "start": "00:23.740",
+              "end": "00:28.460",
+              "speaker": "operador",
+              "text": "Operador: Olá, bom dia. Aqui é a Priscila do rastreamento da Opentech. Tudo bem?"
+            },
+            {
+              "start": "00:31.100",
+              "end": "00:42.240",
+              "speaker": "operador",
+              "text": "Operador: Então, eu estou com um de nossos veículos que está no pátio do posto. Gostaria de saber se você conseguiria verificar para mim que eu não estou conseguindo contato com mo"
+            },
+            {
+              "start": "00:45.480",
+              "end": "00:48.640",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Qual que é a empresa lá?"
+            },
+            {
+              "start": "00:48.640",
+              "end": "00:50.160",
+              "speaker": "operador",
+              "text": "Operador: É, ele é da Compran."
+            },
+            {
+              "start": "00:52.880",
+              "end": "00:55.520",
+              "speaker": "operador",
+              "text": "Operador: Nós somos da Opentech, a gente que faz o rastreamento."
+            },
+            {
+              "start": "00:55.520",
+              "end": "00:59.080",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Qual que é a placa dele?"
+            },
+            {
+              "start": "01:00.400",
+              "end": "01:14.410",
+              "speaker": "operador",
+              "text": "Operador: F, DB, não, faca, dado, bola, oitavo."
+            },
+            {
+              "start": "01:19.520",
+              "end": "01:29.050",
+              "speaker": "operador",
+              "text": "Operador: Águia 35 Faca dado bola."
+            },
+            {
+              "start": "01:31.130",
+              "end": "01:31.850",
+              "speaker": "operador",
+              "text": "Operador: Isso."
+            },
+            {
+              "start": "01:33.530",
+              "end": "01:36.850",
+              "speaker": "ponto de apoio",
+              "text": "Ponto de Apoio: Que caminhão que é?"
+            },
+            {
+              "start": "01:36.850",
+              "end": "01:37.810",
+              "speaker": "operador",
+              "text": "Operador: Peraí, só um momento."
+            },
+            {
+              "start": "01:42.250",
+              "end": "01:44.730",
+              "speaker": "operador",
+              "text": "Operador: Ele é um vulvo. Volvo."
+            }
+          ],
+          "risk_counts": {
+            "low": 20,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": [
+            "ha_trechos_com_risco_de_troca_de_falante"
+          ]
+        },
+        "preview": [
+          "Operador: Olá, bom dia. Aqui é a Priscila do rastreamento da Opentech. Tudo bem?",
+          "Ponto de Apoio: Oi, tudo bem?",
+          "Operador: Então, eu estou com um de nossos veículos que está no pátio do posto. Gostaria de saber se você conseguiria verificar para mim que eu não estou conseguindo contato com motorista?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\COMPORTAMENTO INADEQUADO-agent-106760-12_11_2025_16_39_34-node01-1762976372-111187.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 29,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 29,
+          "human_segment_count": 29,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 29,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi boa tarde, é a Jéssica do rastreamento da Opentech?",
+          "Operador: Falo com o Kaique?",
+          "Motorista: Isso!"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\DICA DE SENHA-10-08-2025_16-56-52_11209_11947829472.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 31,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 31,
+          "human_segment_count": 31,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 31,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Motorista: você. Alô.",
+          "Motorista: Oi.",
+          "Operador: Tudo bem com o senhor?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\INFORMAÇÃO ANTES SENHA-04-08-2025_11-47-02_11188_66996625159.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 31,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 31,
+          "human_segment_count": 31,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 31,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô. Oi.",
+          "Operador: Bom dia, aqui é o locador Pintech rastreamento, eu falo com o Gerson.",
+          "Motorista: Isso, tô aqui, o telefone tá ruim de sinal, tô chegando a cidade aqui."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\INFORMOU INÍCIO SENHA ERRADA-20251226135711775_Daniella_Gomes_Distribuição_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 48,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 48,
+          "human_segment_count": 48,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 48,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi bom dia, falo com o senhor Adilson",
+          "Motorista: Bom dia, sou eu",
+          "Operador: Aqui é o Daniel lá da Opentech o senhor consegue me confirmar sua senha de segurança por gentileza?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\NÃO CONFIRMOU SNEHA-20260107164848396_Ruan_Richeli_da_Silva_Distribuição_Voz.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 9,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 9,
+          "human_segment_count": 9,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 9,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: alo alo boa tarde, meu nome é Ruan, falo da Opentech, falo com o seu Adonir, boa tarde boa tarde, então seu veículo perdeu posição aqui pra gente, mandei mensagem ali no WhatsApp, seria possível senhor comparti",
+          "Motorista: Cara, tô chegando perto de Ribeirão Preto, perto da entrega deixa eu ver uma coisa aqui, só um pouquinho.",
+          "Motorista: O sinal tá dezenove por cento, como é que foi o sinal?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\RAST.-UTI-DIST-BAS\\ZERADAS\\SOLICITOU SENHA OU CPF-agent-11216-3_11_2025_10_25_30-node01-1762176327-158835.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Motorista",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 21,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 21,
+          "human_segment_count": 21,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 21,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Oi, oi bom dia, eu falo contra o Lino.",
+          "Motorista: Isso.",
+          "Operador: Aqui fala a Valentina do Rossimento Comtek, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\ATUAÇÃO TRATATIVA-CLIENTE-agent-11409-2_10_2025_11_49_14-node01-1759416552-92649.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 12,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 12,
+          "human_segment_count": 12,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 12,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, boa tarde. Falo com Marcio Roberto.",
+          "Cliente: Isso.",
+          "Operador: Eu sou o Kevin Luiz da logística do Opentech. Eu tenho uma entrega com possibilidade de devolução. Você poderia me auxiliar?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\CABINETS-CLIENTE-agent-11244-20_10_2025_16_26_11-node01-1760988369-1482.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 10,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 10,
+          "human_segment_count": 10,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 10,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Cliente: Alô.",
+          "Cliente: Alô.",
+          "Operador: Boa tarde, eu falo com o Seu Zé Daniel."
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\BOAS\\DEVOLUÇÃO-CLIENTE-agent-11444-25_11_2025_8_12_40-node01-1764069157-261200.wav",
+    "mime_type": "audio/wav",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 18,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 18,
+          "human_segment_count": 18,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            2
+          ],
+          "interlocutor_speaker_ids": [
+            1
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 18,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Cliente: Fala, bom dia!",
+          "Operador: Bom dia, falo com o supervisor Fábio.",
+          "Cliente: É ele?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\RUINS\\ATUAÇÃO TRATATIVA-CLIENTE-05-09-2025_12-57-32_11353_11953217745.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 24,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 24,
+          "human_segment_count": 24,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 24,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, boa tarde, eu falo com José.",
+          "Cliente: Oi.",
+          "Operador: Aqui é a Maria da Logística da Opentech. Eu estou ligando referente ao cliente Serviço Automotivo Santa Rita, na Rua Paulo César Duarte, número 25 Jardim Tacolome Tapé de São Paulo. O código desse cliente é 378"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  },
+  {
+    "path": "D:\\auditoria\\Ligações\\UNILEVER\\RUINS\\DEVOLUÇÃO-CLIENTE-22-08-2025_11-33-33_11231_11976013982.mp3",
+    "mime_type": "audio/mpeg",
+    "interlocutor_label": "Cliente",
+    "expected_max_speakers": 2,
+    "providers": {
+      "azure": {
+        "status": "ok",
+        "segment_count": 11,
+        "diarization": {
+          "score": 0.94,
+          "quality": "boa",
+          "swap_risk": "low",
+          "raw_speaker_count": 2,
+          "segment_count": 11,
+          "human_segment_count": 11,
+          "telephony_segment_count": 0,
+          "expected_max_speakers": 2,
+          "effective_max_speakers": 2,
+          "fragmented": false,
+          "operator_fragmented": false,
+          "interlocutor_fragmented": false,
+          "operator_speaker_ids": [
+            1
+          ],
+          "interlocutor_speaker_ids": [
+            2
+          ],
+          "conference_possible": false,
+          "handoff_detected": false,
+          "ambiguous_ranges": [],
+          "risk_counts": {
+            "low": 11,
+            "medium": 0,
+            "high": 0
+          },
+          "notes": []
+        },
+        "preview": [
+          "Operador: Alô, bom dia, falo com Igor.",
+          "Cliente: Bom dia, tudo bem?",
+          "Operador: Aqui é a área da logística da Opentech, tudo bem?"
+        ]
+      },
+      "gpt4o_diarize": {
+        "status": "error",
+        "error": "GPT-4o-transcribe-diarize failed: 401 Client Error: PermissionDenied for url: https://eastus2.api.cognitive.microsoft.com/openai/deployments/gpt-4o-transcribe-diarize/audio/transcriptions?api-version=2025-03-01-preview. Body: {\"error\":{\"code\":\"401\",\"message\":\"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\"}}"
+      }
+    }
+  }
+]

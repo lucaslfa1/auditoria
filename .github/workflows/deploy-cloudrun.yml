@@ -1,0 +1,60 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  PROJECT_ID: auditoria-nstech
+  GAR_LOCATION: southamerica-east1
+  SERVICE: auditoria
+  REGION_SA: southamerica-east1
+  IMAGE: southamerica-east1-docker.pkg.dev/auditoria-nstech/cloud-run-source-deploy/auditoria
+
+jobs:
+  deploy:
+    # Add 'id-token' with 'write' permissions to generate the OIDC token
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: 'projects/954775987156/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-actions-deploy@auditoria-nstech.iam.gserviceaccount.com'
+
+      - name: Docker Auth
+        id: docker-auth
+        uses: 'docker/login-action@v3'
+        with:
+          username: 'oauth2accesstoken'
+          password: '${{ steps.auth.outputs.access_token }}'
+          registry: '${{ env.GAR_LOCATION }}-docker.pkg.dev'
+
+      - name: Build and Push Container
+        run: |-
+          docker build -t "${{ env.IMAGE }}:${{ github.sha }}" .
+          docker push "${{ env.IMAGE }}:${{ github.sha }}"
+          docker tag "${{ env.IMAGE }}:${{ github.sha }}" "${{ env.IMAGE }}:latest"
+          docker push "${{ env.IMAGE }}:latest"
+
+      - name: Deploy to Cloud Run (South America)
+        id: deploy-sa
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: '${{ env.SERVICE }}'
+          region: '${{ env.REGION_SA }}'
+          image: '${{ env.IMAGE }}:${{ github.sha }}'
+          flags: '--cpu-throttling --min-instances=0 --timeout=3600'
+
+      - name: Show Output
+        run: |-
+          echo "SA URL: ${{ steps.deploy-sa.outputs.url }}"

@@ -1,0 +1,268 @@
+{
+    "sectors": [
+        {
+            "name": "Transferência / Distribuição / Fênix / UTI / BAS",
+            "scenarios": [
+                {
+                    "name": "Alerta Prioritário no Contato com o Motorista",
+                    "criteria": [
+                        {
+                            "label": "O operador realizou a saudação?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o próprio nome?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o setor?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou a empresa?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+                            "weight": 2.0
+                        },
+                        {
+                            "label": "O operador informou claramente o motivo do contato?",
+                            "weight": 1.03
+                        },
+                        {
+                            "label": "O operador confirmou a localização e a condição do motorista?",
+                            "weight": 1.7
+                        },
+                        {
+                            "label": "O operador identificou o motivo do alerta?",
+                            "weight": 1.92
+                        },
+                        {
+                            "label": "O operador solicitou vídeo do veículo nos casos necessários?",
+                            "weight": 1.7
+                        },
+                        {
+                            "label": "Realizou a despedida padrão com cordialidade?",
+                            "weight": 0.3
+                        },
+                        {
+                            "label": "Utilizou a função mudo corretamente para evitar ruídos externos?",
+                            "weight": 0.3
+                        },
+                        {
+                            "label": "Evitou silêncios prolongados (mais de 45 segundos sem interação)?",
+                            "weight": 0.15
+                        },
+                        {
+                            "label": "O operador registrou corretamente o contato no sistema?",
+                            "weight": 0.2
+                        },
+                        {
+                            "label": "Após a resolução do alerta, finalizou corretamente a ligação sem reter a linha desnecessariamente (10s)?",
+                            "weight": 0.3
+                        },
+                        {
+                            "label": "O volume de voz, entonação e condução da chamada transmitiram credibilidade e cordialidade?",
+                            "weight": 0.1
+                        }
+                    ]
+                },
+                {
+                    "name": "Alerta Prioritário contato com Cliente",
+                    "criteria": [
+                        {
+                            "label": "O operador realizou a saudação?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o próprio nome?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o setor?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou a empresa?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "Confirmou com quem está falando?",
+                            "weight": 0.4
+                        },
+                        {
+                            "label": "O operador informou claramente o motivo do contato?",
+                            "weight": 1.2
+                        },
+                        {
+                            "label": "O operador enfatizou ao cliente que estava atuando em uma suspeita de sinistro?",
+                            "weight": 2.0
+                        },
+                        {
+                            "label": "O operador informou as ações adotadas até o momento?",
+                            "weight": 1.15
+                        },
+                        {
+                            "label": "O operador informou corretamente o local onde gerou o alerta?",
+                            "weight": 1.8
+                        },
+                        {
+                            "label": "O operador confirmou os contatos atuais do condutor?",
+                            "weight": 1.8
+                        },
+                        {
+                            "label": "Realizou a despedida padrão com cordialidade?",
+                            "weight": 0.3
+                        }
+                    ]
+                },
+                {
+                    "name": "Alerta de Posição em Atraso no Contato com o Motorista",
+                    "criteria": [
+                        {
+                            "label": "O operador realizou a saudação?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o próprio nome?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o setor?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou a empresa?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador confirmou a senha de segurança antes de prosseguir?",
+                            "weight": 2.0
+                        },
+                        {
+                            "label": "O operador informou claramente o motivo do contato?",
+                            "weight": 1.03
+                        },
+                        {
+                            "label": "O operador confirmou a localização atual do motorista?",
+                            "weight": 1.22
+                        },
+                        {
+                            "label": "Passou orientações para forçar posicionamento do rastreador?",
+                            "weight": 2.0
+                        },
+                        {
+                            "label": "O operador procurou identificar o motivo da perda de sinal?",
+                            "weight": 1.05
+                        },
+                        {
+                            "label": "O operador informou os riscos operacionais e de seguro caso o sinal não restabelecer?",
+                            "weight": 1.05
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Cadastro",
+            "scenarios": [
+                {
+                    "name": "Alerta de Antecedentes no Contato Receptivo",
+                    "criteria": [
+                        {
+                            "label": "O operador realizou a saudação?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o próprio nome?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o setor?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou a empresa?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador solicitou CPF/Placa para iniciar o atendimento?",
+                            "weight": 1.6
+                        },
+                        {
+                            "label": "O operador enfatizou sobre bloqueio/cadastro negativado?",
+                            "weight": 1.7
+                        },
+                        {
+                            "label": "O operador informou se o cliente possui inquérito/processo/apontamento?",
+                            "weight": 1.7
+                        },
+                        {
+                            "label": "O operador informou qual o estado/justiça federal?",
+                            "weight": 1.65
+                        },
+                        {
+                            "label": "O operador informou qual documento é necessário?",
+                            "weight": 1.65
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Logística Unilever",
+            "scenarios": [
+                {
+                    "name": "Alerta de Devolução no Contato com Cliente",
+                    "criteria": [
+                        {
+                            "label": "O operador realizou a saudação?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o próprio nome?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou o setor?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "O operador informou a empresa?",
+                            "weight": 0.075
+                        },
+                        {
+                            "label": "Confirmou com quem está falando?",
+                            "weight": 0.4
+                        },
+                        {
+                            "label": "Informou que a devolução foi confirmada e qual o próximo passo?",
+                            "weight": 0.76
+                        },
+                        {
+                            "label": "Informou o nome do cliente corretamente?",
+                            "weight": 1.6
+                        },
+                        {
+                            "label": "Informou o endereço correto do cliente?",
+                            "weight": 1.6
+                        },
+                        {
+                            "label": "Informou o código do cliente?",
+                            "weight": 1.6
+                        },
+                        {
+                            "label": "Confirmou a quantidade de caixas a serem devolvidas?",
+                            "weight": 0.81
+                        },
+                        {
+                            "label": "Ação resultante (e-mail, ligação, mobile) foi registrada corretamente?",
+                            "weight": 1.58
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

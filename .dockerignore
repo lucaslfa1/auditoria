@@ -1,0 +1,83 @@
+.git
+.gitignore
+.dockerignore
+.gcloudignore
+
+node_modules/
+dist/
+dist-ssr/
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+.venv
+.venv*/
+backend/.venv
+backend/.venv*/
+venv/
+env/
+
+# Data and large files
+*.db
+*.sqlite
+*.sqlite3
+backend/auditoria.db
+backend/data/
+
+# Audio and media
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.ogg
+*.flac
+
+# Env and sensitive
+.env
+.env.*
+backend/.env
+backend/.env.*
+# backend/auth_users.json -- incluído via exceção acima
+backend/gcp-key.json
+temp_env.json
+temp_env.txt
+
+# Logs and scratch
+# logs/
+tmp/
+.temp/
+.cache/
+*.log
+*_log*.txt
+*.txt
+!backend/requirements.txt
+!auditoria_criterios/**/*.txt
+
+# AI agents
+.gemini/
+.agent/
+.claude/
+.Jules/
+.gcloud/
+
+# Extra heavy folders
+/ligacoes/
+/backup/
+/imagens/
+/images/
+/teste/
+/documentos_oficiais/
+/.codex/
+/planejamento/
+/export/
+/pendencias/
+/relatorios_atividades/
+/scripts/
+/telefonia/
+/templates/
+/Ajustes IA/
+/Auditoria nstech/

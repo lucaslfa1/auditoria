@@ -1,0 +1,290 @@
+{
+    "corrections": [
+        {
+            "target": "posto Décio",
+            "patterns": [
+                "\\bposto\\s+d[eéi]f[ií]cil\\b",
+                "\\bposto\\s+d[eé]ssi[oou]\\b"
+            ]
+        },
+        {
+            "target": "um só do",
+            "patterns": [
+                "\\bum\\s+saldo\\s+do\\b",
+                "\\bum\\s+saldo\\b"
+            ]
+        },
+        {
+            "target": "Opentech",
+            "patterns": [
+                "\\bPrintech\\b",
+                "\\bPrin\\s?tech\\b",
+                "\\bPrint\\s?tech\\b",
+                "\\bApatec\\b",
+                "\\bApatech\\b",
+                "\\bAptech\\b",
+                "\\bApa\\s?tec\\b",
+                "\\bApa\\s?tech\\b",
+                "\\bAponte\\b",
+                "\\bOpen\\s?tecl?h\\b",
+                "\\bOpentec\\b",
+                "\\bOpenteck\\b",
+                "\\bOpemtech\\b",
+                "\\bHopemtech\\b",
+                "\\bOpontech\\b",
+                "\\bHopentech\\b",
+                "\\bOppentech\\b",
+                "\\bUPN\\s*Tech\\b",
+                "\\bOPN\\s*Tech\\b",
+                "\\bOpen\\s+Tech\\b",
+                "\\bopen teck\\b",
+                "\\bopentec\\b",
+                "\\bOpentek\\b",
+                "\\bOpentesh\\b",
+                "\\bOpentex\\b",
+                "\\bOpemtec\\b",
+                "\\bOpenteki\\b",
+                "\\bOpentechi\\b",
+                "\\bOpentetch\\b",
+                "\\bObentech\\b",
+                "\\bObemtech\\b",
+                "\\bAupentech\\b",
+                "\\bAupen\\s?tech\\b",
+                "\\bHopen\\s+tech\\b",
+                "\\bHopem\\s+tech\\b",
+                "\\bOpon\\s+Tech\\b",
+                "\\bOpen\\s+Tec\\b",
+                "\\bopen\\s+tec\\b",
+                "\\b[AaOo]?pen\\s*te[ck]h?\\b",
+                "\\bopenteque\\b",
+                "\\bOpen\\s*Teque\\b",
+                "\\bOpen\\s*test?\\b",
+                "\\bOpen\\s*text\\b",
+                "\\bOpen\\s*track\\b",
+                "\\bOpen\\s*desk\\b",
+                "\\bOpen\\s*tel\\b",
+                "\\bOpen\\s*cash\\b",
+                "\\bPentech\\b",
+                "\\bAlpentech\\b",
+                "\\bAlpen\\s+Tech\\b",
+                "\\bAlpan\\s*Tech\\b",
+                "\\bAlpen\\s*teck\\b",
+                "\\bAu\\s*pen\\s*tech\\b",
+                "\\bO\\s*pen\\s*tech\\b",
+                "\\bA\\s*pen\\s*tech\\b",
+                "\\bOu\\s*pen\\s*tech\\b"
+            ]
+        },
+        {
+            "target": "Sthefany da Opentech",
+            "patterns": [
+                "\\bS[eé]rgio\\s+Neg[oó]cio\\s+Executivo\\b",
+                "\\bS[eé]rgio\\s+neg[oó]cio\\s+executivo\\b"
+            ]
+        },
+        {
+            "target": "gerou violação",
+            "patterns": [
+                "\\b[Jj]uro\\s+violação\\b",
+                "\\b[Jj]urou\\s+violação\\b",
+                "\\b[Gg]erou\\s+juro\\b"
+            ]
+        },
+        {
+            "target": "Em qual cliente",
+            "patterns": [
+                "\\b[Ee]m\\s+Coquim\\b",
+                "\\b[Cc]oquim\\b"
+            ]
+        },
+        {
+            "target": "monitoramento Opentech",
+            "patterns": [
+                "\\bmotor\\s*metropentech\\b",
+                "\\bmonitor\\s*metropentech\\b",
+                "\\bmonitoramento\\s*pentech\\b"
+            ]
+        },
+        {
+            "target": "Mondelez",
+            "patterns": [
+                "\\b(Torre\\s+)?(uma\\s+)?del[ií]cia\\b",
+                "\\bMondeles\\b",
+                "\\bMondel[eé]z\\b",
+                "\\bMonde\\s*les\\b",
+                "\\bMonde\\s*lez\\b"
+            ]
+        },
+        {
+            "target": "Bem-vindo a Mondelez",
+            "patterns": [
+                "\\bBem-vindo\\s+([àa]\\s+)?(uma\\s+)?del[ií]cia\\b"
+            ]
+        },
+        {
+            "target": "Unilever",
+            "patterns": [
+                "\\bUni\\s?lever\\b",
+                "\\bUn[ií]\\s*leve\\b"
+            ]
+        },
+        {
+            "target": "nstech",
+            "patterns": [
+                "\\bNS\\s?tech\\b",
+                "\\bN\\.?S\\.?\\s?Tech\\b"
+            ]
+        },
+        {
+            "target": "Onix",
+            "patterns": [
+                "\\b[Oo]nix\\b",
+                "\\b[Oo]nux\\b",
+                "\\b[Oo]nni[xks]?\\b"
+            ]
+        },
+        {
+            "target": "Autotrac",
+            "patterns": [
+                "\\b[Aa]uto\\s*trac[k]?\\b",
+                "\\b[Aa]lto\\s*trac[k]?\\b",
+                "\\bAlto\\s+Trac\\b"
+            ]
+        },
+        {
+            "target": "Omnilink",
+            "patterns": [
+                "\\b[Oo]mni\\s*link?\\b",
+                "\\b[Hh]?om[ie]ni\\s*link?\\b"
+            ]
+        },
+        {
+            "target": "Ravex",
+            "patterns": [
+                "\\b[Rr]ave[xks]\\b",
+                "\\b[Hh]?ave[xks]\\b"
+            ]
+        },
+        {
+            "target": "Buonny",
+            "patterns": [
+                "\\b[Bb]uon?ny\\b",
+                "\\b[Bb]uone\\b",
+                "\\b[Bb]oni\\b",
+                "\\b[Bb]uonni\\b",
+                "\\b[Bb]ou?nne\\b"
+            ]
+        },
+        {
+            "target": "Sascar",
+            "patterns": [
+                "\\b[Ss]as\\s*car\\b",
+                "\\b[Cc]ascar\\b",
+                "\\b[Ss]azcar\\b"
+            ]
+        },
+        {
+            "target": "Tracker",
+            "patterns": [
+                "\\b[Tt]raquer\\b",
+                "\\b[Tt]reker\\b"
+            ]
+        },
+        {
+            "target": "isca",
+            "patterns": [
+                "\\b[Ii]xca\\b",
+                "\\b[Yy]sca\\b",
+                "\\b[Ee]sca\\b"
+            ]
+        },
+        {
+            "target": "Sighra",
+            "patterns": [
+                "\\b[Ss]i[gg]?ra\\b",
+                "\\b[Cc]igra\\b",
+                "\\b[Zz]igra\\b",
+                "\\b[Ss]irra\\b"
+            ]
+        },
+        {
+            "target": "T4S",
+            "patterns": [
+                "\\b[Tt]e\\s*quatro\\s*[Ss]s?\\b",
+                "\\b[Tt]4\\s*[Ss]\\b"
+            ]
+        },
+        {
+            "target": "3S",
+            "patterns": [
+                "\\b[Tt]r[êe]s\\s*[Ss]s?\\b"
+            ]
+        },
+        {
+            "target": "Maxtrack",
+            "patterns": [
+                "\\b[Mm]ax\\s*track?\\b",
+                "\\b[Mm]ax\\s*trek?\\b"
+            ]
+        },
+        {
+            "target": "Onixsat",
+            "patterns": [
+                "\\b[Oo]nix\\s*sat\\b",
+                "\\b[Oo]nix\\s*sate\\b"
+            ]
+        },
+        {
+            "target": "Loren",
+            "patterns": [
+                "\\bLory\\b",
+                "\\bLori\\b"
+            ]
+        }
+    ],
+    "speaker_prefixes": {
+        "operator": [
+            "operador bas",
+            "operador",
+            "atendente",
+            "central",
+            "bas"
+        ],
+        "driver": [
+            "cliente",
+            "motorista",
+            "vítima",
+            "declarante",
+            "condutor",
+            "transportadora",
+            "transportador"
+        ],
+        "telephony": [
+            "telefonia",
+            "ura",
+            "ivr",
+            "robô",
+            "automático"
+        ]
+    },
+    "ura_keywords": [
+        "digite",
+        "opção",
+        "bem-vindo",
+        "aguarde na linha",
+        "sua ligação é muito importante"
+    ],
+    "whisper_prompt": "eu estou ouvindo, to ouvindo, senha de seguranca, aguarde na linha, so um momento, Opentech, nstech, BAS, motorista, placa, Mondelez, Unilever, Buonny, Sascar, Tracker, Onix, Autotrac, Omnilink, Ravex, isca, Posto Décio, Graal, Arco-Íris, Aldo, Sakamoto, QRA, QAP, Chapa, Cavalo, Bitrem, Sider, Baú, Quinta Roda, Pino Rei, Romaneio, CTE, Macro, Pernoite, Jammer, Chupa-Cabra, Trava de Baú, Botão de Pânico, Desengate, Pronta Resposta, Escolta, PRF, Viatura, VTR, UOP, 191, B.O., B.A.T., Thermo King, Carrier, Setpoint, Datalogger, Degelo, Frigorífico, JSL, Braspress, Tegma, Jadlog, TNT, Sequoia, Rodonaves, Patrus, Loggi, JBS, Friboi, BRF, Seara, Marfrig, Minerva, Aurora, Pamplona, Frimesa, Copacol, Complexo do Alemão, Maré, Jacarezinho, Chapadão, Pedreira, Vila Kennedy, Cidade de Deus, Rocinha, Avenida Brasil, Linha Vermelha, Linha Amarela, Arco Metropolitano, Baixada Fluminense, CV, Comando Vermelho, TCP, Terceiro Comando Puro, ADA, Milícia, Bonde, Caveirão, VUC, Toco, Truck, Bitruck, Cavalo Mecânico, Carreta LS, Vanderléia, Treminhão, Rodotrem, Carga Seca, Perecível, Carga Perigosa, Granel, Carga Fracionada, Lotação, BR-116, Via Dutra, Régis Bittencourt, BR-101, Rio-Santos, BR-381, Fernão Dias, BR-153, BR-040, Washington Luís, BR-277, BR-163, Bandeirantes, Anhanguera, Castello Branco, URA, Protocolo, SLA, Triagem, Transferência, Monitoramento, Espelho de Carga, Liberação, Inteligência Embarcada, Área de Risco, Centro de Distribuição, Carga de Distribuição, Carga de Transferência, Cerca Eletrônica, Ajudante, Conhecimento de Transporte, EADI, Aduana, Escolta Armada, Comboio, Tecnologias, Sighra, T4S, 3S, Maxtrack, OBC, Atuadores, Bloqueio, Sensores, Carreta, GPS, Manifesto, Seguro, Embarcador, Corretora, Seguradora, Reguladora, PR, Cliente, Transportadora, Funcionário, Agregado, Terceiro, Isca, 2º Localizador, Ponto de Apoio, Posto Avançado, P.A, [Inaudível].",
+    "hallucination_blacklist_terms": [
+        "antropologo",
+        "antropologa",
+        "antropologos",
+        "antropologas"
+    ],
+    "hallucination_phrase_replacements": {
+        "falo com voce": "[Inaudível]",
+        "eu falo com você": "[Inaudível]",
+        "eu falo com voce": "[Inaudível]",
+        "falo com você": "[Inaudível]"
+    }
+}

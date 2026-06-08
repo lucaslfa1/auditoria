@@ -1,0 +1,176 @@
+# Runtime logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*_log.txt
+*_log_*.txt
+test_out*.txt
+test_output.txt
+stitch_tools_raw.txt
+db_patch.txt
+criteria_output.txt
+show.txt
+
+# Virtual Environments
+.venv/
+.venv*/
+backend/.venv/
+backend/.venv*/
+
+# Sensitive files
+.env
+.env.backup
+.env.local
+backend/.env
+backend/.env.backup
+backend/gcp-key.json
+backend/auth_users.json
+backend/data/auth_users.json
+cloud_run_env.json
+clean_env.json
+env.yaml
+gcloud_service.json
+crash_log.json
+temp_env.json
+temp_env.txt
+scripts/credentials.md
+backend_env_backup.txt
+
+# Temporary/Cache
+tmp/
+.temp/
+.cache/
+backend/storage/*
+!backend/storage/*.py
+backend/audio/image*.png
+
+# Benchmark outputs (runtime artifacts)
+relatorio_benchmark.json
+resumo_benchmark.json
+
+# Version logs (tracked as markdown)
+!logs/
+logs/*
+!logs/README.md
+!logs/TEMPLATE.md
+!logs/versions/
+!logs/versions/*.md
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Internal docs
+ajustes/
+
+# Temporary files
+tmp_*.cjs
+tmp_*.js
+tmp_*.py
+tmp_*.json
+tmp_*.txt
+backend/tmp_*.py
+backend/tmp_*.json
+src/**/tmp_*.py
+recent_logs.json
+=
+nanobanana-output/
+backup_auditoria_ia/
+backend/data/tmp_*.json
+
+# Benchmark / diarization results
+backend/benchmark_*.json
+backend/benchmark_manifests/
+
+# Reports (generated output)
+backend/reports/
+
+# Debug / historic logs
+historico_logs_*.txt
+logs_debug_*.txt
+
+# Large files / backups
+backup/
+backups/
+backend/db/backup_*/
+criterios-auditoria/pdf/
+criterios-auditoria/text/
+teste/
+
+# Build artifacts
+build_error.txt
+build_errors.txt
+build_output.txt
+build_logs.json
+tmp_build_logs.json
+run_logs.json
+run_output.json
+*_results.txt
+
+# AI agents / cloud
+.gemini/
+.agent/
+.claude/
+.Jules/
+.gcloud/
+vertex-ai/
+tmp/local-secrets/
+INSTRUCOES_PARA_IA.md
+gha-creds-*.json
+
+# Process/PID files
+*.pid
+
+# Debug / scratch scripts
+*_debug.txt
+*_result.txt
+db_cmp.py
+db_compare*.txt
+colab_schema.txt
+audit_2_*
+log_deploy_*.txt
+env.json
+
+env.json
+
+env.json
+
+# Pasta local de assets/imagens (não versionar)
+images/
+
+
+# Documenta��o local e apresenta��es (n�o versionar)
+documentos_oficiais/
+docs/apresentacao_2026-04-24/
+
+
+# Huawei OBS local credentials
+obs_creds.json
+
+# Database Dumps
+*.sql

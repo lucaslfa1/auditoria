@@ -1,0 +1,1364 @@
+scoring_rules:
+  pass: 1.0
+  fail: 0.0
+sectors:
+- id: transferencia
+  label: Transferência
+  description: Setor de rastreamento - Transferência (Longo Percurso)
+- id: uti
+  label: UTI
+  description: Setor de rastreamento - UTI (antigo GRS)
+- id: bas
+  label: BAS
+  description: Base de Sinistros
+- id: distribuicao
+  label: Distribuição
+  description: Setor de rastreamento - Distribuição
+- id: fenix
+  label: Fênix
+  description: Setor de rastreamento - Fênix (operação dedicada)
+- id: cadastro
+  label: Cadastro
+  description: Setor de cadastro e antecedentes
+- id: logistica_unilever
+  label: Logística Unilever
+  description: Operação logística dedicada Unilever
+- id: logistica
+  label: Logística Opentech
+  description: Operação logística geral Opentech
+- id: mondelez
+  label: Logística Mondelez
+  description: Operação logística dedicada Mondelez
+- id: checklist
+  label: Checklist
+  description: Verificação de conformidade de veículos via WhatsApp
+- id: receptivo
+  label: Receptivo
+  description: Célula de atendimento receptivo (WhatsApp/Chatbot)
+alerts:
+- id: UTI-PRIORITARIO-MOT
+  sector: uti
+  pop_ref: 4.1.1
+  label: Alerta Prioritário - Motorista
+  context: Tratativa de alerta prioritário com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.09
+  - label: Nome?
+    weight: 0.09
+  - label: Setor/Empresa?
+    weight: 0.09
+  - label: Confirmou a senha de segurança?
+    weight: 0.3
+  - label: Informou o motivo do contato?
+    weight: 0.27
+  - label: Confirmou localização e condição do motorista?
+    weight: 0.3
+  - label: Identificou o motivo do alerta?
+    weight: 0.42
+  - label: Solicitou vídeo do veículo se necessário?
+    weight: 2.55
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.14
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.52
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.52
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.27
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.3
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.14
+- id: UTI-PRIORITARIO-CLI
+  sector: uti
+  pop_ref: 4.1.2
+  label: Alerta Prioritário - Cliente
+  context: Tratativa de alerta prioritário com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.11
+  - label: Nome?
+    weight: 0.11
+  - label: Setor/Empresa?
+    weight: 0.11
+  - label: Confirmou com quem está falando?
+    weight: 0.17
+  - label: Informou o motivo do contato?
+    weight: 0.33
+  - label: Enfatizou suspeita de sinistro?
+    weight: 0.33
+  - label: Informou ações adotadas?
+    weight: 0.33
+  - label: Informou local do alerta?
+    weight: 0.33
+  - label: Confirmou contatos do condutor?
+    weight: 0.17
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.17
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.46
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.44
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.33
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 2.44
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.17
+- id: UTI-POSICAO-MOT
+  sector: uti
+  pop_ref: 4.1.3
+  label: Posição em Atraso - Motorista
+  context: Tratativa de posição em atraso com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.08
+  - label: Nome?
+    weight: 0.08
+  - label: Setor/Empresa?
+    weight: 0.08
+  - label: Confirmou a senha de segurança?
+    weight: 0.25
+  - label: Informou o motivo do contato?
+    weight: 0.25
+  - label: Confirmou localização atual?
+    weight: 0.25
+  - label: Orientou forçar posicionamento?
+    weight: 0.25
+  - label: Identificou motivo da perda de sinal?
+    weight: 0.25
+  - label: Informou riscos operacionais/seguro?
+    weight: 0.25
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.13
+  - label: Utilizou a função mudo corretamente?
+    weight: 3.75
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 3.75
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.25
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.25
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.13
+- id: UTI-POSICAO-CLI
+  sector: uti
+  pop_ref: 4.1.4
+  label: Posição em Atraso - Cliente
+  context: Tratativa de posição em atraso com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.1
+  - label: Nome?
+    weight: 0.1
+  - label: Setor/Empresa?
+    weight: 0.1
+  - label: Confirmou com quem está falando?
+    weight: 0.3
+  - label: Informou o motivo do contato?
+    weight: 0.3
+  - label: Enfatizou suspeita de sinistro?
+    weight: 0.3
+  - label: Informou ações/tratativas realizadas?
+    weight: 0.3
+  - label: Informou local onde perdeu posição?
+    weight: 0.3
+  - label: Questionou equipamento de contingência?
+    weight: 0.32
+  - label: Questionou informações recentes?
+    weight: 0.3
+  - label: Confirmou contatos do condutor?
+    weight: 0.3
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.15
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.22
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.23
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.3
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 2.23
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.15
+- id: UTI-PARADA-MOT
+  sector: uti
+  pop_ref: 4.1.5
+  label: Parada Indevida - Motorista
+  context: Tratativa de parada indevida com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.07
+  - label: Nome?
+    weight: 0.07
+  - label: Setor/Empresa?
+    weight: 0.07
+  - label: Confirmou a senha de segurança?
+    weight: 0.22
+  - label: Informou o motivo do contato?
+    weight: 0.22
+  - label: Confirmou motivo da parada?
+    weight: 0.23
+  - label: Verificou plano de viagem?
+    weight: 0.23
+  - label: Orientou reiniciar viagem?
+    weight: 0.22
+  - label: Informou riscos da parada indevida?
+    weight: 0.24
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.11
+  - label: Utilizou a função mudo corretamente?
+    weight: 3.91
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 3.86
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.22
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.22
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.11
+- id: UTI-PARADA-CLI
+  sector: uti
+  pop_ref: 4.1.6
+  label: Parada Indevida - Cliente
+  context: Tratativa de parada indevida com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.1
+  - label: Nome?
+    weight: 0.1
+  - label: Setor/Empresa?
+    weight: 0.1
+  - label: Confirmou com quem está falando?
+    weight: 0.32
+  - label: Informou o motivo do contato?
+    weight: 0.3
+  - label: Informou ações adotadas?
+    weight: 0.3
+  - label: Informou local da parada?
+    weight: 0.3
+  - label: Verificou pontos de parada autorizada?
+    weight: 0.32
+  - label: Informou riscos ao cliente?
+    weight: 0.3
+  - label: Indicou medidas de segurança?
+    weight: 0.3
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.15
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.32
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.32
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.3
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 2.32
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.15
+- id: UTI-DESVIO-MOT
+  sector: uti
+  pop_ref: 4.1.7
+  label: Desvio de Rota - Motorista
+  context: Tratativa de desvio de rota com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.07
+  - label: Nome?
+    weight: 0.07
+  - label: Setor/Empresa?
+    weight: 0.07
+  - label: Confirmou a senha de segurança?
+    weight: 0.2
+  - label: Informou o motivo do contato?
+    weight: 0.2
+  - label: Confirmou motivo do desvio?
+    weight: 0.2
+  - label: Verificou plano de viagem?
+    weight: 0.2
+  - label: Orientou retornar à rota?
+    weight: 0.2
+  - label: Coletou itinerário?
+    weight: 0.25
+  - label: Informou riscos do desvio?
+    weight: 0.25
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.1
+  - label: Utilizou a função mudo corretamente?
+    weight: 3.84
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 3.85
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.2
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.2
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.1
+- id: UTI-DESVIO-CLI
+  sector: uti
+  pop_ref: 4.1.8
+  label: Desvio de Rota - Cliente
+  context: Tratativa de desvio de rota com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.11
+  - label: Nome?
+    weight: 0.11
+  - label: Setor/Empresa?
+    weight: 0.11
+  - label: Confirmou com quem está falando?
+    weight: 1.25
+  - label: Informou o motivo do contato?
+    weight: 0.33
+  - label: Enfatizou suspeita de sinistro?
+    weight: 1.22
+  - label: Informou ações/tratativas realizadas?
+    weight: 0.33
+  - label: Informou trajeto real vs programado?
+    weight: 0.33
+  - label: Questionou conhecimento do desvio?
+    weight: 0.33
+  - label: Verificou plano de viagem?
+    weight: 0.33
+  - label: Indicou medidas de segurança?
+    weight: 1.22
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.17
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.22
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.22
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.33
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.22
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.17
+- id: UTI-PONTO-APOIO
+  sector: uti
+  pop_ref: 4.1.9
+  label: Contato com Ponto de Apoio
+  context: Verificação de veículo com ponto de apoio (posto, mecânica, etc).
+  criteria:
+  - label: Saudação?
+    weight: 0.17
+  - label: Nome?
+    weight: 0.17
+  - label: Setor/Empresa?
+    weight: 0.17
+  - label: Confirmou com quem está falando?
+    weight: 1.49
+  - label: Informou o motivo do contato?
+    weight: 0.5
+  - label: Informou dados/características do veículo?
+    weight: 0.5
+  - label: Passou detalhes da última posição?
+    weight: 0.5
+  - label: Solicitou verificação do conjunto sem violações?
+    weight: 0.5
+  - label: Orientou chamar o motorista?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.5
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.5
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.5
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: UTI-PRIORITARIO-POLICIA
+  sector: uti
+  pop_ref: 4.1.10
+  label: Alerta Prioritario - Policia
+  context: Contato com autoridades policiais para suporte em ocorrências.
+  criteria:
+  - label: Saudação?
+    weight: 0.09
+  - label: Nome?
+    weight: 0.09
+  - label: Setor/Empresa?
+    weight: 0.09
+  - label: Confirmou com quem está falando?
+    weight: 2.37
+  - label: Passou detalhes do evento/suspeita?
+    weight: 0.27
+  - label: Informou dados/características do conjunto e motorista?
+    weight: 0.27
+  - label: Passou detalhes do local da ocorrência?
+    weight: 0.27
+  - label: Solicitou deslocamento/patrulhamento?
+    weight: 0.27
+  - label: Deixou telefone de contato para retorno?
+    weight: 0.33
+  - label: Utilizou alfabeto fonético?
+    weight: 0.33
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.13
+  - label: Utilizou a função mudo corretamente?
+    weight: 0.33
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.38
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.27
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 2.38
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.13
+- id: BAS-PRIORITARIO-POLICIA
+  sector: bas
+  pop_ref: 4.1.10
+  label: Alerta Prioritario - Policia
+  context: Contato com autoridades policiais para suporte em ocorrências.
+  criteria:
+  - label: Saudação?
+    weight: 0.09
+  - label: Nome?
+    weight: 0.09
+  - label: Setor/Empresa?
+    weight: 0.09
+  - label: Confirmou com quem está falando?
+    weight: 2.37
+  - label: Passou detalhes do evento/suspeita?
+    weight: 0.27
+  - label: Informou dados/características do conjunto e motorista?
+    weight: 0.27
+  - label: Passou detalhes do local da ocorrência?
+    weight: 0.27
+  - label: Solicitou deslocamento/patrulhamento?
+    weight: 0.27
+  - label: Deixou telefone de contato para retorno?
+    weight: 0.33
+  - label: Utilizou alfabeto fonético?
+    weight: 0.33
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.13
+  - label: Utilizou a função mudo corretamente?
+    weight: 0.33
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.38
+  - label: Registrou corretamente o contato no sistema?
+    weight: 0.27
+    evaluation_type: manual
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 2.38
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.13
+- id: CADASTRO-ANTECEDENTES
+  sector: cadastro
+  pop_ref: 4.2.1
+  label: Antecedentes - Receptivo
+  context: Atendimento receptivo de antecedentes no setor Cadastro.
+  criteria:
+  - label: Saudação?
+    weight: 0.4
+  - label: Nome?
+    weight: 1.94
+  - label: Setor/Empresa?
+    weight: 0.4
+  - label: Solicitou CPF/Placa?
+    weight: 0.4
+  - label: Enfatizou bloqueio/cadastro negativado?
+    weight: 0.6
+  - label: Informou inquérito/processo/apontamento?
+    weight: 0.4
+  - label: Informou estado/justiça federal?
+    weight: 0.4
+  - label: Informou documento necessário?
+    weight: 1.93
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.2
+  - label: Utilizou a função mudo corretamente?
+    weight: 0.4
+  - label: Evitou silêncios prolongados (>60s)?
+    weight: 1.93
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.4
+  - label: Qualificação do atendimento correta?
+    weight: 0.4
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.2
+- id: UNILEVER-DEVOLUCAO
+  sector: logistica_unilever
+  pop_ref: 4.3.1
+  label: Devolução - Cliente
+  context: Tratativa de devolução Unilever com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.13
+  - label: Nome?
+    weight: 0.13
+  - label: Setor/Empresa?
+    weight: 0.13
+  - label: Confirmou com quem está falando?
+    weight: 0.4
+  - label: Informou devolução confirmada e próximo passo?
+    weight: 0.4
+  - label: Informou nome do cliente?
+    weight: 0.25
+  - label: Informou endereço do cliente?
+    weight: 0.5
+  - label: Informou código do cliente?
+    weight: 0.5
+  - label: Confirmou quantidade de caixas?
+    weight: 0.5
+  - label: Registrou ação resultante?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.2
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.71
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.7
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.5
+  - label: Qualificação do atendimento correta?
+    weight: 0.25
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.2
+- id: UNILEVER-CABINETS
+  sector: logistica_unilever
+  pop_ref: 4.3.2
+  label: Cabinets - Cliente
+  context: Tratativa de cabinets (insucesso) Unilever com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.13
+  - label: Nome?
+    weight: 0.13
+  - label: Setor/Empresa?
+    weight: 0.13
+  - label: Confirmou com quem está falando?
+    weight: 0.4
+  - label: Comunicou insucesso?
+    weight: 0.55
+  - label: Informou nome do cliente?
+    weight: 0.45
+  - label: Informou endereço do cliente?
+    weight: 0.5
+  - label: Informou código do cliente?
+    weight: 0.5
+  - label: Registrou ação resultante?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.2
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.71
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.7
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.5
+  - label: Qualificação do atendimento correta?
+    weight: 0.4
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.2
+- id: UNILEVER-TRATATIVA
+  sector: logistica_unilever
+  pop_ref: 4.3.3
+  label: Atuação Tratativa - Cliente
+  context: Tratativa de atuação Unilever com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.13
+  - label: Nome?
+    weight: 0.13
+  - label: Setor/Empresa?
+    weight: 0.13
+  - label: Confirmou com quem está falando?
+    weight: 0.5
+  - label: Informou motivo do contato?
+    weight: 0.4
+  - label: Informou nome do cliente?
+    weight: 0.4
+  - label: Informou endereço do cliente?
+    weight: 0.5
+  - label: Informou código do cliente?
+    weight: 0.4
+  - label: Informou motivo da devolução?
+    weight: 0.5
+  - label: Informou quantidade de caixas?
+    weight: 0.5
+  - label: Informou tempo de espera?
+    weight: 0.4
+  - label: Registrou ação resultante?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.2
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.19
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.17
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.5
+  - label: Qualificação do atendimento correta?
+    weight: 0.25
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.2
+- id: UNILEVER-DISTRIBUICAO
+  sector: logistica_unilever
+  pop_ref: 4.3.4
+  label: Distribuição - Cliente
+  context: Tratativa de distribuição Unilever com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.15
+  - label: Nome?
+    weight: 0.15
+  - label: Setor/Empresa?
+    weight: 0.15
+  - label: Confirmou com quem está falando?
+    weight: 0.45
+  - label: Informou motivo do contato?
+    weight: 0.45
+  - label: Informou placa do veículo?
+    weight: 0.25
+  - label: Informou nome do cliente?
+    weight: 0.55
+  - label: Informou endereço do cliente?
+    weight: 0.55
+  - label: Informou quantidade de caixas?
+    weight: 0.55
+  - label: Registrou ação resultante?
+    weight: 0.6
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.23
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.42
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.42
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.6
+  - label: Qualificação do atendimento correta?
+    weight: 0.25
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.23
+- id: UNILEVER-LOSSTREE
+  sector: logistica_unilever
+  pop_ref: 4.3.5
+  label: Loss Tree - Cliente
+  context: Tratativa de Loss Tree Unilever com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.17
+  - label: Nome?
+    weight: 0.17
+  - label: Setor/Empresa?
+    weight: 0.17
+  - label: Confirmou com quem está falando?
+    weight: 0.5
+  - label: Informou motivo do contato?
+    weight: 0.5
+  - label: Informou nome do cliente?
+    weight: 0.5
+  - label: Informou data da devolução?
+    weight: 0.5
+  - label: Confirmou motivo do pedido não solicitado?
+    weight: 0.5
+  - label: Registrou retorno no relatório?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.83
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.83
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.83
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: LOGISTICA-ESTADIA
+  sector: logistica
+  pop_ref: 4.4.1
+  label: Estadia - Motorista
+  context: Tratativa de estadia logístico com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.2
+  - label: Nome?
+    weight: 0.2
+  - label: Setor/Empresa?
+    weight: 0.2
+  - label: Confirmou com quem está falando?
+    weight: 0.85
+  - label: Informou motivo do contato?
+    weight: 0.5
+  - label: Questionou previsão para descarga?
+    weight: 0.9
+  - label: Confirmou tempo de espera?
+    weight: 0.85
+  - label: Verificou intercorrência no processo?
+    weight: 1.29
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.27
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.27
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.27
+  - label: Qualificação do atendimento correta?
+    weight: 0.7
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: LOGISTICA-TEMPERATURA-MOT
+  sector: logistica
+  pop_ref: 4.4.2
+  label: Temperatura - Motorista
+  context: Tratativa de controle de temperatura com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.13
+  - label: Nome?
+    weight: 0.13
+  - label: Setor/Empresa?
+    weight: 0.13
+  - label: Confirmou com quem está falando?
+    weight: 0.6
+  - label: Informou motivo do contato?
+    weight: 0.4
+  - label: Questionou temperatura do aparelho de frio?
+    weight: 0.6
+  - label: Questionou módulo de ajuste (Contínuo/Automático)?
+    weight: 0.6
+  - label: Orientou seguir padrão de temperatura da Unidade?
+    weight: 0.5
+  - label: Perguntou sobre funcionamento do aparelho?
+    weight: 0.6
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.77
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.77
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.77
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: LOGISTICA-TEMPERATURA-CLI
+  sector: logistica
+  pop_ref: 4.4.3
+  label: Temperatura - Cliente
+  context: Tratativa de controle de temperatura com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.18
+  - label: Nome?
+    weight: 0.18
+  - label: Setor/Empresa?
+    weight: 0.18
+  - label: Confirmou com quem está falando?
+    weight: 0.6
+  - label: Informou motivo do contato?
+    weight: 0.5
+  - label: Informou ações adotadas?
+    weight: 0.5
+  - label: Questionou conhecimento do ajuste?
+    weight: 0.55
+  - label: Verificou falha ou reporte do motorista?
+    weight: 1.26
+  - label: Orientou seguir padrão de temperatura?
+    weight: 1.24
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.27
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.24
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.24
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.24
+  - label: Qualificação do atendimento correta?
+    weight: 0.55
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.27
+- id: LOGISTICA-DESLIG-TEMP-MOT
+  sector: logistica
+  pop_ref: 4.4.4
+  label: Desligamento Temperatura - Motorista
+  context: Tratativa de desligamento de temperatura com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.13
+  - label: Nome?
+    weight: 0.13
+  - label: Setor/Empresa?
+    weight: 0.13
+  - label: Confirmou com quem está falando?
+    weight: 0.6
+  - label: Informou motivo do contato?
+    weight: 0.4
+  - label: Confirmou ajuste do aparelho?
+    weight: 0.6
+  - label: Confirmou se houve desligamento?
+    weight: 0.6
+  - label: Confirmou causa do desligamento?
+    weight: 0.6
+  - label: Reforçou riscos de devolução?
+    weight: 0.6
+  - label: Orientou religamento imediato?
+    weight: 1.35
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.2
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.32
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.32
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.32
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.2
+- id: LOGISTICA-DESLIG-TEMP-CLI
+  sector: logistica
+  pop_ref: 4.4.5
+  label: Desligamento Temperatura - Cliente
+  context: Tratativa de desligamento de temperatura com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.13
+  - label: Nome?
+    weight: 0.13
+  - label: Setor/Empresa?
+    weight: 0.13
+  - label: Confirmou com quem está falando?
+    weight: 0.6
+  - label: Informou motivo do contato?
+    weight: 0.4
+  - label: Informou ações adotadas?
+    weight: 0.4
+  - label: Questionou conhecimento do ajuste?
+    weight: 0.5
+  - label: Reforçou riscos de devolução?
+    weight: 0.6
+  - label: Orientou religamento imediato?
+    weight: 1.56
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.2
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.55
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.55
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.55
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.2
+- id: LOGISTICA-ATRASO-ENTREGA
+  sector: logistica
+  pop_ref: 4.4.6
+  label: Atraso de Entrega - Motorista
+  context: Tratativa de atraso de entrega com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.17
+  - label: Nome?
+    weight: 0.17
+  - label: Setor/Empresa?
+    weight: 0.17
+  - label: Confirmou com quem está falando?
+    weight: 0.5
+  - label: Informou motivo do contato?
+    weight: 0.5
+  - label: Informou OS/Placa/AE?
+    weight: 0.5
+  - label: Questionou motivo do atraso?
+    weight: 0.5
+  - label: Questionou previsão de chegada?
+    weight: 1.0
+  - label: Reforçou risco de devolução?
+    weight: 1.24
+  - label: Reforçou impacto do atraso?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.25
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.25
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.25
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: LOGISTICA-PARADA
+  sector: logistica
+  pop_ref: 4.4.7
+  label: Parada Indevida - Motorista
+  context: Tratativa de parada indevida logístico com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.18
+  - label: Nome?
+    weight: 0.18
+  - label: Setor/Empresa?
+    weight: 0.18
+  - label: Confirmou com quem está falando?
+    weight: 0.75
+  - label: Informou motivo do contato?
+    weight: 0.55
+  - label: Confirmou motivo da parada?
+    weight: 0.75
+  - label: Orientou paradas em locais homologados?
+    weight: 0.75
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.27
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.56
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.52
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.52
+  - label: Qualificação do atendimento correta?
+    weight: 1.52
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.27
+- id: LOGISTICA-DESVIO
+  sector: logistica
+  pop_ref: 4.4.8
+  label: Desvio de Rota - Motorista
+  context: Tratativa de desvio de rota logístico com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.18
+  - label: Nome?
+    weight: 0.18
+  - label: Setor/Empresa?
+    weight: 0.18
+  - label: Confirmou com quem está falando?
+    weight: 0.75
+  - label: Informou motivo do contato?
+    weight: 0.55
+  - label: Confirmou motivo do desvio?
+    weight: 0.75
+  - label: Orientou seguir rota da transportadora?
+    weight: 0.75
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.27
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.56
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.52
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.52
+  - label: Qualificação do atendimento correta?
+    weight: 1.52
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.27
+- id: LOGISTICA-ATIVACAO-AE
+  sector: logistica
+  pop_ref: 4.4.9
+  label: Ativação de AE - Cliente
+  context: Solicitação de ativação de AE com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.17
+  - label: Nome?
+    weight: 0.17
+  - label: Setor/Empresa?
+    weight: 0.17
+  - label: Confirmou com quem está falando?
+    weight: 0.75
+  - label: Informou motivo do contato?
+    weight: 0.5
+  - label: Informou nº da programação?
+    weight: 0.75
+  - label: Questionou motivo do atraso na emissão?
+    weight: 0.5
+  - label: Solicitou emissão?
+    weight: 0.5
+  - label: Reforçou importância da emissão no prazo?
+    weight: 1.35
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.38
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.38
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.38
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: LOGISTICA-ATRASO
+  sector: logistica
+  pop_ref: 4.4.10
+  label: Atraso - Cliente
+  context: Tratativa de atraso logístico com o cliente.
+  criteria:
+  - label: Saudação?
+    weight: 0.15
+  - label: Nome?
+    weight: 0.15
+  - label: Setor/Empresa?
+    weight: 0.15
+  - label: Confirmou com quem está falando?
+    weight: 0.55
+  - label: Informou motivo do contato?
+    weight: 0.45
+  - label: Questionou motivo do atraso?
+    weight: 0.55
+  - label: Questionou previsão de chegada?
+    weight: 0.55
+  - label: Confirmou comunicação à base/cliente?
+    weight: 0.55
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.22
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.0
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.98
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.98
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.22
+- id: LOGISTICA-POSICAO
+  sector: logistica
+  pop_ref: 4.4.11
+  label: Posição em Atraso - Motorista
+  context: Tratativa de posição em atraso logístico com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.17
+  - label: Nome?
+    weight: 0.17
+  - label: Setor/Empresa?
+    weight: 0.17
+  - label: Confirmou com quem está falando?
+    weight: 0.5
+  - label: Informou motivo do contato?
+    weight: 0.5
+  - label: Confirmou localização atual?
+    weight: 0.5
+  - label: Identificou motivo da perda de sinal?
+    weight: 0.5
+  - label: Orientou forçar posicionamento?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 2.74
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 2.75
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.5
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: LOGISTICA-TABORDA
+  sector: logistica
+  pop_ref: 4.4.12
+  label: Taborda - Receptivo
+  context: Atendimento receptivo WhatsApp Taborda.
+  criteria:
+  - label: Identificação (saudação)?
+    weight: 0.4
+  - label: Utilizou linguagem apropriada?
+    weight: 0.4
+  - label: Fluxo correspondeu à solicitação inicial?
+    weight: 3.6
+  - label: Preenchimento de ociosidade (sem retorno >3min)?
+    weight: 0.4
+  - label: Atendimento cordial e educado?
+    weight: 0.4
+  - label: Questionou se podia encerrar?
+    weight: 3.6
+  - label: Encerrou no tempo ocioso padrão (3min)?
+    weight: 0.4
+  - label: Despedida final padrão?
+    weight: 0.4
+  - label: Qualificação correta do atendimento?
+    weight: 0.4
+- id: LOGISTICA-ATRASO-INICIO
+  sector: logistica
+  pop_ref: 4.4.13
+  label: Atraso no Início de Viagem - Motorista
+  context: Tratativa de atraso no início da viagem com o motorista.
+  criteria:
+  - label: Saudação?
+    weight: 0.17
+  - label: Nome?
+    weight: 0.17
+  - label: Setor/Empresa?
+    weight: 0.17
+  - label: Confirmou com quem está falando?
+    weight: 0.5
+  - label: Informou claramente o motivo do contato?
+    weight: 0.5
+  - label: Questionou o motivo de não haver iniciado a viagem?
+    weight: 0.5
+  - label: Questionou se há previsão de início?
+    weight: 1.0
+  - label: Confirmou se foi comunicado a base ou cliente sobre o atraso?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 1.83
+  - label: Evitou silêncios prolongados (>45s)?
+    weight: 1.83
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 1.83
+  - label: Qualificação do atendimento correta?
+    weight: 0.5
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.25
+- id: MONDELEZ-LOGISTICA-REVERSA
+  sector: mondelez
+  pop_ref: 4.5.1
+  label: Logística Reversa - Receptivo
+  context: Atendimento receptivo de logística reversa Mondelez.
+  criteria:
+  - label: Saudação?
+    weight: 0.25
+  - label: Nome?
+    weight: 0.95
+  - label: Setor/Empresa?
+    weight: 0.25
+  - label: Confirmou com quem está falando?
+    weight: 0.38
+  - label: Confirmou motorista ou transportadora?
+    weight: 0.38
+  - label: Solicitou número da Nota Fiscal?
+    weight: 0.62
+  - label: Confirmou nome do cliente no sistema?
+    weight: 0.5
+  - label: Confirmou telefone do motorista?
+    weight: 0.25
+  - label: Questionou motivo da ocorrência?
+    weight: 0.25
+  - label: Solicitou NF de devolução?
+    weight: 0.5
+  - label: Solicitou informação dos produtos/itens/caixas?
+    weight: 0.5
+  - label: Informou número da ocorrência gerada?
+    weight: 0.62
+  - label: Solicitou retorno em 2 horas?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 0.95
+  - label: Evitou silêncios prolongados (>60s)?
+    weight: 0.95
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.95
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.95
+- id: MONDELEZ-MONITORAMENTO-I
+  sector: mondelez
+  pop_ref: 4.5.2
+  label: Monitoramento I - Receptivo
+  context: Atendimento receptivo Monitoramento I Mondelez.
+  criteria:
+  - label: Saudação?
+    weight: 0.25
+  - label: Nome?
+    weight: 0.96
+  - label: Setor/Empresa?
+    weight: 0.25
+  - label: Confirmou com quem está falando?
+    weight: 0.38
+  - label: Confirmou motorista ou transportadora?
+    weight: 0.38
+  - label: Solicitou número da Nota Fiscal?
+    weight: 0.62
+  - label: Confirmou nome do cliente no sistema?
+    weight: 0.62
+  - label: Confirmou telefone do motorista?
+    weight: 0.5
+  - label: Questionou motivo da ocorrência?
+    weight: 0.25
+  - label: Confirmou tempo de finalização da descarga?
+    weight: 0.62
+  - label: Informou número da ocorrência gerada?
+    weight: 0.62
+  - label: Solicitou retorno em 2 horas?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 0.95
+  - label: Evitou silêncios prolongados (>60s)?
+    weight: 0.95
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.95
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.95
+- id: MONDELEZ-MONITORAMENTO-II
+  sector: mondelez
+  pop_ref: 4.5.3
+  label: Monitoramento II - Receptivo
+  context: Atendimento receptivo Monitoramento II Mondelez.
+  criteria:
+  - label: Saudação?
+    weight: 0.25
+  - label: Nome?
+    weight: 0.85
+  - label: Setor/Empresa?
+    weight: 0.25
+  - label: Confirmou com quem está falando?
+    weight: 0.38
+  - label: Confirmou motorista ou transportadora?
+    weight: 0.38
+  - label: Solicitou número da Nota Fiscal?
+    weight: 0.63
+  - label: Confirmou nome do cliente no sistema?
+    weight: 0.63
+  - label: Confirmou telefone do motorista?
+    weight: 0.5
+  - label: Questionou motivo da ocorrência?
+    weight: 0.25
+  - label: Questionou data de agendamento?
+    weight: 0.25
+  - label: Questionou notas de outros clientes?
+    weight: 0.85
+  - label: Informou número da ocorrência gerada?
+    weight: 0.63
+  - label: Solicitou retorno em 2 horas?
+    weight: 0.5
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.25
+  - label: Utilizou a função mudo corretamente?
+    weight: 0.85
+  - label: Evitou silêncios prolongados (>60s)?
+    weight: 0.85
+  - label: Finalizou a ligação sem reter a linha (10s)?
+    weight: 0.85
+  - label: Entonação e cordialidade adequadas?
+    weight: 0.85
+- id: CHECKLIST-VEICULO
+  sector: checklist
+  pop_ref: 4.6.1
+  label: Checklist de Veículo - Receptivo
+  context: Verificação de conformidade de veículo via WhatsApp.
+  criteria:
+  - label: Identificação (saudação)?
+    weight: 0.3
+  - label: Enviou auto texto tipo de veículo?
+    weight: 0.5
+  - label: Seguiu fluxo do checklist corretamente?
+    weight: 1.0
+  - label: Atendimento cordial com linguagem apropriada?
+    weight: 0.4
+  - label: Informou status final (aprovado/reprovado)?
+    weight: 1.3
+  - label: Se reprovado, informou motivo?
+    weight: 1.3
+  - label: Anexou imagens dos testes no SIL?
+    weight: 2.0
+  - label: Informação corresponde ao registrado no SIL?
+    weight: 2.0
+  - label: Encerrou checklist no SIL em até 5 minutos?
+    weight: 0.3
+  - label: Despedida padrão com cordialidade?
+    weight: 0.3
+  - label: Encerrou atendimento no Weon em até 5 minutos?
+    weight: 0.3
+  - label: Qualificação correta do atendimento?
+    weight: 0.3
+- id: CHECKLIST-RECEPTIVO
+  sector: checklist
+  pop_ref: 4.6.2
+  label: Processo Checklist - Receptivo Whatsapp
+  context: Processo de checklist via canal receptivo WhatsApp.
+  criteria:
+  - label: O operador se identificou informando saudação.
+    weight: 0.83
+  - label: Enviou o auto texto perguntando qual o tipo de veículo?
+    weight: 0.83
+  - label: Seguiu corretamente o fluxo do checklist conforme a solicitação inicial?
+    weight: 0.83
+  - label: Realizou um atendimento cordial, utilizando linguagem apropriada?
+    weight: 0.83
+  - label: Informou o status final do checklist (aprovado ou reprovado)?
+    weight: 0.83
+  - label: Se reprovado, informou corretamente o motivo da reprovação?
+    weight: 0.83
+  - label: Anexou imagens dos testes no SIL, correspondentes ao veículo e tecnologia
+      analisada?
+    weight: 0.83
+  - label: A informação passada no atendimento corresponde ao que foi registrado no
+      SIL?
+    weight: 0.83
+  - label: Encerrou o checklist no SIL em até 5 minutos após informar o status final?
+    weight: 0.83
+  - label: Realizou a despedida padrão com cordialidade?
+    weight: 0.83
+  - label: Encerrou o atendimento no Weon em até 5 minutos após informar o status
+      final do checklist?
+    weight: 0.83
+  - label: Realizou a qualificação correta do atendimento?
+    weight: 0.83
+- id: RECEPTIVO-CHATBOT
+  sector: receptivo
+  pop_ref: 4.7.1
+  label: Atendimento ao Cliente - Receptivo
+  context: Atendimento receptivo ao cliente via WhatsApp/Chatbot.
+  criteria:
+  - label: Identificação (saudação)?
+    weight: 1.12
+  - label: Utilizou linguagem apropriada?
+    weight: 1.11
+  - label: Fluxo correspondeu à solicitação inicial?
+    weight: 1.11
+  - label: Preenchimento de ociosidade (sem retorno >3min)?
+    weight: 1.11
+  - label: Atendimento cordial e educado?
+    weight: 1.11
+  - label: Questionou se podia encerrar?
+    weight: 1.11
+  - label: Encerrou no tempo ocioso padrão (3min)?
+    weight: 1.11
+  - label: Despedida final padrão?
+    weight: 1.11
+  - label: Qualificação correta do atendimento?
+    weight: 1.11
+- id: CELULA-RECEPTIVO
+  sector: receptivo
+  pop_ref: 4.7.2
+  label: Chatbot - Receptivo Whatsapp
+  context: Atendimento via chatbot WhatsApp na célula receptiva.
+  criteria:
+  - label: O operador se identificou informando saudação?
+    weight: 1.12
+  - label: Utilizou linguagem apropriada? (Sem usar gírias ou estereótipos de apoio)
+    weight: 1.11
+  - label: Fluxo do atendimento correspondeu à solicitação inicial? (Foco no atendimento)
+    weight: 1.11
+  - label: Realizou o preenchimento de ociosidade? (Não deixando atendimento sem retorno
+      por mais de 3min)
+    weight: 1.11
+  - label: Realizou um atendimento cordial com educação? (Utilizando 'obrigado'/'por
+      favor'/'senhor')
+    weight: 1.11
+  - label: Questionou se podia encerrar o atendimento?
+    weight: 1.11
+  - label: Encerrou somente no tempo ocioso padrão? (3min)
+    weight: 1.11
+  - label: Foi realizado a despedida final padrão?
+    weight: 1.11
+  - label: Foi realizada a qualificação correta do atendimento?
+    weight: 1.11
