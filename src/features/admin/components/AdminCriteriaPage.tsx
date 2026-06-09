@@ -336,10 +336,10 @@ export function AdminCriteriaPage() {
     return (
         <div className="space-y-6 pb-10">
             <PageHeader
-                eyebrow="nstech | Administração"
-                titleFirstWord="Gestão"
-                titleRest="de Critérios"
-                subtitle="Gerencie Setores, Alertas e Critérios da auditoria. Toda alteração exige motivo e fica registrada no histórico."
+                eyebrow="nstech | Critérios"
+                titleFirstWord="Critérios"
+                titleRest="de Auditoria"
+                subtitle="Gerencie o catálogo de setores, alertas e critérios da auditoria. Toda alteração exige motivo e fica registrada no histórico."
             />
             {error && <div className="text-red-400 p-4 rounded bg-red-500/10 border border-red-500/20">{error}</div>}
 

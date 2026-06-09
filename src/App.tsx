@@ -416,14 +416,14 @@ function App() {
       );
     }
 
-    if (view === 'admin') {
+    if (view === 'criterios' || view === 'admin') {
       if (userRole !== 'admin') {
         setTimeout(() => setView('supervisor'), 0);
         return null;
       }
       return (
-        <LazyErrorBoundary fallbackLabel="Admin">
-          <Suspense fallback={<div className="glass-panel rounded-2xl p-6 text-slate-400"><span translate="no">Carregando admin...</span></div>}>
+        <LazyErrorBoundary fallbackLabel="Critérios">
+          <Suspense fallback={<div className="glass-panel rounded-2xl p-6 text-slate-400"><span translate="no">Carregando critérios...</span></div>}>
             <AdminCriteriaPage />
           </Suspense>
         </LazyErrorBoundary>

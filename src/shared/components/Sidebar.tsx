@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useDialogFocusTrap } from '../hooks/useDialogFocusTrap';
 
-type ViewType = 'audit' | 'dashboard' | 'classifier' | 'colaboradores' | 'settings' | 'supervisor' | 'review' | 'salvos' | 'ia' | 'admin' | 'admin-aliases' | 'admin-sectors' | 'admin-prompts' | 'telefonia' | 'automacao' | 'fechamento' | 'pending-dispatch';
+type ViewType = 'audit' | 'dashboard' | 'classifier' | 'colaboradores' | 'settings' | 'supervisor' | 'review' | 'salvos' | 'ia' | 'criterios' | 'admin' | 'admin-aliases' | 'admin-sectors' | 'admin-prompts' | 'telefonia' | 'automacao' | 'fechamento' | 'pending-dispatch';
 
 interface SidebarProps {
   view: ViewType;
@@ -67,6 +67,7 @@ export function Sidebar({
 
   const isAdmin = userRole === 'admin';
   const isSupervisor = userRole === 'supervisor';
+  const isCriteriaView = view === 'criterios' || view === 'admin';
 
   const navItemClass = (isActive: boolean, collapsed: boolean) =>
     `w-full flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3.5 px-[1.05rem]'} py-[0.95rem] rounded-2xl text-[15px] font-semibold transition-all duration-300 border ${isActive
@@ -204,8 +205,8 @@ export function Sidebar({
                   {!collapsed && <span className="md:hidden block">Setores</span>}
                 </button>
 
-                <button onClick={() => handleViewChange('admin')} className={navItemClass(view === 'admin', collapsed)} title={collapsed ? 'Critérios' : ''}>
-                  <ClipboardCheck size={20} className={navIconClass(view === 'admin')} />
+                <button onClick={() => handleViewChange('criterios')} className={navItemClass(isCriteriaView, collapsed)} title={collapsed ? 'Critérios' : ''}>
+                  <ClipboardCheck size={20} className={navIconClass(isCriteriaView)} />
                   {!collapsed && <span className="truncate block hidden md:block lg:block">Critérios</span>}
                   {!collapsed && <span className="md:hidden block">Critérios</span>}
                 </button>
