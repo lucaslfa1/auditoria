@@ -197,11 +197,19 @@ export function Sidebar({
             </button>
 
             {isAdmin && (
-              <button onClick={() => handleViewChange('admin-sectors')} className={navItemClass(view === 'admin-sectors', collapsed)} title={collapsed ? 'Setores' : ''}>
-                <Building2 size={20} className={navIconClass(view === 'admin-sectors')} />
-                {!collapsed && <span className="truncate block hidden md:block lg:block">Setores</span>}
-                {!collapsed && <span className="md:hidden block">Setores</span>}
-              </button>
+              <>
+                <button onClick={() => handleViewChange('admin-sectors')} className={navItemClass(view === 'admin-sectors', collapsed)} title={collapsed ? 'Setores' : ''}>
+                  <Building2 size={20} className={navIconClass(view === 'admin-sectors')} />
+                  {!collapsed && <span className="truncate block hidden md:block lg:block">Setores</span>}
+                  {!collapsed && <span className="md:hidden block">Setores</span>}
+                </button>
+
+                <button onClick={() => handleViewChange('admin')} className={navItemClass(view === 'admin', collapsed)} title={collapsed ? 'Critérios' : ''}>
+                  <ClipboardCheck size={20} className={navIconClass(view === 'admin')} />
+                  {!collapsed && <span className="truncate block hidden md:block lg:block">Critérios</span>}
+                  {!collapsed && <span className="md:hidden block">Critérios</span>}
+                </button>
+              </>
             )}
           </>
         )}
@@ -218,12 +226,12 @@ export function Sidebar({
                   setAiMenuOpen(!aiMenuOpen);
                 }
               }}
-              className={navItemClass(['ia', 'admin', 'admin-aliases', 'admin-prompts'].includes(view), collapsed)}
+              className={navItemClass(['ia', 'admin-aliases', 'admin-prompts'].includes(view), collapsed)}
               title={collapsed ? 'Inteligência Artificial' : ''}
               aria-expanded={aiMenuOpen}
               aria-controls="ai-submenu"
             >
-              <Brain size={20} className={navIconClass(['ia', 'admin', 'admin-aliases', 'admin-prompts'].includes(view))} />
+              <Brain size={20} className={navIconClass(['ia', 'admin-aliases', 'admin-prompts'].includes(view))} />
               {!collapsed && (
                 <>
                   <span className="truncate flex-1 text-left hidden md:block lg:block">Inteligência Artificial</span>
@@ -240,18 +248,6 @@ export function Sidebar({
                 aria-label="Submenu Inteligência Artificial"
                 className="flex flex-col gap-1 pr-2 py-1 mt-1 border-l-2 border-white/5 ml-5 pl-4 theme-light:border-slate-200"
               >
-                <button
-                  onClick={() => handleViewChange('admin')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
-                    view === 'admin'
-                      ? 'bg-slate-800 text-primary-300 theme-light:bg-slate-100 theme-light:text-primary-600 font-semibold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 theme-light:text-slate-600 theme-light:hover:text-slate-800 theme-light:hover:bg-slate-50'
-                  }`}
-                >
-                  <ClipboardCheck size={16} className="shrink-0" />
-                  <span className="truncate">Critérios</span>
-                </button>
-
                 <button
                   onClick={() => handleViewChange('ia')}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
