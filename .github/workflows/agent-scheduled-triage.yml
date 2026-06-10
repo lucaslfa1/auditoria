@@ -2,7 +2,7 @@ name: 'Agent Scheduled Issue Triage'
 
 on:
   schedule:
-    - cron: '0 * * * *' # Runs every hour
+    - cron: '0 6 * * *' # Runs once a day (06:00 UTC / 03:00 BRT)
   pull_request:
     branches:
       - 'main'
