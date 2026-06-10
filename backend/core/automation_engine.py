@@ -46,6 +46,11 @@ _current_status = {
     "auditadas_total": 0,
 }
 
+_health_snapshot_cache: dict[str, object] = {
+    "loaded_at": 0.0,
+    "snapshot": None,
+}
+
 
 _MISSING = object()
 
@@ -108,6 +113,15 @@ def _empty_health_snapshot() -> dict:
             "auditadas": 0,
         },
     }
+
+
+def _get_health_snapshot_cache_ttl_seconds() -> int:
+    raw = os.getenv("AUTOMATION_HEALTH_SNAPSHOT_TTL_SECONDS", "30")
+    try:
+        return max(0, int(str(raw or "30").strip()))
+    except (TypeError, ValueError):
+        logger.warning("AUTOMATION_HEALTH_SNAPSHOT_TTL_SECONDS invalido: %r. Usando 30.", raw)
+        return 30
 
 
 def _load_health_snapshot() -> dict:
@@ -174,6 +188,29 @@ def _load_health_snapshot() -> dict:
     finally:
         if conn is not None:
             conn.close()
+    return snapshot
+
+
+def _load_health_snapshot_cached() -> dict:
+    """Throttle DB-heavy health probes used by UI polling.
+
+    The Telefonia/settings screens ask for engine status periodically. Without
+    caching, every poll re-queries queue, sync, and cycle aggregates even when
+    automation is idle, increasing Neon compute wakeups and network transfer.
+    """
+    ttl_seconds = _get_health_snapshot_cache_ttl_seconds()
+    if ttl_seconds <= 0:
+        return _load_health_snapshot()
+
+    now = time.monotonic()
+    cached_snapshot = _health_snapshot_cache.get("snapshot")
+    loaded_at = float(_health_snapshot_cache.get("loaded_at") or 0.0)
+    if isinstance(cached_snapshot, dict) and now - loaded_at < ttl_seconds:
+        return dict(cached_snapshot)
+
+    snapshot = _load_health_snapshot()
+    _health_snapshot_cache["loaded_at"] = now
+    _health_snapshot_cache["snapshot"] = dict(snapshot)
     return snapshot
 
 
@@ -1625,5 +1662,5 @@ def get_engine_status() -> dict:
         is_paused=status["is_paused"],
         is_cancelled=status["is_cancelled"],
     )
-    status["health_report"] = _build_automation_health_report(status, _load_health_snapshot())
+    status["health_report"] = _build_automation_health_report(status, _load_health_snapshot_cached())
     return status

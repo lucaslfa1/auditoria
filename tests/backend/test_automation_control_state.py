@@ -225,6 +225,9 @@ class TestAutomationControlState(unittest.TestCase):
             automation_engine,
             "_AutomationCycleLock",
             return_value=BusyLock(),
+        ), patch.object(
+            automation_engine,
+            "_reconcile_stale_running_cycles",
         ), patch.object(automation_engine, "_create_cycle_run") as create_cycle:
             result = asyncio.run(automation_engine.run_automation_cycle(source="resident_loop"))
 

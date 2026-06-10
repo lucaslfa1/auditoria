@@ -184,14 +184,18 @@ export function useTelefoniaSync() {
     fetchAutomationStatus();
   }, [fetchConfig, fetchStatus, fetchAutomationStatus]);
 
+  const automationPollingMs =
+    automationStatus?.is_running || automationStatus?.is_cycle_running ? 8000 : 60000;
+
   // Polling do status de automacao enquanto a tela esta aberta. Permite a UI
-  // mostrar/esconder banner de "automacao rodando" sem o usuario refresh.
+  // mostrar/esconder banner de "automacao rodando" sem o usuario refresh. Em
+  // repouso, usa cadencia menor para evitar consultas repetidas ao Neon.
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       fetchAutomationStatus();
-    }, 8000);
+    }, automationPollingMs);
     return () => window.clearInterval(intervalId);
-  }, [fetchAutomationStatus]);
+  }, [automationPollingMs, fetchAutomationStatus]);
 
   useEffect(() => {
     if (
