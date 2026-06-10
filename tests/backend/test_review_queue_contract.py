@@ -806,7 +806,7 @@ class TestReviewQueueContract(unittest.TestCase):
     @patch.object(automation, "get_mime_type", return_value="audio/wav")
     @patch.object(automation, "load_classified_audio", return_value=b"audio-bytes")
     @patch.object(automation, "_build_alert_from_classification")
-    def test_audit_single_item_routes_hybrid_dual_runtime_failure_to_manual_triage(
+    def test_audit_single_item_routes_premium_transcription_failure_to_retry(
         self,
         mock_build_alert,
         mock_load_audio,
@@ -841,7 +841,7 @@ class TestReviewQueueContract(unittest.TestCase):
         mock_persist_audit_artifacts.assert_not_called()
         _, kwargs = mock_update_queue_status.call_args
         self.assertEqual(kwargs["status"], REVIEW_QUEUE_STATUS_AUTO_RESOLVED)
-        self.assertEqual(kwargs["motivos_revisao_append"], ["transcricao_hybrid_dual_falhou"])
+        self.assertEqual(kwargs["motivos_revisao_append"], ["transcricao_premium_falhou"])
         self.assertIn("hybrid_dual", kwargs["metadata_merge"]["transcription_error"])
 
     @patch.object(automation.database, "atualizar_status_fila_revisao_classificacao")

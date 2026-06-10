@@ -26,10 +26,10 @@ def _selected_transcription_strategy(audio_quality: Any) -> str:
     return str(provider.get("selected_strategy") or "").strip().lower()
 
 
-def _satisfies_hybrid_dual_policy(audio_quality: Any) -> bool:
-    # Migracao fast: fast e o engine padrao. Aceita QUALQUER transcricao com uma
+def _satisfies_transcription_policy(audio_quality: Any) -> bool:
+    # Politica atual: fast e o engine padrao. Aceita qualquer transcricao com
     # estrategia valida selecionada (fast, hybrid_dual, gpt4o_diarize, whisper...).
-    # Antes exigia hybrid_dual; agora so rejeita transcricao ausente/vazia.
+    # O gate rejeita apenas transcricao ausente/vazia.
     if not isinstance(audio_quality, dict):
         return False
     provider = audio_quality.get("transcription_provider")
@@ -90,7 +90,7 @@ class AuditCacheGatekeeper:
             )
             audio_quality = getattr(existing, "audio_quality", None)
             selected_strategy = _selected_transcription_strategy(audio_quality)
-            if not _satisfies_hybrid_dual_policy(audio_quality):
+            if not _satisfies_transcription_policy(audio_quality):
                 logger.info(
                     "Automacao: cache de '%s' ignorado porque a transcricao em cache nao tem "
                     "estrategia valida (selected_strategy=%s).",
@@ -222,7 +222,7 @@ class TranscriptionFallbackGatekeeper:
 
         audio_quality = getattr(result, "audio_quality", None)
         selected_strategy = _selected_transcription_strategy(audio_quality)
-        if not _satisfies_hybrid_dual_policy(audio_quality):
+        if not _satisfies_transcription_policy(audio_quality):
             return cls.handle_transcription_runtime_error(
                 RuntimeError(
                     "transcricao valida obrigatoria para automacao; "
@@ -301,8 +301,8 @@ class TranscriptionFallbackGatekeeper:
         normalized_error = error_text.lower()
 
         if "hybrid_dual" in normalized_error or "transcricao" in normalized_error or "transcription" in normalized_error:
-            is_hybrid_failure = "hybrid_dual" in normalized_error
-            motivo = "transcricao_hybrid_dual_falhou" if is_hybrid_failure else "transcricao_automatica_falhou"
+            is_premium_failure = "hybrid_dual" in normalized_error
+            motivo = "transcricao_premium_falhou" if is_premium_failure else "transcricao_automatica_falhou"
 
             if _transcription_failure_retry_enabled():
                 should_retry, next_count = transient_retry_state(metadata)
@@ -341,8 +341,8 @@ class TranscriptionFallbackGatekeeper:
                 queue_input_hash,
                 REVIEW_QUEUE_STATUS_NEEDS_MANUAL_TRIAGE,
                 (
-                    "Transcricao premium hybrid_dual falhou; auditoria automatica bloqueada"
-                    if is_hybrid_failure
+                    "Transcricao premium falhou; auditoria automatica bloqueada"
+                    if is_premium_failure
                     else "Transcricao automatica falhou; auditoria automatica bloqueada"
                 ),
                 motivos_revisao_append=[motivo],
@@ -359,7 +359,7 @@ class TranscriptionFallbackGatekeeper:
             )
             return {
                 "status": "blocked_transcription_quality",
-                "reasons": ["hybrid_dual_failed" if is_hybrid_failure else "transcription_failed"],
+                "reasons": ["premium_transcription_failed" if is_premium_failure else "transcription_failed"],
             }
 
         raise exc  # Re-lança se não for um erro conhecido de transcrição

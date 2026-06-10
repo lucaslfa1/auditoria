@@ -1086,15 +1086,19 @@ async def transcribe_audio(
         else:
             engine = env_engine
         
-        allow_sdk_fallback = _env_flag("AZURE_SDK_FALLBACK", True)
-        
-        # Flags forcadas para True independentemente do .env para blindar o modo 'hybrid_dual'.
-        # O hybrid_dual executa ambos em paralelo (Diarize + Whisper). Se um falhar, 
-        # a logica de fallback interna precisa que eles tentem rodar para retornar excecao
-        # isolada (ex: Whisper falha, Diarize prossegue). Se essas flags fossem False,
-        # um bloqueio total impediria a fusao de iniciar ou concluir o degrade seguro.
-        allow_whisper_fallback = True
-        allow_gpt4o_diarize_fallback = True
+        allow_sdk_fallback = _env_flag("AZURE_SDK_FALLBACK", False)
+
+        premium_fallback_enabled = _env_flag("AZURE_PREMIUM_TRANSCRIPTION_FALLBACK", False)
+        allow_whisper_fallback = (
+            engine in {"hybrid_dual", "whisper"}
+            or premium_fallback_enabled
+            or _env_flag("AZURE_WHISPER_FALLBACK", False)
+        )
+        allow_gpt4o_diarize_fallback = (
+            engine in {"hybrid_dual", "gpt4o_diarize"}
+            or premium_fallback_enabled
+            or _env_flag("AZURE_GPT4O_DIARIZE_FALLBACK", False)
+        )
         whisper_endpoint, whisper_key = _resolve_azure_whisper_config()
         whisper_available = bool(whisper_endpoint and whisper_key)
 

@@ -366,6 +366,67 @@ class TestCoreLogic(unittest.TestCase):
                 else:
                     os.environ[key] = value
 
+    def test_transcribe_audio_keeps_fast_only_without_premium_fallback(self):
+        env_keys = [
+            "AZURE_SPEECH_ENDPOINT",
+            "AZURE_TRANSCRIPTION_ENGINE",
+            "AZURE_GPT4O_DIARIZE_FALLBACK",
+            "AZURE_PREMIUM_TRANSCRIPTION_FALLBACK",
+            "AZURE_WHISPER_FALLBACK",
+            "AZURE_SDK_FALLBACK",
+            "TRANSCRIPTION_CANDIDATE_SELECTOR_ENABLED",
+        ]
+        previous = {key: os.environ.get(key) for key in env_keys}
+        weak_segments = [{"start": "00:00", "end": "00:01", "text": "sim"}]
+        try:
+            os.environ["AZURE_SPEECH_ENDPOINT"] = "https://speech.test"
+            os.environ["AZURE_TRANSCRIPTION_ENGINE"] = "fast"
+            os.environ["TRANSCRIPTION_CANDIDATE_SELECTOR_ENABLED"] = "false"
+            for key in (
+                "AZURE_GPT4O_DIARIZE_FALLBACK",
+                "AZURE_PREMIUM_TRANSCRIPTION_FALLBACK",
+                "AZURE_WHISPER_FALLBACK",
+                "AZURE_SDK_FALLBACK",
+            ):
+                os.environ.pop(key, None)
+
+            with (
+                patch.object(core.transcription, "AI_PROVIDER_PRIORITY", "azure"),
+                patch.object(core.transcription, "AZURE_SPEECH_KEY", "speech-key"),
+                patch(
+                    "core.transcription.prepare_audio_for_azure",
+                    return_value=PreparedAudio(audio_file=b"audio", mime_type="audio/wav"),
+                ),
+                patch("core.transcription._resolve_azure_whisper_config", return_value=("https://whisper.test", "whisper-key")),
+                patch(
+                    "core.transcription._resolve_azure_gpt4o_diarize_config",
+                    return_value=("https://example.test/openai/deployments/gpt/audio/transcriptions?api-version=2024-06-01", "gpt-key"),
+                ),
+                patch("core.transcription.transcribe_audio_azure", return_value=weak_segments) as mocked_fast,
+                patch("core.transcription.transcribe_audio_gpt4o_diarize") as mocked_gpt,
+            ):
+                result, metadata = asyncio.run(
+                    services.transcribe_audio(
+                        audio_file=b"audio",
+                        mime_type="audio/wav",
+                        operator_name="Ana",
+                        driver_name="Motorista",
+                        return_metadata=True,
+                    )
+                )
+
+            self.assertEqual(result, weak_segments)
+            self.assertEqual(metadata["selected_strategy"], "fast")
+            self.assertEqual([attempt["strategy"] for attempt in metadata["attempts"]], ["fast"])
+            self.assertEqual(mocked_fast.call_count, 1)
+            self.assertEqual(mocked_gpt.call_count, 0)
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
     def test_transcribe_audio_uses_gpt4o_diarize_when_fast_diarization_is_weak(self):
         env_keys = ["AZURE_SPEECH_ENDPOINT", "AZURE_GPT4O_DIARIZE_FALLBACK"]
         previous = {key: os.environ.get(key) for key in env_keys}
