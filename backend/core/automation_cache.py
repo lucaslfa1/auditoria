@@ -290,7 +290,11 @@ class TranscriptionFallbackGatekeeper:
         esgotado, DESCARTA (recuperavel) em vez de prender. OFF (rollback) ->
         needs_manual_triage imediato (comportamento legado).
         """
-        from core.automation import _mark_item_status, _transcription_failure_retry_enabled
+        from core.automation import (
+            _discard_impossible_transcription_enabled,
+            _mark_item_status,
+            _transcription_failure_retry_enabled,
+        )
         from core.automation_disposition import (
             Disposition,
             execute_discard,
@@ -325,9 +329,17 @@ class TranscriptionFallbackGatekeeper:
                         filename, next_count, error_text,
                     )
                     return {"status": "retry_transcription_failed", "reasons": [motivo]}
+                # Falha de transcricao no automatico: descarte PERMANENTE (tombstone)
+                # na 1a falha por politica (auditar e so uma vez; sem retry), igual
+                # ao tratamento de transcricao vazia. Reversivel via
+                # AUTOMATION_DISCARD_IMPOSSIBLE_TRANSCRIPTION=false (-> recuperavel).
                 return execute_discard(
                     None,
-                    Disposition.DISCARD_RECOVERABLE,
+                    (
+                        Disposition.DISCARD_IMPOSSIBLE
+                        if _discard_impossible_transcription_enabled()
+                        else Disposition.DISCARD_RECOVERABLE
+                    ),
                     motivo=motivo,
                     status_result="discarded_transcription_failed",
                     queue_input_hash=queue_input_hash,

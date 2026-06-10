@@ -143,10 +143,14 @@ class TestTranscriptionFailureRetry(unittest.TestCase):
         with patch.object(
             automation.database,
             "descartar_item_automacao",
-            return_value={"discarded": True, "tombstone": "discarded_recoverable", "attempts": 1},
+            return_value={"discarded": True, "tombstone": True, "attempts": 1},
         ) as mock_disc, patch.dict(
             os.environ,
-            {"AUTOMATION_TRANSCRIPTION_FAILURE_RETRY": "true", "AUTOMATION_TRANSIENT_RETRY_LIMIT": "3"},
+            {
+                "AUTOMATION_TRANSCRIPTION_FAILURE_RETRY": "true",
+                "AUTOMATION_TRANSIENT_RETRY_LIMIT": "3",
+                "AUTOMATION_DISCARD_IMPOSSIBLE_TRANSCRIPTION": "true",
+            },
             clear=False,
         ):
             out = TranscriptionFallbackGatekeeper.handle_transcription_runtime_error(
@@ -158,7 +162,31 @@ class TestTranscriptionFailureRetry(unittest.TestCase):
             )
         self.assertEqual(out["status"], "discarded_transcription_failed")
         mock_disc.assert_called_once()
-        self.assertFalse(mock_disc.call_args.kwargs["tombstone"])  # falha transitoria do Azure = reversivel
+        # politica (v1.3.111): falha de transcricao no automatico = descarte PERMANENTE
+        self.assertTrue(mock_disc.call_args.kwargs["tombstone"])
+
+    def test_default_sem_retry_descarta_na_primeira_falha(self):
+        # Default novo AUTOMATION_TRANSIENT_RETRY_LIMIT=1: a 1a falha ja esgota o
+        # retry e descarta, sem re-auditar (politica "auditar e so uma vez").
+        ctx = _audio_pipeline_ctx()
+        with patch.object(
+            automation.database,
+            "descartar_item_automacao",
+            return_value={"discarded": True, "tombstone": True, "attempts": 1},
+        ) as mock_disc, patch.dict(
+            os.environ,
+            {"AUTOMATION_TRANSCRIPTION_FAILURE_RETRY": "true", "AUTOMATION_TRANSIENT_RETRY_LIMIT": "1"},
+            clear=False,
+        ):
+            out = TranscriptionFallbackGatekeeper.handle_transcription_runtime_error(
+                RuntimeError("hybrid_dual falhou"),
+                "queue-1",
+                "call.wav",
+                ctx,
+                metadata={"automation_transient_retries": 0},  # 1a falha; limit=1 -> sem retry
+            )
+        self.assertEqual(out["status"], "discarded_transcription_failed")
+        mock_disc.assert_called_once()
 
     def test_flag_off_estaciona_em_triagem(self):
         ctx = _audio_pipeline_ctx()

@@ -35,12 +35,20 @@ def _discard_loop_limit() -> int:
 
 
 def _transient_retry_limit() -> int:
-    """Quantas tentativas de auditoria para erros transitorios (timeout/audio ausente)."""
-    raw = os.getenv("AUTOMATION_TRANSIENT_RETRY_LIMIT", "3")
+    """Quantas tentativas de auditoria para erros transitorios (timeout/audio ausente).
+
+    Default 1 = SEM re-tentativa (uma passada so). Politica: 'auditar e so uma
+    vez; se falhar, vai para triagem manual e o humano edita'. Com limite 1, a
+    falha de transcricao cai direto em needs_manual_triage (nao re-transcreve =
+    nao gasta Azure de novo); falha de infra (timeout/audio ausente) e descartada
+    recuperavel. Reversivel via env (AUTOMATION_TRANSIENT_RETRY_LIMIT=3 restaura o
+    retry anterior). Ver logs/versions/1.3.111.
+    """
+    raw = os.getenv("AUTOMATION_TRANSIENT_RETRY_LIMIT", "1")
     try:
         return max(1, int(str(raw).strip()))
     except (TypeError, ValueError):
-        return 3
+        return 1
 
 
 def transient_retry_state(
