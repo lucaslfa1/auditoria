@@ -1,5 +1,8 @@
 # Auditoria Project Instructions
 
+## Repository
+- **Remote:** The official Git repository for this project is `https://github.com/lucaslfa1/auditoria`.
+
 ## Business Rules
 - **Monthly Quota (Cota Mensal):** The system strictly enforces a maximum of 2 audits per operator per month. This quota acts as a gateway at two specific points: 1) It blocks the initial download of calls from Huawei if the operator has already reached the quota, and 2) It blocks the submission of audits to the Supervisor panel (whether manually from 'Arquivos Salvos' or via automation). However, it does NOT block the AI from processing (transcribing/evaluating) calls that have already been downloaded; the AI will analyze all pending files in the triage queue and make them available in 'Arquivos Salvos' for the human auditor to choose from.
 - **AI Quality Priority:** O modelo de mais alta qualidade de transcrição (especificamente o `hybrid_dual`, que une GPT-4o Diarize e Whisper) DEVE ser o motor oficial e absoluto primário para todas as transcrições. A lógica de "Smart Routing", roteamento baseado em confiança/scores ou "juízes de empate" está expressamente ABOLIDA. Qualquer outro modelo (como Azure Fast Transcription, Whisper puro ou GPT-4o puro) deve servir EXCLUSIVAMENTE como fallback para falhas sistêmicas (erros reais) do `hybrid_dual`. Não deve haver tentativa de balancear custo com modelos inferiores.
