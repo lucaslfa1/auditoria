@@ -47,6 +47,7 @@ interface ArquivoSalvo {
   metadata: Record<string, unknown>;
   criado_por: string;
   audit_status?: string;
+  detail_loaded?: boolean;
 }
 
 interface ListResponse {
@@ -473,6 +474,7 @@ export function SavedFiles() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<ArquivoSalvo | null>(null);
+  const [selectedItemLoading, setSelectedItemLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -513,6 +515,7 @@ export function SavedFiles() {
   const [editTranscription, setEditTranscription] = useState<TranscriptionSegment[]>([]);
   const detailsContainerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const selectedRequestRef = useRef(0);
 
   const handleSeekAudio = useCallback((timeStr: string) => {
     if (!audioRef.current) return;
@@ -566,6 +569,50 @@ export function SavedFiles() {
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
+
+  const loadFullItem = useCallback(async (item: ArquivoSalvo): Promise<ArquivoSalvo> => {
+    if (item.detail_loaded) {
+      return item;
+    }
+
+    const data = await apiFetchJson<ArquivoSalvo>(`/api/salvos/${item.id}`);
+    return {
+      ...item,
+      ...data,
+      audit_status: data.audit_status ?? item.audit_status,
+      detail_loaded: true,
+    };
+  }, []);
+
+  const handleSelectItem = useCallback(async (item: ArquivoSalvo) => {
+    const requestId = selectedRequestRef.current + 1;
+    selectedRequestRef.current = requestId;
+    setSelectedItem(item);
+    setIsEditing(false);
+    setIsStructuredEdit(false);
+    setSelectedItemLoading(true);
+
+    try {
+      const fullItem = await loadFullItem(item);
+      if (selectedRequestRef.current === requestId) {
+        setSelectedItem(fullItem);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar detalhe do arquivo salvo:', err);
+      if (selectedRequestRef.current === requestId) {
+        setSelectedItem(null);
+        showToast({
+          variant: 'error',
+          title: 'Erro ao carregar',
+          description: 'Não foi possível carregar os detalhes do arquivo salvo.',
+        });
+      }
+    } finally {
+      if (selectedRequestRef.current === requestId) {
+        setSelectedItemLoading(false);
+      }
+    }
+  }, [loadFullItem, showToast]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este arquivo? A auditoria vinculada será descartada e removida da visão do supervisor.')) return;
@@ -815,10 +862,7 @@ export function SavedFiles() {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setIsEditing(false);
-                      }}
+                      onClick={() => handleSelectItem(item)}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-b border-white/5 theme-light:border-slate-200 ${isActive
                         ? 'bg-primary-500/10 border-l-2 border-l-primary-500'
                         : 'hover:bg-white/[0.03] theme-light:hover:bg-slate-200'
@@ -877,6 +921,7 @@ export function SavedFiles() {
                   <button
                     type="button"
                     onClick={() => startEdit(selectedItem)}
+                    disabled={selectedItemLoading}
                     className="btn-icon"
                     aria-label={`Editar ${selectedItem.arquivo || 'documento salvo'}`}
                     title="Editar"
@@ -886,6 +931,7 @@ export function SavedFiles() {
                   <button
                     type="button"
                     onClick={() => handleExportPdf(selectedItem)}
+                    disabled={selectedItemLoading}
                     className="btn-icon"
                     aria-label={`Exportar ${selectedItem.arquivo || 'documento salvo'} em PDF`}
                     title="Exportar"
@@ -895,6 +941,7 @@ export function SavedFiles() {
                   <button
                     type="button"
                     onClick={() => handleDelete(selectedItem.id)}
+                    disabled={selectedItemLoading}
                     className="btn-icon-danger"
                     aria-label={`Excluir ${selectedItem.arquivo || 'documento salvo'}`}
                     title="Excluir"
@@ -905,7 +952,7 @@ export function SavedFiles() {
                     <button
                       type="button"
                       onClick={() => handleSendToSupervisor(selectedItem.audit_id!)}
-                      disabled={sendingSupervisorId === selectedItem.audit_id}
+                      disabled={selectedItemLoading || sendingSupervisorId === selectedItem.audit_id}
                       className="btn-icon"
                       aria-label="Enviar ao supervisor"
                       title="Enviar ao supervisor"
@@ -947,6 +994,11 @@ export function SavedFiles() {
                 <div className="flex flex-col items-center justify-center h-full text-slate-500 py-16">
                   <FileText className="h-10 w-10 mb-3 opacity-30" />
                   <p className="text-sm">Selecione um arquivo para visualizar.</p>
+                </div>
+              ) : selectedItemLoading ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-500 py-16">
+                  <Loader2 className="h-8 w-8 mb-3 animate-spin opacity-70" />
+                  <p className="text-sm">Carregando detalhes...</p>
                 </div>
               ) : isEditing ? (
                 isStructuredEdit ? (

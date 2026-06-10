@@ -16,6 +16,11 @@ MAX_RAG_EXAMPLES = 3
 
 VALID_TIPOS = {"classificacao", "avaliacao", "fatal_flag", "regra_geral"}
 
+PUBLIC_FEEDBACK_COLUMNS = """
+    id, tipo, setor, criterio_id, situacao, correcao, justificativa,
+    exemplo_transcricao, criado_por, ativo, criado_em, atualizado_em
+"""
+
 
 # ---------------------------------------------------------------------------
 # CRUD
@@ -49,7 +54,7 @@ def list_feedback(
     try:
         cursor = conn.cursor()
 
-        query = "SELECT * FROM ai_feedback WHERE 1=1"
+        query = f"SELECT {PUBLIC_FEEDBACK_COLUMNS} FROM ai_feedback WHERE 1=1"
         params: list = []
 
         if tipo:
@@ -72,7 +77,10 @@ def get_feedback_by_id(feedback_id: int) -> Optional[dict]:
     conn = _get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM ai_feedback WHERE id = %s", (feedback_id,))
+        cursor.execute(
+            f"SELECT {PUBLIC_FEEDBACK_COLUMNS} FROM ai_feedback WHERE id = %s",
+            (feedback_id,),
+        )
         row = cursor.fetchone()
         return dict(row) if row else None
     finally:

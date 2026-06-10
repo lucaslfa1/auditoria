@@ -97,7 +97,7 @@ def get_sectors(db_connection_factory):
     conn = _with_row_factory(db_connection_factory())
     try:
         c = conn.cursor()
-        c.execute("SELECT * FROM audit_sectors ORDER BY label")
+        c.execute("SELECT id, label, description FROM audit_sectors ORDER BY label")
         return [dict(row) for row in c.fetchall()]
     finally:
         conn.close()
@@ -107,9 +107,14 @@ def get_alerts(db_connection_factory, sector_id: Optional[str] = None):
     try:
         c = conn.cursor()
         if sector_id:
-            c.execute("SELECT * FROM audit_alerts WHERE sector_id = %s ORDER BY label", (sector_id,))
+            c.execute(
+                "SELECT id, sector_id, label, context, pop_ref, expected_direction FROM audit_alerts WHERE sector_id = %s ORDER BY label",
+                (sector_id,),
+            )
         else:
-            c.execute("SELECT * FROM audit_alerts ORDER BY sector_id, label")
+            c.execute(
+                "SELECT id, sector_id, label, context, pop_ref, expected_direction FROM audit_alerts ORDER BY sector_id, label"
+            )
         return [dict(row) for row in c.fetchall()]
     finally:
         conn.close()
@@ -119,9 +124,25 @@ def get_criteria(db_connection_factory, alert_id: Optional[str] = None):
     try:
         c = conn.cursor()
         if alert_id:
-            c.execute("SELECT * FROM audit_criteria WHERE alert_id = %s ORDER BY id", (alert_id,))
+            c.execute(
+                """
+                SELECT id, alert_id, chave, label, weight, description, type,
+                       deflator, referencia, exemplo, evaluation_type
+                FROM audit_criteria
+                WHERE alert_id = %s
+                ORDER BY id
+                """,
+                (alert_id,),
+            )
         else:
-            c.execute("SELECT * FROM audit_criteria ORDER BY alert_id, id")
+            c.execute(
+                """
+                SELECT id, alert_id, chave, label, weight, description, type,
+                       deflator, referencia, exemplo, evaluation_type
+                FROM audit_criteria
+                ORDER BY alert_id, id
+                """
+            )
         return [dict(row) for row in c.fetchall()]
     finally:
         conn.close()

@@ -79,10 +79,48 @@ def list_arquivos_salvos(
         cursor = conn.cursor()
         query = """
             SELECT
-                a.*,
+                a.id,
+                a.tipo,
+                LEFT(COALESCE(a.conteudo, ''), 800) AS conteudo_preview,
+                a.arquivo,
+                a.data_analise,
+                a.audit_id,
+                a.operator_name,
+                a.sector_id,
+                a.alert_label,
+                a.score,
+                a.criado_por,
+                jsonb_strip_nulls(
+                    jsonb_build_object(
+                        'summary', NULLIF(meta.metadata ->> 'summary', ''),
+                        'ai_feedback', NULLIF(meta.metadata ->> 'ai_feedback', ''),
+                        'score', meta.metadata -> 'score',
+                        'maxPossibleScore', meta.metadata -> 'maxPossibleScore',
+                        'source_type', NULLIF(meta.metadata ->> 'source_type', ''),
+                        'timestamp', NULLIF(meta.metadata ->> 'timestamp', ''),
+                        'audio_date', NULLIF(meta.metadata ->> 'audio_date', ''),
+                        'operator_id', COALESCE(
+                            NULLIF(meta.metadata ->> 'operator_id', ''),
+                            NULLIF(meta.metadata ->> 'operatorId', ''),
+                            NULLIF(meta.metadata ->> 'operator_telefonia', ''),
+                            NULLIF(meta.metadata ->> 'operatorTelefonia', ''),
+                            NULLIF(meta.metadata ->> 'id_telefonia', ''),
+                            NULLIF(meta.metadata ->> 'idTelefonia', ''),
+                            NULLIF(meta.metadata #>> '{operator,operator_id}', ''),
+                            NULLIF(meta.metadata #>> '{operator,operatorId}', '')
+                        )
+                    )
+                )::text AS metadata_summary_json,
                 au.status as audit_status
             FROM arquivos_salvos a
             LEFT JOIN audits au ON a.audit_id = au.id
+            LEFT JOIN LATERAL (
+                SELECT
+                    CASE
+                        WHEN COALESCE(TRIM(a.metadata_json), '') = '' THEN '{}'::jsonb
+                        ELSE a.metadata_json::jsonb
+                    END AS metadata
+            ) meta ON TRUE
         """
         params: list = []
         conditions: list[str] = []
@@ -111,7 +149,7 @@ def list_arquivos_salvos(
             {
                 "id": row["id"],
                 "tipo": row["tipo"],
-                "conteudo": row["conteudo"],
+                "conteudo": row["conteudo_preview"],
                 "arquivo": row["arquivo"],
                 "data_analise": row["data_analise"],
                 "audit_id": row["audit_id"],
@@ -119,9 +157,10 @@ def list_arquivos_salvos(
                 "sector_id": row["sector_id"],
                 "alert_label": row["alert_label"],
                 "score": row["score"],
-                "metadata": _json_loads(row["metadata_json"], {}),
+                "metadata": _json_loads(row["metadata_summary_json"], {}),
                 "criado_por": row["criado_por"],
                 "audit_status": row["audit_status"],
+                "detail_loaded": False,
             }
             for row in rows
         ]
@@ -133,7 +172,15 @@ def get_arquivo_salvo(get_connection: ConnectionFactory, arquivo_id: int) -> Opt
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM arquivos_salvos WHERE id = %s", (arquivo_id,))
+        cursor.execute(
+            """
+            SELECT a.*, au.status AS audit_status
+            FROM arquivos_salvos a
+            LEFT JOIN audits au ON a.audit_id = au.id
+            WHERE a.id = %s
+            """,
+            (arquivo_id,),
+        )
         row = cursor.fetchone()
         if not row:
             return None
@@ -151,6 +198,8 @@ def get_arquivo_salvo(get_connection: ConnectionFactory, arquivo_id: int) -> Opt
             "score": get_row_value(row, "score"),
             "metadata": _json_loads(metadata_json, {}),
             "criado_por": get_row_value(row, "criado_por", ""),
+            "audit_status": get_row_value(row, "audit_status"),
+            "detail_loaded": True,
         }
     finally:
         conn.close()
