@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { AuthenticatedAudioPlayer } from '../../../shared/components/AuthenticatedAudioPlayer';
 import { ReadOnlyTranscription } from '../../../shared/components/ReadOnlyTranscription';
 import type { AuditResultDetail, TranscriptionSegment } from '../../../shared/types/audit';
@@ -756,6 +757,15 @@ export function SavedFiles() {
         titleFirstWord="Auditorias"
         titleRest="em Arquivos"
         subtitle="Consulte, edite e exporte registros salvos."
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:saved-files"
+        steps={[
+          'Consulte as auditorias já realizadas (manuais e automáticas).',
+          'Abra um registro para revisar transcrição, pontuação e alertas.',
+          'Envie ao Supervisor as que devem seguir, ou exporte os dados.',
+        ]}
       />
 
       <div className="panel-box">

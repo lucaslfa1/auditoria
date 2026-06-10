@@ -4,6 +4,7 @@ import { useClassifier, type ClassificationResult } from '../hooks/useClassifier
 import { OperatorAutocompleteFields } from '../../../shared/components/OperatorAutocompleteFields';
 import { useBodyScrollLock } from '../../../shared/hooks/useBodyScrollLock';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { RemoteTriageQueue } from './RemoteTriageQueue';
 
 import { useAuditCriteria } from '../../../contexts/AuditCriteriaContext';
@@ -463,6 +464,16 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
                     titleFirstWord="Classificação"
                     titleRest="de Arquivos"
                     subtitle="Envie os áudios para identificar setor e alerta antes de iniciar a auditoria."
+                />
+
+                {/* Instruções de uso do módulo (recolhível) */}
+                <ModuleInstructions
+                    storageKey="instructions:classifier"
+                    steps={[
+                        'Solte ou selecione os áudios na área de upload abaixo.',
+                        'Confira o setor, o alerta e o operador identificados em cada ligação e ajuste se precisar.',
+                        'Clique em "Enviar para auditar" para enviar a ligação à auditoria da IA.',
+                    ]}
                 />
 
                 {/* Remote Triage Queue */}

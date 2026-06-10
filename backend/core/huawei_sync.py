@@ -373,13 +373,10 @@ def _effective_download_attempt_limit() -> int:
             _coerce_int(explicit_download_limit, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT),
         )
 
-    configured_download_limit = max(
-        1,
-        _coerce_int(
-            database.get_config_value("huawei_d1_limite_ligacoes"),
-            DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT,
-        ),
-    )
+    # Opção 1 (downloads = meta): o número de downloads por ciclo passa a ser a
+    # própria meta de auditorias. O antigo `huawei_d1_limite_ligacoes` deixou de
+    # ser um controle separado — era redundante, pois o efetivo já era
+    # max(limite_downloads, meta). Agora vale só a meta (1:1).
     raw_audit_target = os.getenv("AUTOMATION_AUDIT_TARGET_COUNT") or os.getenv("AUTOMATION_AUDIT_BATCH_SIZE")
     if raw_audit_target in (None, ""):
         raw_audit_target = ""
@@ -391,8 +388,7 @@ def _effective_download_attempt_limit() -> int:
                 continue
             if raw_audit_target not in (None, ""):
                 break
-    audit_target = max(1, _coerce_int(raw_audit_target, configured_download_limit))
-    return max(configured_download_limit, audit_target)
+    return max(1, _coerce_int(raw_audit_target, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT))
 
 
 def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float) -> float:

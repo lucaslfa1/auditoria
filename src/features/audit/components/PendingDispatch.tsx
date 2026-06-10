@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { Send, Loader2 } from 'lucide-react';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { formatOperationalLabel } from '../../../shared/lib/operationalLabels';
@@ -64,6 +65,15 @@ export function PendingDispatch() {
         titleFirstWord="Fila"
         titleRest="de Pendentes"
         subtitle="Auditorias arquivadas aguardando envio para o supervisor."
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:pending-dispatch"
+        steps={[
+          'Veja as auditorias arquivadas aguardando envio ao supervisor.',
+          'Revise cada uma antes de promover.',
+          'Envie as aprovadas para o painel do Supervisor.',
+        ]}
       />
 
       {isLoading ? (

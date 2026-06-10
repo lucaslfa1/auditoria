@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { useAuditCriteria } from '../../../contexts/AuditCriteriaContext';
 import { GoldenDatasetPlayground } from './GoldenDatasetPlayground';
 
@@ -307,6 +308,15 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
                     titleFirstWord="Aprendizado"
                     titleRest="da IA"
                     subtitle="Oriente a IA com correções, exemplos e regras operacionais que serão usadas nas próximas classificações e auditorias."
+                />
+
+                <ModuleInstructions
+                    storageKey="instructions:ai-feedback"
+                    steps={[
+                        'Registre correções, exemplos e regras para orientar a IA.',
+                        'Defina a prioridade de cada orientação.',
+                        'As regras valem para as próximas classificações e auditorias.',
+                    ]}
                 />
 
                 <div className={`rounded-xl border p-4 ${isDark ? 'border-white/10 bg-slate-900/50' : 'border-slate-200 bg-white'}`}>

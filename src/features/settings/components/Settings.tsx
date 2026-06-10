@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { TelephonySettings } from './TelephonySettings';
 import { UserManagement } from './UserManagement';
@@ -102,6 +103,15 @@ export function Settings() {
         titleFirstWord="Configurações"
         titleRest="do Sistema"
         subtitle="Gerencie telefonia, usuários e parâmetros técnicos."
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:settings"
+        steps={[
+          'Use as abas para telefonia, usuários e parâmetros técnicos.',
+          'Edite os campos necessários em cada aba.',
+          'Salve para aplicar as mudanças.',
+        ]}
       />
 
       <div className="flex flex-col gap-6 md:flex-row">

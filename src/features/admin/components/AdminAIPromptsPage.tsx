@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Pencil, RefreshCw } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 
@@ -90,6 +91,15 @@ export function AdminAIPromptsPage() {
                 titleFirstWord="Prompts"
                 titleRest="de IA"
                 subtitle="Edite as instruções e vocabulários base que a inteligência artificial usa para analisar as ligações."
+            />
+
+            <ModuleInstructions
+                storageKey="instructions:prompts"
+                steps={[
+                    'Edite os prompts e vocabulários que a IA usa nas análises.',
+                    'Ajuste com cuidado — afeta transcrição e auditoria.',
+                    'Invalide o cache para aplicar as mudanças.',
+                ]}
             />
             {error && <div className="text-red-400 p-4 rounded bg-red-500/10 border border-red-500/20">{error}</div>}
 

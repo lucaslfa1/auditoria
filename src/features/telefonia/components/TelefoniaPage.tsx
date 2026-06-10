@@ -1,6 +1,7 @@
 import { Bot, Loader2 } from 'lucide-react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { RecordingsList } from './RecordingsList';
 import { SyncPanel } from './SyncPanel';
 import { useTelefoniaSync } from '../hooks/useTelefoniaSync';
@@ -43,6 +44,15 @@ export function TelefoniaPage() {
         titleFirstWord="Integração"
         titleRest="de Telefonia"
         subtitle="Baixe ligações direto da plataforma e deixe as gravações em fila."
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:telefonia"
+        steps={[
+          'Preencha e salve as credenciais da Huawei.',
+          'Defina o período de busca e a meta de auditorias.',
+          'Baixe as ligações — as gravações entram na fila de Triagem.',
+        ]}
       />
 
       {automationRunning ? (

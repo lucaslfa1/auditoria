@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronRight, History, X } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 
@@ -340,6 +341,15 @@ export function AdminCriteriaPage() {
                 titleFirstWord="Critérios"
                 titleRest="de Auditoria"
                 subtitle="Gerencie o catálogo de setores, alertas e critérios da auditoria. Toda alteração exige motivo e fica registrada no histórico."
+            />
+
+            <ModuleInstructions
+                storageKey="instructions:criteria"
+                steps={[
+                    'Gerencie setores, alertas e critérios da auditoria.',
+                    'Ajuste pesos, perguntas e regras de cada critério.',
+                    'Toda alteração exige um motivo e fica registrada no histórico.',
+                ]}
             />
             {error && <div className="text-red-400 p-4 rounded bg-red-500/10 border border-red-500/20">{error}</div>}
 

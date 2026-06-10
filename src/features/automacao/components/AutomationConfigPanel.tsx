@@ -75,21 +75,8 @@ export function AutomationConfigPanel({
         </ConfigField>
 
         <ConfigField
-          label="Limite de downloads"
-          hint="Ajusta automaticamente até a meta de auditorias"
-          saving={pending.savingConfig === 'limite_ligacoes'}
-        >
-          <NumberInput
-            value={draft.limite_ligacoes}
-            min={1}
-            onChange={(value) => onUpdateField('limite_ligacoes', value)}
-            onBlur={() => onSaveField('limite_ligacoes')}
-          />
-        </ConfigField>
-
-        <ConfigField
           label="Meta de auditorias"
-          hint="Total solicitado; o backend divide em lotes"
+          hint="Quantas ligações baixar e auditar por ciclo"
           saving={pending.savingConfig === 'limite_auditorias'}
         >
           <NumberInput

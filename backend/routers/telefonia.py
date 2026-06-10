@@ -2123,7 +2123,8 @@ async def get_sync_d_minus_1_summary(_user: dict = Depends(require_admin)):
         limite_auditorias = max(1, _safe_int(raw_audit_target, 10))
     except Exception:
         limite_auditorias = 10
-    limite_ligacoes = max(1, _safe_int(cfg["huawei_d1_limite_ligacoes"], 20), limite_auditorias)
+    # downloads = meta de auditorias (1:1). huawei_d1_limite_ligacoes foi descontinuado.
+    limite_ligacoes = max(1, limite_auditorias)
 
     return {
         "config": {

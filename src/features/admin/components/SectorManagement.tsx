@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 
@@ -191,6 +192,15 @@ export function SectorManagement() {
                 titleFirstWord="Setores"
                 titleRest="de Auditoria"
                 subtitle="Crie e renomeie setores. Ao renomear, o novo nome é aplicado a todos os colaboradores vinculados — e as regras de auditoria continuam exatamente as mesmas."
+            />
+
+            <ModuleInstructions
+                storageKey="instructions:sectors"
+                steps={[
+                    'Crie ou renomeie os setores de auditoria.',
+                    'Ao renomear, o nome novo vale para os colaboradores vinculados.',
+                    'O id interno é fixo — as regras de auditoria seguem intactas.',
+                ]}
             />
             {error && <div className="text-red-400 p-4 rounded bg-red-500/10 border border-red-500/20">{error}</div>}
 

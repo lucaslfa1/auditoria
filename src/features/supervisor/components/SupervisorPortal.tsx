@@ -3,6 +3,7 @@ import { Search, Download, FileText, ChevronDown, CheckCircle2, XCircle, AlertCi
 import { apiFetchJson, apiFetchBlob } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { formatOperationalLabel } from '../../../shared/lib/operationalLabels';
 import { AuthenticatedAudioPlayer } from '../../../shared/components/AuthenticatedAudioPlayer';
 import { ReadOnlyTranscription } from '../../../shared/components/ReadOnlyTranscription';
@@ -1090,6 +1091,15 @@ export function SupervisorPortal({ userRole }: SupervisorPortalProps) {
         titleFirstWord="Revisão"
         titleRest="de Auditorias"
         subtitle="Revise registros e acompanhe aprovações."
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:supervisor"
+        steps={[
+          'Veja as auditorias enviadas para revisão.',
+          'Aprove ou registre contestação em cada registro.',
+          'Acompanhe os indicadores e o status por operador.',
+        ]}
       />
 
       {/* KPIs */}

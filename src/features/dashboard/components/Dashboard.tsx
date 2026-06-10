@@ -6,6 +6,7 @@ import { useBodyScrollLock } from '../../../shared/hooks/useBodyScrollLock';
 import * as React from 'react';
 import { useDialogFocusTrap } from '../../../shared/hooks/useDialogFocusTrap';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { formatOperationalLabel } from '../../../shared/lib/operationalLabels';
 
 interface DashboardStats {
@@ -270,6 +271,15 @@ export function Dashboard({ onNavigateToFiles }: { onNavigateToFiles?: () => voi
                 titleFirstWord="Painel"
                 titleRest="de Auditoria"
                 subtitle={dashboardSubtitle}
+            />
+
+            <ModuleInstructions
+                storageKey="instructions:dashboard"
+                steps={[
+                    'Acompanhe os indicadores de qualidade das auditorias.',
+                    'Filtre por período, setor ou operador.',
+                    'Use os gráficos para identificar tendências e pontos de atenção.',
+                ]}
             />
 
             {fetchError ? (

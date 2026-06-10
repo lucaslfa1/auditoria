@@ -11,7 +11,6 @@ interface HuaweiConfig {
   huawei_sk: string;
   huawei_horas_retroativas: string;
   huawei_cota_max_por_operador_mes: string;
-  huawei_d1_limite_ligacoes: string;
   telefonia_cron_sync_ativa: string;
 }
 
@@ -25,7 +24,6 @@ export function AutomationSettings() {
     huawei_sk: '',
     huawei_horas_retroativas: '2',
     huawei_cota_max_por_operador_mes: '2',
-    huawei_d1_limite_ligacoes: '100',
     telefonia_cron_sync_ativa: 'true',
   });
   
@@ -47,7 +45,6 @@ export function AutomationSettings() {
           huawei_sk: data.huawei_sk?.valor || '',
           huawei_horas_retroativas: data.huawei_horas_retroativas?.valor || '2',
           huawei_cota_max_por_operador_mes: data.huawei_cota_max_por_operador_mes?.valor || '2',
-          huawei_d1_limite_ligacoes: data.huawei_d1_limite_ligacoes?.valor || '100',
           telefonia_cron_sync_ativa: data.telefonia_cron_sync_ativa?.valor || 'true',
         });
       } catch {

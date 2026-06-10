@@ -13,6 +13,7 @@ import { AuditEvaluationDetailsPanel } from './AuditEvaluationDetailsPanel';
 import { AuditResultActions } from './AuditResultActions';
 import { AIFeedbackModal } from '../../ai-feedback/components/AIFeedbackModal';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 
 interface AuditWorkspaceProps {
   AuditScoreChart: ComponentType<{ score: number; maxScore: number }>;
@@ -211,6 +212,15 @@ export function AuditWorkspace({
             {flow.audioDate ? <ContextTag label="Data do áudio" value={new Date(flow.audioDate + 'T00:00:00').toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} /> : null}
           </>
         )}
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:audit"
+        steps={[
+          'Defina o contexto: setor, alerta e operador da ligação.',
+          'Envie o áudio ou documento para a IA auditar.',
+          'Revise a transcrição e a avaliação por critério e finalize.',
+        ]}
       />
 
       {(() => {

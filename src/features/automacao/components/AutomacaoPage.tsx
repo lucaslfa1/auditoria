@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { AutomationConfigPanel } from './AutomationConfigPanel';
 import { AutomationControlHero } from './AutomationControlHero';
 import { AutomationRuntimePanel } from './AutomationRuntimePanel';
@@ -80,6 +81,15 @@ export function AutomacaoPage() {
         titleRest="de auditorias"
         subtitle="Gerencie o ciclo automático que baixa, classifica e audita ligações com Inteligência Artificial."
         headingTag="h2"
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:automacao"
+        steps={[
+          'Defina a meta de auditorias e os horários do ciclo.',
+          'Ligue ou pause a esteira de automação.',
+          'Acompanhe o progresso (baixando, classificando, auditando) em tempo real.',
+        ]}
       />
 
       <AutomationControlHero

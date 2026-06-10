@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 
@@ -128,6 +129,15 @@ export function AdminSectorAliasesPage() {
                 titleFirstWord="Apelidos"
                 titleRest="de Setor"
                 subtitle="Ensine o sistema a reconhecer os setores corretos quando a telefonia enviar nomes diferentes, com erro ou abreviados."
+            />
+
+            <ModuleInstructions
+                storageKey="instructions:aliases"
+                steps={[
+                    'Cadastre apelidos para os nomes de setor que a telefonia envia.',
+                    'Vincule cada apelido (abreviado ou com erro) ao setor correto.',
+                    'O sistema passa a reconhecer esses nomes automaticamente.',
+                ]}
             />
             {error && <div className="text-red-400 p-4 rounded bg-red-500/10 border border-red-500/20">{error}</div>}
 

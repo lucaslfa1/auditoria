@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Check, Loader2, Pencil, Power, Trash2, UserPlus } from 'lucide-react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { formatOperationalLabel, getOperationalFilterKey } from '../../../shared/lib/operationalLabels';
 import { useToast } from '../../../shared/components/ToastProvider';
@@ -560,6 +561,15 @@ export function ColaboradorManagement() {
         titleRest="de Operadores"
         subtitle="Cadastre e atualize operadores."
         headingTag="h2"
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:operadores"
+        steps={[
+          'Cadastre e edite operadores (matrícula, ID Huawei, setor).',
+          'Marque quem está ativo no roteamento.',
+          'Só operadores ativos com ID Huawei entram na coleta automática.',
+        ]}
       />
 
       <div className="grid gap-4 md:grid-cols-3">

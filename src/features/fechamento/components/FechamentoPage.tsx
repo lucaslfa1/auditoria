@@ -3,6 +3,7 @@ import { Download, Save, RefreshCw } from 'lucide-react';
 import { ApiError, apiFetchJson, apiFetchBlob } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 
 interface FechamentoRow {
   layout_id?: number | null;
@@ -302,6 +303,15 @@ export default function FechamentoPage() {
             </button>
           </>
         )}
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:fechamento"
+        steps={[
+          'Escolha o mês e o ano e carregue os dados.',
+          'Confira e ajuste os registros antes de exportar.',
+          'Baixe o Excel no formato oficial consumido pelo BI.',
+        ]}
       />
 
       <div className="glass-panel p-4 rounded-2xl border border-white/5 shadow-xl flex flex-col h-[calc(100vh-200px)] min-h-[500px]">

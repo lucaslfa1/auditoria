@@ -4,6 +4,7 @@ import { CheckCircle2, Clock, Loader2, ShieldAlert, Volume2, XCircle } from 'luc
 import { ApiError, apiFetchJson } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { formatOperationalLabel } from '../../../shared/lib/operationalLabels';
 import { AuthenticatedAudioPlayer } from '../../../shared/components/AuthenticatedAudioPlayer';
 
@@ -224,6 +225,15 @@ export function ReviewPage() {
         titleFirstWord="Fila"
         titleRest="de Contestações"
         subtitle="Concentre aqui as contestações abertas da auditoria."
+      />
+
+      <ModuleInstructions
+        storageKey="instructions:review"
+        steps={[
+          'Veja as contestações abertas pelos operadores e supervisores.',
+          'Analise o argumento e as evidências de cada caso.',
+          'Aceite ou rejeite, ajustando a pontuação quando necessário.',
+        ]}
       />
 
       <div className="surface-toolbar">

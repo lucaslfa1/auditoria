@@ -758,7 +758,7 @@ export function RemoteTriageQueue() {
                                 : isSending
                                   ? 'Enviando…'
                                   : missingFields.length > 0
-                                    ? 'Preencher campos'
+                                    ? (missingFields.length === 1 && missingFields[0] === 'alerta' ? 'Definir alerta' : 'Preencher campos')
                                     : forceableReason
                                       ? 'Forçar envio'
                                       : 'Enviar para auditar';
