@@ -37,4 +37,4 @@ pg_dump \
   "${DIRECT_URL}"
 
 echo "==> OK: $(du -h "${OUTPUT}" | cut -f1) gravados em ${OUTPUT}"
-echo "    Próximo passo: 02_restore_azure.sh ${OUTPUT}"
+echo "    Próximo passo: 02_restore_destino.sh ${OUTPUT}"

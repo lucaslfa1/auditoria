@@ -24,4 +24,4 @@ if ($LASTEXITCODE -ne 0) { Write-Error "pg_dump falhou (exit $LASTEXITCODE)." }
 
 $size = (Get-Item $output).Length / 1MB
 Write-Host ("==> OK: {0:N1} MB gravados em {1}" -f $size, $output)
-Write-Host "    Próximo passo: .\02_restore_azure.ps1 $output"
+Write-Host "    Próximo passo: .\02_restore_destino.ps1 $output"
