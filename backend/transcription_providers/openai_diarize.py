@@ -114,6 +114,8 @@ def transcribe_audio_gpt4o_diarize(
     for attempt in range(retry_count + 1):
         response = None
         try:
+            from core import cost_guard
+            cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "transcricao_diarize")
             with create_requests_session() as session:
                 response = session.post(
                     safe_endpoint,

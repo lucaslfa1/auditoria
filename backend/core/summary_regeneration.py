@@ -92,6 +92,8 @@ SCHEMA:
             api_version="2025-01-01-preview",
             timeout=60.0,
         )
+        from core import cost_guard
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "resumo")
         completion = await client.chat.completions.create(
             model=AZURE_OPENAI_DEPLOYMENT,
             messages=[

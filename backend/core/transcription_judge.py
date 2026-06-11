@@ -200,6 +200,8 @@ def judge_tie_break(
         return None
 
     try:
+        from core import cost_guard
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "judge_transcricao")
         response = active_client.chat.completions.create(
             model=deployment_name,
             messages=[

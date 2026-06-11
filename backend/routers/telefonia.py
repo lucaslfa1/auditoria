@@ -2187,6 +2187,13 @@ async def sync_diagnostics(_user: dict = Depends(require_admin)) -> Dict[str, An
         info["intervalo_segundos"] = _get_telefonia_sync_interval_seconds()
     except Exception:  # noqa: BLE001
         info["intervalo_segundos"] = None
+    # Guardrail de orcamento: consumo pago do dia, tetos e kill-switch —
+    # visibilidade de "quanto do orcamento de hoje ja foi usado".
+    try:
+        from core import cost_guard
+        info["custo_diario"] = cost_guard.get_today_usage()
+    except Exception:  # noqa: BLE001
+        info["custo_diario"] = None
     return info
 
 

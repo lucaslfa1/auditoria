@@ -966,6 +966,8 @@ VERSAO B (Whisper):
 Retorne APENAS o JSON final resultante."""
 
     try:
+        from core import cost_guard
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "merge_hybrid_dual")
         response = await asyncio.to_thread(
             merge_client.chat.completions.create,
             model=effective_deployment,

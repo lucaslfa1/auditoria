@@ -2,6 +2,7 @@ import json
 import logging
 from typing import List, Dict, Any
 
+from core import cost_guard
 from core.automation_rules import get_call_duration_seconds, get_call_reason_text
 from services import (
     AZURE_OPENAI_ENDPOINT,
@@ -52,6 +53,17 @@ async def filtrar_ligacoes_com_llm(chamadas: List[Dict[str, Any]], setor: str, r
     # Sem Azure configurado, falhe fechado para nao aprovar chamadas ruins automaticamente.
     if not AZURE_OPENAI_KEY or not AZURE_OPENAI_ENDPOINT or not AZURE_OPENAI_DEPLOYMENT:
         logger.warning("Azure OpenAI triage not configured. Nenhuma chamada sera aprovada pela triagem LLM.")
+        return []
+
+    # Guardrail de orcamento: com teto diario atingido, retorna vazio e o
+    # caller (huawei_sync._triagem_grupo) cai no _triagem_fallback
+    # deterministico — pipeline segue sem gastar LLM, nada e descartado.
+    motivo_bloqueio = cost_guard.budget_exceeded()
+    if motivo_bloqueio:
+        logger.warning(
+            "Triagem LLM pulada (%s). Setor '%s' segue via fallback deterministico.",
+            motivo_bloqueio, setor,
+        )
         return []
 
     # Pre-Filtro de Relevancia: Ordenar as chamadas pela duracao (maior para menor)
@@ -108,6 +120,7 @@ async def filtrar_ligacoes_com_llm(chamadas: List[Dict[str, Any]], setor: str, r
             timeout=LLM_TRIAGE_TIMEOUT_SECONDS,
         )
 
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "triagem_llm")
         response = await client.chat.completions.create(
             model=AZURE_OPENAI_DEPLOYMENT,
             messages=[

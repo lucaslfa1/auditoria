@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from core import cost_guard
 from core.procedimentos_rag import get_procedimento_prompt_block
 from core.audit_rules import (
     get_sector_prompt_rules,
@@ -815,6 +816,7 @@ async def evaluate_with_azure(
         user_prompt = _build_default_evaluation_user_prompt(transcription_json, schema_hint=AUDIT_EVALUATION_SCHEMA_HINT)
     user_prompt = _ensure_evidence_contract_in_user_prompt(user_prompt)
     try:
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "avaliacao")
         completion = await asyncio.to_thread(
             client.chat.completions.create,
             model=dependencies.azure_openai_deployment,
@@ -844,6 +846,7 @@ async def evaluate_with_azure(
             normalized_payload.get("evidence_quality"),
         )
         retry_user_prompt = _build_strict_evidence_retry_prompt(user_prompt, criteria_list)
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "avaliacao_retry")
         completion = await asyncio.to_thread(
             client.chat.completions.create,
             model=dependencies.azure_openai_deployment,

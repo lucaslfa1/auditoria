@@ -273,6 +273,8 @@ def parse_json_with_repair(
             """
             # Use Azure OpenAI when the Azure route is selected
             if use_azure_repair:
+                from core import cost_guard
+                cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "json_repair")
                 client = azure_client or _build_azure_json_repair_client(azure_endpoint, azure_key)
                 completion = client.chat.completions.create(
                     model=azure_deployment,

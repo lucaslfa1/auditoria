@@ -61,6 +61,7 @@ from core.huawei_direction import (
 )
 from core.huawei_obs_client import HuaweiOBSClient
 from core.huawei_discovery import HuaweiDiscoveryService
+from core import cost_guard
 from core.llm_triage import filtrar_ligacoes_com_llm
 from db.domain_constants import SOURCE_TYPE_AUDIO, SOURCE_TYPE_PDF
 from repositories.common import json_loads, normalize_huawei_agent_id
@@ -1536,6 +1537,12 @@ async def _classificar_pendentes_async(
             try:
                 if _cancel_requested(should_cancel):
                     return "cancelled"
+                # Guardrail de orcamento: a classificacao via GPT e paga. Com o
+                # teto diario atingido, o item fica como esta (pendente) e sera
+                # classificado num ciclo futuro — nada e descartado nem marcado
+                # como erro.
+                if cost_guard.budget_exceeded():
+                    return "budget_exceeded"
                 input_hash = str(item.get("input_hash") or "").strip()
                 metadata = item.get("metadata") or {}
                 if not isinstance(metadata, dict):

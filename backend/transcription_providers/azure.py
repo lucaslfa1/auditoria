@@ -116,6 +116,8 @@ def transcribe_audio_azure(
             result = None
             with _whisper_semaphore:
                 for attempt in range(4): # Ate 4 tentativas
+                    from core import cost_guard
+                    cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "transcricao_whisper")
                     with create_requests_session() as session:
                         response = session.post(
                             url,
@@ -279,6 +281,8 @@ def transcribe_audio_azure(
         "definition": (None, json.dumps(definition), "application/json"),
     }
     try:
+        from core import cost_guard
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_SPEECH, "transcricao_fast")
         with create_requests_session() as session:
             response = session.post(
                 url,

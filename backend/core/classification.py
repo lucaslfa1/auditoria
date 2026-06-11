@@ -31,6 +31,7 @@ from services import (
     AI_PROVIDER_PRIORITY
 )
 
+from core import cost_guard
 from db.database import get_connection
 
 
@@ -2054,6 +2055,7 @@ async def classify_with_gpt(transcription: str, filename: str = "") -> dict:
         feedback_calibration=feedback_calibration,
     )
     try:
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "classificacao")
         response = await client.chat.completions.create(
             model=AZURE_OPENAI_DEPLOYMENT,
             messages=[

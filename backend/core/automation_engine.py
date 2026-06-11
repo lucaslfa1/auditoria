@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import traceback
 
 import db.database as database
+from core import cost_guard
 from core.huawei_d_minus_1 import executar_d_minus_1_pipeline
 from core.automation import audit_all_pending, get_automation_status
 from repositories.common import get_row_value
@@ -1175,6 +1176,27 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
         return {
             "status": "disabled",
             "message": "Automacao hibrida desligada.",
+            "baixadas": 0,
+            "auditadas": 0,
+        }
+
+    # Guardrail de orcamento: ciclo nem comeca quando o teto diario de
+    # consumo pago foi atingido (ou o kill-switch de custo esta ativo).
+    # Nenhum item e descartado — a fila aguarda o reset diario do contador.
+    budget_reason = cost_guard.budget_exceeded()
+    if budget_reason:
+        logger.warning("Ciclo de automacao bloqueado pelo guardrail de orcamento (%s).", budget_reason)
+        _update_status(
+            is_running=False,
+            is_cycle_running=False,
+            current_stage="budget_blocked",
+            current_message=f"Ciclo bloqueado pelo guardrail de orcamento: {budget_reason}.",
+            current_run_source=source,
+            finished_at=_now_iso(),
+        )
+        return {
+            "status": "budget_blocked",
+            "message": f"Ciclo bloqueado pelo guardrail de orcamento: {budget_reason}.",
             "baixadas": 0,
             "auditadas": 0,
         }

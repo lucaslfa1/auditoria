@@ -412,6 +412,8 @@ Trecho inicial:
     try:
         from openai import AzureOpenAI
 
+        from core import cost_guard
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "speaker_mapping")
         with AzureOpenAI(
             azure_endpoint=azure_endpoint,
             api_key=azure_key,

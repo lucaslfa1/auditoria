@@ -19,6 +19,7 @@ from typing import Any, Iterator, Optional, Tuple
 
 import db.database as database
 from repositories import operators
+from core import cost_guard
 from core.classification import get_mime_type
 from core.automation_guardrails import AutomationGatekeeper
 from core.transcription import compute_input_hash
@@ -667,6 +668,7 @@ async def audit_all_pending(
     started_monotonic = time.monotonic()
     deadline = started_monotonic + time_budget
     time_budget_exhausted = False
+    budget_blocked_reason: Optional[str] = None
     queue_exhausted = False
     no_items_found = False
     selected_count = 0
@@ -816,6 +818,7 @@ async def audit_all_pending(
             )
             result_status = res.get("status") if res else "unknown"
             if result_status == "audited":
+                cost_guard.record_audit_completed()
                 with _progress_lock:
                     _progress.completed += 1
                     _progress.current_step = "item_completed"
@@ -947,6 +950,21 @@ async def audit_all_pending(
                 if remaining_budget <= 1:
                     mark_time_budget_exhausted()
                     break
+                # Guardrail de orcamento: teto diario de consumo pago atingido
+                # -> encerra o lote graciosamente ANTES do proximo item. Os
+                # itens restantes continuam ready_for_audit (nada e descartado)
+                # e serao processados quando o contador diario resetar.
+                budget_blocked_reason = cost_guard.budget_exceeded()
+                if budget_blocked_reason:
+                    with _progress_lock:
+                        _progress.current_step = "budget_exceeded"
+                        _progress.last_heartbeat_at = datetime.now(timezone.utc).isoformat()
+                    logger.warning(
+                        "Automacao: lote encerrado pelo guardrail de orcamento (%s). "
+                        "Itens restantes permanecem na fila.",
+                        budget_blocked_reason,
+                    )
+                    break
                 if not await wait_if_paused_or_cancelled():
                     break
 
@@ -957,7 +975,7 @@ async def audit_all_pending(
 
             with _progress_lock:
                 cancelled = _progress.is_cancelled
-            if cancelled or time_budget_exhausted:
+            if cancelled or time_budget_exhausted or budget_blocked_reason:
                 break
             if len(items) < fetch_limit:
                 queue_exhausted = True
@@ -998,10 +1016,15 @@ async def audit_all_pending(
                 "item_timeout_seconds": item_timeout_seconds,
                 "time_budget_exhausted": time_budget_exhausted,
                 "queue_exhausted": queue_exhausted,
+                "budget_blocked_motivo": budget_blocked_reason,
             }
         )
         if no_items_found:
             result["message"] = "Nenhum item pendente para auditoria."
+        elif budget_blocked_reason:
+            result["message"] = (
+                f"Lote encerrado pelo guardrail de orcamento: {budget_blocked_reason}."
+            )
 
     logger.info(
         "Automacao concluida: %d/%d auditados, %d descartados, %d bloqueados/erros",
