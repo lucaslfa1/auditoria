@@ -1,7 +1,15 @@
 """Storage abstraction for media files tracked in ``media_files``.
 
-The physical backend is still local disk or GCS. The database stores only
-metadata and pointers so callers can stop depending on provider-specific paths.
+Backends fisicos suportados (selecionados por MEDIA_STORAGE_BACKEND):
+- ``local``      — disco local (dev; raiz em MEDIA_STORAGE_ROOT).
+- ``gcs``        — Google Cloud Storage (producao atual no Cloud Run).
+- ``azure_blob`` — Azure Blob Storage (deploy na infra Azure do time de
+                   engenharia; exige AZURE_STORAGE_CONNECTION_STRING e,
+                   opcionalmente, AZURE_STORAGE_CONTAINER).
+
+O banco guarda apenas metadados/ponteiros (tabela ``media_files``) para os
+callers nao dependerem de caminhos especificos de provedor. Os SDKs de nuvem
+sao importados de forma LAZY: a imagem so precisa do SDK do backend ativo.
 """
 from __future__ import annotations
 
@@ -73,6 +81,21 @@ def _get_gcs_bucket_name() -> str:
     if not name and os.getenv("K_SERVICE"):
         return "auditoria-nstech-audios"
     return name or "auditoria-nstech-audios"
+
+
+def _get_azure_container_client():
+    """ContainerClient do Azure Blob (import lazy — o SDK so e exigido quando
+    MEDIA_STORAGE_BACKEND=azure_blob esta ativo; a imagem GCP atual nao muda)."""
+    from azure.storage.blob import BlobServiceClient
+
+    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "").strip()
+    if not connection_string:
+        raise MediaStorageError(
+            "MEDIA_STORAGE_BACKEND=azure_blob exige AZURE_STORAGE_CONNECTION_STRING."
+        )
+    container_name = os.getenv("AZURE_STORAGE_CONTAINER", "").strip() or "auditoria-midia"
+    service = BlobServiceClient.from_connection_string(connection_string)
+    return service.get_container_client(container_name)
 
 
 def _local_storage_root() -> Path:
@@ -194,6 +217,22 @@ def store_media(
         except Exception as exc:  # noqa: BLE001
             logger.error("Falha ao fazer upload para o GCS: %s", exc)
             raise MediaStorageError(f"GCS upload failed: {exc}") from exc
+    elif backend == "azure_blob":
+        try:
+            from azure.storage.blob import ContentSettings
+
+            container = _get_azure_container_client()
+            container.upload_blob(
+                name=storage_key,
+                data=content_bytes,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type),
+            )
+        except MediaStorageError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Falha ao fazer upload para o Azure Blob: %s", exc)
+            raise MediaStorageError(f"Azure Blob upload failed: {exc}") from exc
     elif backend == "local":
         try:
             full_path = _resolve_safe_local_path(storage_key)
@@ -219,7 +258,9 @@ def store_media(
             logger.error("Falha ao salvar localmente: %s", exc)
             raise MediaStorageError(f"Local save failed: {exc}") from exc
     else:
-        raise MediaStorageError(f"Storage backend desconhecido: {backend}")
+        raise MediaStorageError(
+            f"Storage backend desconhecido: {backend} (suportados: local, gcs, azure_blob)"
+        )
 
     conn = get_connection()
     try:
@@ -269,6 +310,13 @@ def load_media_bytes(file_hash: str, fallback_path: Optional[str] = None) -> Opt
                 return blob.download_as_bytes()
         except Exception as exc:  # noqa: BLE001
             logger.error("Failed to download media from GCS (key=%s): %s", storage_key, exc)
+    elif backend == "azure_blob":
+        try:
+            blob = _get_azure_container_client().get_blob_client(storage_key)
+            if blob.exists():
+                return blob.download_blob().readall()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Failed to download media from Azure Blob (key=%s): %s", storage_key, exc)
     elif backend == "local":
         try:
             full_path = _resolve_safe_local_path(storage_key)
@@ -335,6 +383,14 @@ def delete_media(file_hash: str, fallback_path: Optional[str] = None) -> bool:
                 deleted_physically = True
         except Exception as exc:  # noqa: BLE001
             logger.error("Failed to delete media from GCS (key=%s): %s", storage_key, exc)
+    elif not is_shared and backend == "azure_blob":
+        try:
+            blob = _get_azure_container_client().get_blob_client(storage_key)
+            if blob.exists():
+                blob.delete_blob()
+                deleted_physically = True
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Failed to delete media from Azure Blob (key=%s): %s", storage_key, exc)
     elif not is_shared and backend == "local":
         try:
             full_path = _resolve_safe_local_path(storage_key)
@@ -402,6 +458,19 @@ def open_media_stream(file_hash: str, fallback_path: Optional[str] = None) -> Op
                 return gcs_iterator(), int(blob.size or 0)
         except Exception as exc:  # noqa: BLE001
             logger.error("Failed to stream media from GCS (key=%s): %s", storage_key, exc)
+    elif backend == "azure_blob":
+        try:
+            blob = _get_azure_container_client().get_blob_client(storage_key)
+            if blob.exists():
+                downloader = blob.download_blob()
+
+                def azure_iterator() -> Iterator[bytes]:
+                    for chunk in downloader.chunks():
+                        yield chunk
+
+                return azure_iterator(), int(getattr(downloader, "size", 0) or 0)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Failed to stream media from Azure Blob (key=%s): %s", storage_key, exc)
     elif backend == "local":
         try:
             full_path = _resolve_safe_local_path(storage_key)
