@@ -126,3 +126,31 @@ def test_pool_initialization_sets_connect_timeout_and_application_name(monkeypat
     assert captured["kwargs"]["connect_timeout"] == 7
     assert captured["kwargs"]["application_name"] == "audit-test"
     assert captured["kwargs"]["cursor_factory"] is connection.DictCursor
+
+
+def test_putconn_failure_closes_native_connection_and_releases_slot():
+    """v1.3.119: se putconn lanca (pool fechado durante shutdown), a conexao
+    nativa deve ser fechada diretamente e o slot do semaforo liberado —
+    sem isso a conexao vaza aberta no Postgres."""
+
+    class ExplodingPool(FakePool):
+        def putconn(self, conn, close=False):
+            raise PoolError("pool ja fechado")
+
+    class ClosableConnection(FakeConnection):
+        def close(self):
+            self.closed = True
+
+    conn_obj = ClosableConnection()
+    fake_pool = ExplodingPool([conn_obj])
+    connection._db_pool = fake_pool
+    connection._pool_maxconn = 1
+    connection._pool_semaphore = BoundedSemaphore(1)
+
+    checked_out = connection._create_pg_connection()
+    checked_out.close()  # nao deve lancar
+
+    assert conn_obj.closed is True, "conexao nativa deve ser fechada quando putconn falha"
+    # Slot liberado: um novo checkout do semaforo nao pode travar.
+    assert connection._pool_semaphore.acquire(timeout=0.1) is True
+    connection._pool_semaphore.release()

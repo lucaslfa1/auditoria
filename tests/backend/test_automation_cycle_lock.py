@@ -115,5 +115,66 @@ class TestAutomationCycleLockPoolHygiene(unittest.TestCase):
         )
 
 
+class _BrokenCommitConnection:
+    """Conexao fake cujo commit falha (simula conexao stale/rede caida)."""
+
+    def __init__(self):
+        self._cursor = _PoolCountingCursor()
+        self.closed = False
+
+    def cursor(self):
+        return self._cursor
+
+    def commit(self):
+        raise RuntimeError("conexao stale: commit falhou")
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        self.closed = True
+
+
+class TestAutomationCycleLockStaleConnection(unittest.TestCase):
+    """v1.3.119: release() re-tenta com conexao NOVA; refresh() trata erro
+    transitorio como lock perdido em vez de estourar erro cru no ciclo."""
+
+    def test_release_retenta_com_conexao_nova_apos_falha(self):
+        lock = automation_engine._AutomationCycleLock()
+        good_counter = {"open": 0, "closed": 0}
+        connections = [_BrokenCommitConnection(), _PoolCountingConnection(good_counter)]
+
+        with patch.object(automation_engine.database, "get_connection", side_effect=lambda: connections.pop(0)):
+            lock.acquired = True
+            lock.release()  # nao deve lancar
+
+        self.assertFalse(lock.acquired)
+        self.assertEqual(good_counter["open"], 1, "2a tentativa deve usar conexao nova")
+        self.assertEqual(good_counter["closed"], 1, "2a tentativa deve fechar a conexao")
+
+    def test_release_desiste_apos_duas_falhas_sem_lancar(self):
+        lock = automation_engine._AutomationCycleLock()
+        with patch.object(automation_engine.database, "get_connection", side_effect=lambda: _BrokenCommitConnection()):
+            lock.acquired = True
+            lock.release()  # TTL assume; sem excecao propagada
+        self.assertFalse(lock.acquired)
+
+    def test_refresh_trata_erro_de_conexao_como_lock_perdido(self):
+        lock = automation_engine._AutomationCycleLock()
+        lock.acquired = True
+        with patch.object(automation_engine.database, "get_connection", side_effect=RuntimeError("db down")):
+            refreshed = lock.refresh()
+        self.assertFalse(refreshed)
+        self.assertFalse(lock.acquired)
+
+    def test_refresh_trata_commit_falho_como_lock_perdido(self):
+        lock = automation_engine._AutomationCycleLock()
+        lock.acquired = True
+        with patch.object(automation_engine.database, "get_connection", side_effect=lambda: _BrokenCommitConnection()):
+            refreshed = lock.refresh()
+        self.assertFalse(refreshed)
+        self.assertFalse(lock.acquired)
+
+
 if __name__ == "__main__":
     unittest.main()

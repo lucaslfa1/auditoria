@@ -134,7 +134,13 @@ def transcribe_audio_azure(
                             match = re.search(r"retry after (\d+) seconds", msg, re.I)
                             if match:
                                 retry_after = int(match.group(1)) + 1
-                        except: pass
+                        except Exception:
+                            # Corpo do 429 sem JSON/padrao esperado: mantem o
+                            # backoff default de 10s, mas deixa rastro p/ debug.
+                            logger.debug(
+                                "Whisper 429 sem retry-after parseavel; usando backoff default.",
+                                exc_info=True,
+                            )
                         logger.warning("Whisper 429 (Rate Limit): Aguardando %ds para tentativa %d...", retry_after, attempt+1)
                         time.sleep(retry_after)
                         continue

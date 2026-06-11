@@ -650,7 +650,15 @@ class _AutomationCycleLock:
     def refresh(self) -> bool:
         if not self.acquired:
             return False
-        conn = database.get_connection()
+        try:
+            conn = database.get_connection()
+        except Exception as exc:
+            # Sem conexao nao da para PROVAR a posse do lock: trata como
+            # perdido (False) em vez de estourar erro cru no meio do ciclo —
+            # o caller aborta de forma limpa via AutomationLockLostError.
+            logger.warning("Refresh do lock do ciclo falhou ao conectar: %s", exc)
+            self.acquired = False
+            return False
         try:
             cursor = conn.cursor()
             cursor.execute(
@@ -667,15 +675,17 @@ class _AutomationCycleLock:
             conn.commit()
             self.acquired = bool(row)
             return self.acquired
+        except Exception as exc:
+            logger.warning("Refresh do lock do ciclo falhou: %s", exc)
+            self.acquired = False
+            return False
         finally:
             try:
                 conn.close()
             except Exception:
                 pass
 
-    def release(self) -> None:
-        if not self.acquired:
-            return
+    def _try_release_once(self) -> bool:
         conn = database.get_connection()
         try:
             cursor = conn.cursor()
@@ -689,18 +699,45 @@ class _AutomationCycleLock:
                 (self._KEY, self._token),
             )
             conn.commit()
-        except Exception as exc:
-            logger.warning("Falha ao liberar lock do ciclo de automacao: %s", exc)
+            return True
+        except Exception:
             try:
                 conn.rollback()
             except Exception:
                 pass
+            raise
         finally:
-            self.acquired = False
             try:
                 conn.close()
             except Exception:
                 pass
+
+    def release(self) -> None:
+        if not self.acquired:
+            return
+        # Uma re-tentativa com conexao NOVA antes de desistir: falha aqui
+        # deixa o lock preso ate o TTL (30 min) e atrasa o proximo ciclo.
+        # Cada tentativa usa conexao propria — conexao stale da primeira
+        # tentativa nao contamina a segunda.
+        try:
+            self._try_release_once()
+        except Exception as exc:
+            logger.warning(
+                "Falha ao liberar lock do ciclo de automacao (1a tentativa): %s; "
+                "tentando novamente com conexao nova.",
+                exc,
+            )
+            try:
+                self._try_release_once()
+            except Exception as retry_exc:
+                logger.warning(
+                    "Falha ao liberar lock do ciclo de automacao (2a tentativa): %s. "
+                    "Lock expira pelo TTL de %ss.",
+                    retry_exc,
+                    self._TTL_SECONDS,
+                )
+        finally:
+            self.acquired = False
 
     def __enter__(self) -> "_AutomationCycleLock":
         # Returns self so callers can inspect `.acquired` without raising.

@@ -1,6 +1,8 @@
 import logging
 from typing import Optional, Any
 
+from psycopg2 import sql
+
 from repositories.common import extract_returning_id
 
 logger = logging.getLogger(__name__)
@@ -33,7 +35,14 @@ def _safe_select_rows(
 ) -> list[dict]:
     existing_columns = _get_existing_columns(cursor, table_name)
     selected_columns = [column for column in required_columns + optional_columns if column in existing_columns]
-    cursor.execute(f"SELECT {', '.join(selected_columns)} FROM {table_name}")
+    # Identificadores via psycopg2.sql (defesa em profundidade): os nomes ja
+    # vem de whitelist interna + information_schema, mas o quoting formal
+    # elimina a classe de injecao caso um caller futuro passe input externo.
+    query = sql.SQL("SELECT {columns} FROM {table}").format(
+        columns=sql.SQL(", ").join(sql.Identifier(column) for column in selected_columns),
+        table=sql.Identifier(table_name),
+    )
+    cursor.execute(query)
     rows = [dict(row) for row in cursor.fetchall()]
 
     missing_columns = [column for column in optional_columns if column not in existing_columns]

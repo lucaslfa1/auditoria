@@ -217,6 +217,15 @@ class PooledConnectionContext:
 
         try:
             _db_pool.putconn(conn, close=close_broken_connection)
+        except Exception:
+            # putconn pode falhar (pool fechado durante shutdown, conexao de
+            # outro pool apos re-init). Sem este guard a conexao nativa vaza
+            # aberta; fechamos direto para devolver o recurso ao SO/Postgres.
+            logger.warning("putconn falhou; fechando conexao nativa diretamente.", exc_info=True)
+            try:
+                conn.close()
+            except Exception:
+                pass
         finally:
             _release_pool_slot()
 
