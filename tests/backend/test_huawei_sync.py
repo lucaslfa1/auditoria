@@ -675,9 +675,6 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
                                                     ) as quota_count, patch(
                                                         "repositories.audits.get_operator_audit_counts_for_month_bulk",
                                                         return_value={},
-                                                    ), patch(
-                                                        "core.pre_triage.analyze_call_direction",
-                                                        AsyncMock(return_value=False),
                                                     ):
                                                         with patch.object(
                                                             huawei_sync.database,

@@ -174,3 +174,8 @@ obs_creds.json
 
 # Database Dumps
 *.sql
+# Exceção: seeds versionados fazem parte do bootstrap do banco (v1.3.120)
+!backend/db/seeds/*.sql
+
+# Rascunhos de mensagens de commit
+commit_msg*.txt
