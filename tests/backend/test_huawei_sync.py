@@ -1742,9 +1742,106 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         metadata = enqueue.await_args.kwargs["extra_metadata"]
         self.assertEqual(metadata["audio_direction_pre_triage"], "outbound")
         self.assertEqual(delta["pretriagem_direcao_ativa_aprovadas"], 1)
-        self.assertEqual(delta["baixadas"], 1)
-        self.assertEqual(delta["enfileiradas"], 1)
-        self.assertEqual(delta["pretriagem_direcao_ativa_aprovadas"], 1)
+
+    async def test_fase2_gate_bloqueia_item_inelegivel_sem_gastar_gpt(self):
+        """Item que o AutomationGatekeeper bloquearia (setor nao-telefonia) e
+        descartado ANTES da classificacao GPT — nem o audio e carregado."""
+        item = {
+            "input_hash": "hash_gate_1",
+            "nome_arquivo": "receptivo.wav",
+            "metadata": {
+                "classification_status": "pending",
+                "origem": "huawei_sync",
+                "operator_sector_id": "celula_atendimento",
+                "classified_audio_path": "classified/hash_gate_1.wav",
+            },
+        }
+        with patch.object(huawei_sync.database, "listar_fila_revisao_classificacao", return_value=[item]):
+            with patch.object(huawei_sync, "execute_discard") as discard:
+                with patch.object(huawei_sync, "load_classified_audio") as load_audio:
+                    with patch.object(huawei_sync, "_classificar_audio_huawei", new=AsyncMock()) as classify:
+                        with patch.object(huawei_sync.cost_guard, "budget_exceeded", return_value=None):
+                            result = await huawei_sync._classificar_pendentes_async(
+                                concurrency=1,
+                                operator_by_id={},
+                                operator_by_name={},
+                            )
+
+        classify.assert_not_awaited()
+        load_audio.assert_not_called()
+        discard.assert_called_once()
+        self.assertEqual(discard.call_args.args[1], huawei_sync.Disposition.DISCARD_IMPOSSIBLE)
+        self.assertEqual(discard.call_args.kwargs["status_result"], "discarded_non_telephony")
+        self.assertEqual(result["bloqueadas_pre_classificacao"], 1)
+        self.assertEqual(result["classificadas"], 0)
+        self.assertEqual(result["pendentes_restantes"], 0)
+
+    async def test_fase2_gate_receptiva_setor_risco_nao_classifica(self):
+        """Receptiva ja sinalizada (inbound_quarantine) em setor de risco nao
+        chega ao GPT."""
+        item = {
+            "input_hash": "hash_gate_2",
+            "nome_arquivo": "uti_receptiva.wav",
+            "metadata": {
+                "classification_status": "pending",
+                "origem": "huawei_sync",
+                "operator_sector_id": "uti",
+                "audio_direction_pre_triage": "inbound_quarantine",
+                "classified_audio_path": "classified/hash_gate_2.wav",
+            },
+        }
+        with patch.object(huawei_sync.database, "listar_fila_revisao_classificacao", return_value=[item]):
+            with patch.object(huawei_sync, "execute_discard") as discard:
+                with patch.object(huawei_sync, "_classificar_audio_huawei", new=AsyncMock()) as classify:
+                    with patch.object(huawei_sync.cost_guard, "budget_exceeded", return_value=None):
+                        result = await huawei_sync._classificar_pendentes_async(
+                            concurrency=1,
+                            operator_by_id={},
+                            operator_by_name={},
+                        )
+
+        classify.assert_not_awaited()
+        discard.assert_called_once()
+        self.assertEqual(result["bloqueadas_pre_classificacao"], 1)
+
+    async def test_fase2_gate_item_elegivel_segue_para_classificacao(self):
+        """Item elegivel (ativa em setor de risco) passa pelo gate e chega ao
+        classificador normalmente."""
+        classification_payload = type(
+            "Resultado", (), {
+                "sector_id": "uti", "alert_id": "UTI-PARADA-MOT", "confidence": 0.95,
+                "operator_name": "Usuario", "needs_review": False, "review_reasons": [],
+                "review_priority": "low", "error": None, "id_huawei": "189", "matricula": None,
+            },
+        )()
+        item = {
+            "input_hash": "hash_gate_3",
+            "nome_arquivo": "uti_ativa.wav",
+            "metadata": {
+                "classification_status": "pending",
+                "origem": "huawei_sync",
+                "operator_sector_id": "uti",
+                "huawei_is_call_in": "false",
+                "classified_audio_path": "classified/hash_gate_3.wav",
+            },
+        }
+        with patch.object(huawei_sync.database, "listar_fila_revisao_classificacao", return_value=[item]):
+            with patch.object(huawei_sync, "execute_discard") as discard:
+                with patch.object(huawei_sync, "load_classified_audio", return_value=b"RIFFdata"):
+                    with patch.object(huawei_sync, "_classificar_audio_huawei", new=AsyncMock(return_value=classification_payload)) as classify:
+                        with patch.object(huawei_sync, "_aplicar_auto_classificacao") as apply_cls:
+                            with patch.object(huawei_sync.cost_guard, "budget_exceeded", return_value=None):
+                                result = await huawei_sync._classificar_pendentes_async(
+                                    concurrency=1,
+                                    operator_by_id={},
+                                    operator_by_name={},
+                                )
+
+        classify.assert_awaited_once()
+        discard.assert_not_called()
+        apply_cls.assert_called_once()
+        self.assertEqual(result["classificadas"], 1)
+        self.assertEqual(result["bloqueadas_pre_classificacao"], 0)
 
     async def test_processar_candidato_descarta_mondelez_antes_do_download(self):
         client = AsyncMock()

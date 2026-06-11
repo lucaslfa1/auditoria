@@ -63,7 +63,13 @@ from core.huawei_obs_client import HuaweiOBSClient
 from core.huawei_discovery import HuaweiDiscoveryService
 from core import cost_guard
 from core.llm_triage import filtrar_ligacoes_com_llm
-from db.domain_constants import SOURCE_TYPE_AUDIO, SOURCE_TYPE_PDF
+from core.automation_disposition import Disposition, execute_discard
+from core.automation_guardrails import AutomationGatekeeper
+from db.domain_constants import (
+    REVIEW_QUEUE_STATUS_NEEDS_MANUAL_TRIAGE,
+    SOURCE_TYPE_AUDIO,
+    SOURCE_TYPE_PDF,
+)
 from repositories.common import json_loads, normalize_huawei_agent_id
 
 logger = logging.getLogger(__name__)
@@ -1551,7 +1557,12 @@ async def _classificar_pendentes_async(
         pendentes.append(item)
 
     if not pendentes:
-        return {"classificadas": 0, "erros": 0, "pendentes_restantes": 0}
+        return {
+            "classificadas": 0,
+            "erros": 0,
+            "bloqueadas_pre_classificacao": 0,
+            "pendentes_restantes": 0,
+        }
 
     logger.info("Fase 2 sync Huawei: %d itens para classificar (concurrency=%d).", len(pendentes), concurrency)
     _notify_progress(progress_callback, "classifying", 0, len(pendentes))
@@ -1559,10 +1570,11 @@ async def _classificar_pendentes_async(
     semaphore = asyncio.Semaphore(max(1, concurrency))
     classificadas = 0
     erros = 0
+    bloqueadas_pre_classificacao = 0
     concluidos_total = 0
 
     async def _processar(item: dict) -> str:
-        nonlocal classificadas, erros, concluidos_total
+        nonlocal classificadas, erros, bloqueadas_pre_classificacao, concluidos_total
         async with semaphore:
             try:
                 if _cancel_requested(should_cancel):
@@ -1582,6 +1594,61 @@ async def _classificar_pendentes_async(
                 if not input_hash or not media_path:
                     erros += 1
                     return "missing_path"
+
+                # Gate nativo PRE-classificacao: nao gasta GPT com item que o
+                # AutomationGatekeeper bloquearia depois pelas MESMAS regras
+                # (setor fora da telefonia; receptiva/direcao desconhecida em
+                # setor de risco). Disposicao identica a da automacao
+                # (process_ready_item): flag default-ON descarta tombstone;
+                # flag OFF manda para triagem manual.
+                block = AutomationGatekeeper.check_eligibility(item)
+                if block:
+                    block_reason, block_sector = block
+                    try:
+                        if _env_flag("AUTOMATION_DISCARD_NON_TELEPHONY", True):
+                            execute_discard(
+                                item,
+                                Disposition.DISCARD_IMPOSSIBLE,
+                                motivo=block_reason,
+                                status_result="discarded_non_telephony",
+                                queue_input_hash=input_hash,
+                                filename=filename,
+                                sector_id=block_sector,
+                                metadata=metadata,
+                            )
+                        else:
+                            motivo_revisao = (
+                                "setor_nao_telefonia_automacao"
+                                if block_reason == "setor_nao_telefonia"
+                                else "direcao_invalida_automacao"
+                            )
+                            database.atualizar_status_fila_revisao_classificacao(
+                                input_hash,
+                                status=REVIEW_QUEUE_STATUS_NEEDS_MANUAL_TRIAGE,
+                                erro=f"Bloqueado pre-classificacao: {block_reason}",
+                                motivos_revisao_append=[motivo_revisao],
+                                metadata_merge={
+                                    "pre_classification_block_reason": block_reason,
+                                    "pre_classification_block_sector": block_sector,
+                                    "classification_status": "skipped_ineligible",
+                                },
+                            )
+                    except Exception as exc:  # noqa: BLE001
+                        logger.exception(
+                            "Fase 2: falha ao aplicar bloqueio pre-classificacao de %s", filename
+                        )
+                        _marcar_classificacao_status(
+                            input_hash, status="error",
+                            erro=f"bloqueio_pre_classificacao_falhou: {exc}",
+                        )
+                        erros += 1
+                        return "block_error"
+                    bloqueadas_pre_classificacao += 1
+                    logger.info(
+                        "Fase 2: '%s' bloqueado pre-classificacao (motivo=%s, setor=%s) sem gastar GPT.",
+                        filename, block_reason, block_sector,
+                    )
+                    return "blocked_pre_classification"
                 try:
                     audio_bytes = load_classified_audio(media_path, input_hash=input_hash)
                 except Exception as exc:  # noqa: BLE001
@@ -1660,10 +1727,13 @@ async def _classificar_pendentes_async(
 
     await asyncio.gather(*[_processar(item) for item in pendentes])
 
-    pendentes_restantes = max(0, len(pendentes) - classificadas - erros)
+    pendentes_restantes = max(
+        0, len(pendentes) - classificadas - erros - bloqueadas_pre_classificacao
+    )
     return {
         "classificadas": classificadas,
         "erros": erros,
+        "bloqueadas_pre_classificacao": bloqueadas_pre_classificacao,
         "pendentes_restantes": pendentes_restantes,
     }
 
