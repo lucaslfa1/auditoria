@@ -51,6 +51,9 @@ class TestAuditAudioRecovery(unittest.TestCase):
             operatorId="OP-1",
             input_hash="audit-hash",
             source_type="audio",
+            # selected_strategy obrigatoria para o cache ser elegivel
+            # (_satisfies_transcription_policy do candidate selector).
+            audio_quality={"transcription_provider": {"selected_strategy": "fast"}},
         )
 
     def test_route_recovery_attaches_classified_audio_when_audit_file_is_missing(self):

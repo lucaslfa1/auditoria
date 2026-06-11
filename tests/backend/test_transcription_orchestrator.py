@@ -31,13 +31,17 @@ class TestTranscriptionOrchestrator(unittest.TestCase):
         self.assertEqual(run_order, ["fast", "gpt4o_diarize"])
 
     def test_build_strategy_order_uses_hybrid_dual_only_when_explicit(self):
+        """hybrid_dual explicito roda SOZINHO na ordem de estrategias: sem
+        fallback premium automatico (politica de custo v1.3.109; a degradacao
+        para fast em fluxo manual e interna a estrategia, via
+        allow_degraded_hybrid_fallback)."""
         run_order = build_strategy_order(
             "hybrid_dual",
             include_sdk=False,
             include_whisper=True,
             include_gpt4o_diarize=True,
         )
-        self.assertEqual(run_order, ["hybrid_dual", "fast", "gpt4o_diarize", "whisper"])
+        self.assertEqual(run_order, ["hybrid_dual"])
 
     def test_prepare_audio_for_azure_converts_to_wav_when_mime_is_unsupported(self):
         wav_audio = b"wav-audio"
@@ -77,6 +81,10 @@ class TestTranscriptionOrchestrator(unittest.TestCase):
         self.assertEqual(result[0]["text"], "texto bom e suficientemente longo")
 
     def test_run_transcription_pipeline_uses_best_candidate_when_all_are_weak(self):
+        """Com allow_best_candidate_fallback=True (fluxo manual), todos fracos
+        => devolve o melhor candidato. Sem a flag (default, automacao), o
+        comportamento atual e ERRO — resultado fraco vira descarte/triagem
+        em vez de auditoria de baixa qualidade (testado abaixo)."""
         result = run_transcription_pipeline(
             ["fast", "gpt4o_diarize"],
             execute_strategy=lambda strategy: [
@@ -88,9 +96,25 @@ class TestTranscriptionOrchestrator(unittest.TestCase):
             looks_valid=lambda _segments: False,
             score_segments=lambda segments: len(segments[0]["text"]),
             log=lambda _message: None,
+            allow_best_candidate_fallback=True,
         )
 
         self.assertEqual(result[0]["text"], "um texto um pouco melhor")
+
+    def test_run_transcription_pipeline_falha_quando_todos_fracos_sem_fallback(self):
+        """Modo estrito (default da automacao): todos os candidatos fracos =>
+        RuntimeError, sem entregar transcricao ruim para auditoria."""
+        with self.assertRaises(RuntimeError):
+            run_transcription_pipeline(
+                ["fast"],
+                execute_strategy=lambda _strategy: [
+                    {"start": "00:00", "end": "00:02", "text": "curto"}
+                ],
+                deduplicate_segments=lambda segments: segments,
+                looks_valid=lambda _segments: False,
+                score_segments=lambda segments: len(segments[0]["text"]),
+                log=lambda _message: None,
+            )
 
     def test_run_transcription_pipeline_returns_metadata_about_attempts(self):
         result, metadata = run_transcription_pipeline(

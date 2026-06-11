@@ -88,7 +88,17 @@ class TestTriagemE2EFlow(unittest.TestCase):
 
             fake_services = types.ModuleType("services")
             fake_services.process_audit_with_ai = AsyncMock(
-                return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0), "audit-hash-e2e", False)
+                # selected_strategy obrigatoria desde a politica do candidate
+                # selector (_satisfies_transcription_policy).
+                return_value=(
+                    SimpleNamespace(
+                        score=8.5,
+                        maxPossibleScore=10.0,
+                        audio_quality={"transcription_provider": {"selected_strategy": "fast"}},
+                    ),
+                    "audit-hash-e2e",
+                    False,
+                )
             )
 
             with patch.object(automation.database, "listar_fila_revisao_classificacao", return_value=[captured_queue_item]), patch("repositories.operators.resolve_auditable_colaborador", return_value={"name": "Operador Teste", "preferredId": "", "matricula": ""}), patch("repositories.audits.get_audit_by_hash", return_value=None), patch.object(automation.database, "persist_audit_artifacts", return_value=501) as mock_persist, patch.object(automation.database, "atualizar_status_fila_revisao_classificacao") as mock_update_status, patch.object(automation, "load_classified_audio", return_value=b"RIFFdemo-audio"), patch.object(automation, "compute_input_hash", return_value="audit-hash-e2e"), patch.object(automation, "get_mime_type", return_value="audio/wav"), patch.object(automation.asyncio, "sleep", new_callable=AsyncMock), patch.dict(sys.modules, {"services": fake_services}):

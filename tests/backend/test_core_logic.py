@@ -580,7 +580,11 @@ class TestCoreLogic(unittest.TestCase):
                     os.environ[key] = value
 
     def test_transcribe_audio_waits_for_gpt4o_when_selector_needs_review(self):
-        env_keys = ["AZURE_SPEECH_ENDPOINT", "AZURE_GPT4O_DIARIZE_FALLBACK"]
+        """Escalada para premium SOMENTE quando o candidato barato nao presta:
+        fast e whisper inaceitaveis => pipeline avanca ate gpt4o_diarize e o
+        seleciona. (Comportamento pos-v1.3.109: com fast ACEITAVEL, premium
+        nao roda — politica de custo.)"""
+        env_keys = ["AZURE_SPEECH_ENDPOINT", "AZURE_GPT4O_DIARIZE_FALLBACK", "AZURE_WHISPER_FALLBACK"]
         previous = {key: os.environ.get(key) for key in env_keys}
 
         def tagged_segments(source: str) -> list[dict]:
@@ -603,10 +607,14 @@ class TestCoreLogic(unittest.TestCase):
             source = segments[0].get("source") if segments else ""
             return {"fast": 1000, "whisper": 960, "gpt4o": 1400}.get(source, 0)
 
+        def acceptable_only_gpt4o(segments, _diarization_reference):
+            return bool(segments) and segments[0].get("source") == "gpt4o"
+
         try:
             os.environ["AZURE_SPEECH_ENDPOINT"] = "https://speech.test"
             os.environ["AZURE_TRANSCRIPTION_ENGINE"] = "fast"
             os.environ["AZURE_GPT4O_DIARIZE_FALLBACK"] = "true"
+            os.environ["AZURE_WHISPER_FALLBACK"] = "true"
             os.environ["AZURE_GPT4O_DIARIZE_SMART_ROUTING"] = "false"
 
             with (
@@ -623,7 +631,7 @@ class TestCoreLogic(unittest.TestCase):
                 ),
                 patch("core.transcription.transcribe_audio_azure", side_effect=transcribe_azure_side_effect) as mocked_azure,
                 patch("core.transcription.transcribe_audio_gpt4o_diarize", return_value=gpt_segments) as mocked_gpt,
-                patch("core.transcription._transcription_candidate_is_acceptable", return_value=True),
+                patch("core.transcription._transcription_candidate_is_acceptable", side_effect=acceptable_only_gpt4o),
                 patch("core.transcription._score_transcription_candidate", side_effect=score_by_source),
             ):
                 result, metadata = asyncio.run(

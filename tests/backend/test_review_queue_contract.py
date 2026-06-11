@@ -485,7 +485,7 @@ class TestReviewQueueContract(unittest.TestCase):
     ):
         fake_services = types.ModuleType("services")
         fake_services.process_audit_with_ai = AsyncMock(
-            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0), "audit-hash-1", False)
+            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0, audio_quality={"transcription_provider": {"selected_strategy": "fast"}}), "audit-hash-1", False)
         )
         mock_build_alert.return_value = SimpleNamespace(label="Alerta de teste", criteria=[SimpleNamespace(id="c1", label="c1")])
 
@@ -547,7 +547,7 @@ class TestReviewQueueContract(unittest.TestCase):
     ):
         fake_services = types.ModuleType("services")
         fake_services.process_audit_with_ai = AsyncMock(
-            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0), "audit-hash-repaired", False)
+            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0, audio_quality={"transcription_provider": {"selected_strategy": "fast"}}), "audit-hash-repaired", False)
         )
         mock_build_alert.return_value = SimpleNamespace(label="Entrega", criteria=[SimpleNamespace(id="c1", label="c1")])
         item = {
@@ -646,7 +646,7 @@ class TestReviewQueueContract(unittest.TestCase):
     ):
         fake_services = types.ModuleType("services")
         fake_services.process_audit_with_ai = AsyncMock(
-            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0), "returned-hash", False)
+            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0, audio_quality={"transcription_provider": {"selected_strategy": "fast"}}), "returned-hash", False)
         )
         mock_build_alert.return_value = SimpleNamespace(label="Alerta de teste", criteria=[SimpleNamespace(id="c1", label="c1")])
         item = {
@@ -830,13 +830,20 @@ class TestReviewQueueContract(unittest.TestCase):
             "metadata": {"classified_audio_path": "strict.wav"},
         }
 
+        # AUTOMATION_TRANSIENT_RETRY_LIMIT default virou 1 na v1.3.111 (falha
+        # de transcricao -> descarte permanente sem re-tentativa). Este teste
+        # valida o ROTEAMENTO de retry quando o limite permite (>1); o caminho
+        # default sem retry e coberto por
+        # test_automation_audit_on_transcription_risk.py.
         with patch("repositories.operators.resolve_auditable_colaborador",
             return_value={"name": "Operador X", "preferredId": "", "matricula": ""},
-        ), patch.dict(sys.modules, {"services": fake_services}):
+        ), patch.dict(sys.modules, {"services": fake_services}), patch.dict(
+            os.environ, {"AUTOMATION_TRANSIENT_RETRY_LIMIT": "3"}, clear=False
+        ):
             response = asyncio.run(automation._audit_single_item(item))
 
-        # Novo contrato: falha de transcricao e transitoria -> RETRY (pending) ate o limite,
-        # depois descarta. Nao prende mais em needs_manual_triage (flag ON, default).
+        # Contrato com retry habilitado: falha de transcricao e transitoria ->
+        # RETRY (auto_resolved) ate o limite, depois descarta.
         self.assertEqual(response["status"], "retry_transcription_failed")
         mock_persist_audit_artifacts.assert_not_called()
         _, kwargs = mock_update_queue_status.call_args
@@ -863,7 +870,7 @@ class TestReviewQueueContract(unittest.TestCase):
     ):
         fake_services = types.ModuleType("services")
         fake_services.process_audit_with_ai = AsyncMock(
-            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0), "audit-hash-1", False)
+            return_value=(SimpleNamespace(score=8.5, maxPossibleScore=10.0, audio_quality={"transcription_provider": {"selected_strategy": "fast"}}), "audit-hash-1", False)
         )
         mock_build_alert.return_value = SimpleNamespace(label="Alerta de teste", criteria=[SimpleNamespace(id="c1", label="c1")])
 
@@ -1018,9 +1025,11 @@ class TestReviewQueueContract(unittest.TestCase):
             }
         ]
 
+        # Retry habilitado (limite>1) para validar o roteamento de volta a
+        # auto_resolved; default v1.3.111 e 1 (descarta na 1a falha).
         with patch("repositories.operators.resolve_auditable_colaborador",
             return_value={"name": "Operador X", "preferredId": "", "matricula": ""},
-        ):
+        ), patch.dict(os.environ, {"AUTOMATION_TRANSIENT_RETRY_LIMIT": "3"}, clear=False):
             result = asyncio.run(automation.audit_all_pending())
 
         self.assertEqual(result["total"], 1)

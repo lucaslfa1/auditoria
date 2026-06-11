@@ -1227,6 +1227,11 @@ async def transcribe_audio(
                 ),
             )
             if merge_status != "merged":
+                # Mesma regra dos branches de falha do Diarize/Whisper acima:
+                # fluxo manual (allow_degraded_hybrid_fallback=True) degrada
+                # para o Azure Fast em vez de barrar a auditoria.
+                if not block_degraded_hybrid:
+                    return await run_fast_fallback(f"fusao GPT-4o falhou ({merge_status})")
                 raise RuntimeError(f"hybrid_dual: fusao GPT-4o falhou em modo estrito ({merge_status})")
             return merged, "hybrid_dual"
 

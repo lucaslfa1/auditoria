@@ -49,7 +49,16 @@ class TestFreshTranscriptionGate(unittest.TestCase):
     """check_new_audit_quality: transcricao recem-gerada com flag de risco."""
 
     def _run(self, flag_value):
-        result = SimpleNamespace(audio_quality={"diarization": {"swap_risk": "medium"}})
+        # transcription_provider.selected_strategy e obrigatorio desde a
+        # politica do candidate selector (_satisfies_transcription_policy):
+        # sem ele o gate trata como "transcricao ausente" e descarta antes
+        # de chegar na flag testada aqui.
+        result = SimpleNamespace(
+            audio_quality={
+                "diarization": {"swap_risk": "medium"},
+                "transcription_provider": {"selected_strategy": "fast"},
+            }
+        )
         ctx = _audio_pipeline_ctx()
         with patch.object(
             automation,
@@ -80,7 +89,15 @@ class TestCachedTranscriptionGate(unittest.TestCase):
     """check_existing_audit: auditoria em cache cuja transcricao pede revisao."""
 
     def _run(self, flag_value):
-        existing = SimpleNamespace(audio_quality={"diarization": {"swap_risk": "medium"}}, id=123)
+        # Ver nota em TestFreshTranscriptionGate: selected_strategy obrigatoria
+        # para o cache ser elegivel (_satisfies_transcription_policy).
+        existing = SimpleNamespace(
+            audio_quality={
+                "diarization": {"swap_risk": "medium"},
+                "transcription_provider": {"selected_strategy": "fast"},
+            },
+            id=123,
+        )
         ctx = _audio_pipeline_ctx()
         with patch("repositories.audits.get_audit_by_hash", return_value=existing), patch(
             "core.automation_cache.attach_pipeline_context_to_audio_quality",
