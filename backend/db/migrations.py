@@ -62,6 +62,21 @@ def _discover_migrations() -> list[tuple[str, Callable]]:
 MIGRATIONS = _discover_migrations()
 
 
+def _commit_migration_step(cursor) -> None:
+    """Commita a conexao do cursor ao final de cada migration aplicada.
+
+    Necessario porque algumas migrations (ex.: m20260518_004) escrevem via
+    repositories.*, que abrem conexao PROPRIA do pool: sem commit por step,
+    um banco limpo falha no bootstrap — a tabela criada por uma migration
+    anterior ainda nao esta visivel para a conexao nova da migration seguinte.
+    Tambem torna cada migration atomica (padrao Alembic), preservando o
+    progresso ja aplicado quando uma migration posterior falha.
+    """
+    conn = getattr(cursor, "connection", None)
+    if conn is not None and hasattr(conn, "commit"):
+        conn.commit()
+
+
 def run_pending_migrations(cursor) -> list[str]:
     ensure_schema_migrations_table(cursor)
     applied = get_applied_migration_names(cursor)
@@ -72,6 +87,7 @@ def run_pending_migrations(cursor) -> list[str]:
             continue
         migration_fn(cursor)
         _mark_migration_applied(cursor, name)
+        _commit_migration_step(cursor)
         executed.append(name)
 
     if MIGRATIONS:
