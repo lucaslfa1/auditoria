@@ -1,3 +1,29 @@
+/**
+ * Fila de Triagem (Retidos) — painel embutido na tela de Classificação.
+ *
+ * Lista gravações baixadas pelo sync da telefonia (Huawei) que ficaram retidas
+ * aguardando revisão manual antes da auditoria IA — é a entrada do volume
+ * automático no fluxo triagem → classificação → auditoria → aprovação →
+ * fechamento. O auditor pode triar com IA (individual ou lote), corrigir
+ * manualmente (ensinando a IA), enviar para auditoria ou descartar.
+ *
+ * Dados (API):
+ * - GET    /api/revisao/classificacao?status=pending → itens retidos
+ * - POST   /api/telefonia/recordings/{hash}/classify → triagem IA (lote: máx 20, 3 simultâneos)
+ * - PATCH  /api/classify/{hash}                      → correção manual; abre AIFeedbackModal
+ * - POST   /api/telefonia/recordings/{hash}/audit    → agenda auditoria (202; IA em background)
+ * - GET    /api/telefonia/recordings/{hash}/audit-status → polling do resultado (5s)
+ * - DELETE /api/telefonia/recordings/{hash}/audit    → cancela o envio em andamento
+ * - DELETE /api/telefonia/recordings/{hash}          → descarta a gravação
+ * - DELETE /api/revisao/classificacao/pendentes      → limpa a fila inteira
+ * - GET    /api/telefonia/recordings/{hash}/audio    → áudio autenticado (player)
+ *
+ * Particularidades:
+ * - O polling pausa com document.hidden para não manter o banco acordado à toa
+ *   (compute-hours do Neon).
+ * - Bloqueios "forçáveis" (v1.3.88): o auditor confirma e envia mesmo assim;
+ *   campos faltando (setor/alerta/operador) NÃO são forçáveis — exigem edição.
+ */
 import { useEffect, useState, useCallback, Fragment } from 'react';
 import { RefreshCw, Loader2, Send, Bot, Pencil, Check, X, Trash2 } from 'lucide-react';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
@@ -9,6 +35,7 @@ import { OriginBadge } from '../../../shared/lib/auditOrigin';
 import { AIFeedbackModal } from '../../ai-feedback/components/AIFeedbackModal';
 import { runWithConcurrency } from '../../../shared/lib/runWithConcurrency';
 
+/** Item da fila como vem de GET /api/revisao/classificacao (campos variam por origem). */
 interface TriageQueueItem {
   id?: number | string;
   input_hash?: string;
@@ -26,6 +53,7 @@ interface TriageQueueItem {
   is_oficial?: boolean;
 }
 
+/** Resposta de GET .../audit-status — dirige o polling e os toasts de conclusão. */
 interface AuditStatusResponse {
   status: 'idle' | 'processing' | 'completed' | 'audited' | 'failed' | 'stale';
   audit_id?: number;
@@ -34,6 +62,9 @@ interface AuditStatusResponse {
   started_at?: string;
 }
 
+// ── Helpers puros (badges, parsing de motivos e elegibilidade) ──
+
+/** Badge extra p/ needs_manual_triage sem setor cadastrado; null quando não se aplica. */
 const getManualStatusLabel = (item: TriageQueueItem): string | null => {
   const status = String(item.status || '').toLowerCase();
   if (status === 'needs_manual_triage') {
@@ -42,11 +73,13 @@ const getManualStatusLabel = (item: TriageQueueItem): string | null => {
   }
   return null;
 };
+/** true p/ os valores "vazios" históricos ('erro', 'desconhecido', 'unknown'...). */
 const isUnknownAuditValue = (value?: string | null): boolean => {
   const normalized = String(value || '').trim().toLowerCase();
   return ['', 'erro', 'desconhecido', 'nao identificado', 'não identificado', 'unknown', 'none', 'null'].includes(normalized);
 };
 
+/** motivos_json pode vir como array ou string JSON — normaliza pra lista de strings. */
 const parseMotivos = (raw: TriageQueueItem['motivos_json']): string[] => {
   if (Array.isArray(raw)) return raw.map((m) => String(m || '').trim()).filter(Boolean);
   if (typeof raw === 'string' && raw.trim()) {
@@ -60,12 +93,14 @@ const parseMotivos = (raw: TriageQueueItem['motivos_json']): string[] => {
   return [];
 };
 
+/** true quando TODOS os motivos de retenção são de transcrição (bloqueio forçável). */
 const motivosOnlyAboutTranscription = (item: TriageQueueItem): boolean => {
   const motivos = parseMotivos(item.motivos_json);
   if (motivos.length === 0) return false;
   return motivos.every((m) => m.toLowerCase().startsWith('transcricao_'));
 };
 
+/** Campos obrigatórios ausentes (setor/alerta/operador) — não forçáveis, exigem edição. */
 const getMissingFields = (item: TriageQueueItem): string[] => {
   const missing: string[] = [];
   if (isUnknownAuditValue(item.setor_previsto)) missing.push('setor');
@@ -90,6 +125,7 @@ const getForceableBlockReason = (item: TriageQueueItem): string | null => {
   return null;
 };
 
+// Limites da triagem em lote: teto de seleção e classificações simultâneas.
 const MAX_BATCH_TRIAGE = 20;
 const TRIAGE_CONCURRENCY = 3;
 
@@ -104,6 +140,7 @@ const isTriableItem = (item: TriageQueueItem): boolean => {
 
 export function RemoteTriageQueue() {
   const { showToast } = useToast();
+  // ── Estado: fila, seleção em lote e operações em andamento (sets/refs por hash) ──
   const [items, setItems] = useState<TriageQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingHash, setSendingHash] = useState<string | null>(null);
@@ -114,7 +151,7 @@ export function RemoteTriageQueue() {
   const [cancelingHash, setCancelingHash] = useState<string | null>(null);
   const [processingHashes, setProcessingHashes] = useState<Set<string>>(new Set());
 
-  // Edit State
+  // ── Estado: edição inline (setor/alerta/operador) + modal de ensino da IA ──
   const [editingHash, setEditingHash] = useState<string | null>(null);
   const [editSectorId, setEditSectorId] = useState('');
   const [editAlertId, setEditAlertId] = useState('');
@@ -141,6 +178,9 @@ export function RemoteTriageQueue() {
     return sector?.alerts.map(a => ({ id: a.id, label: a.label })) || [];
   };
 
+  // ── Dados: carga da fila + polling do resultado das auditorias em background ──
+
+  /** Carrega a fila normalizando campos espalhados pelo metadata (operador, setor, áudio). */
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
@@ -267,6 +307,9 @@ export function RemoteTriageQueue() {
     }
   };
 
+  // ── Handlers: triagem IA, seleção/lote, exclusão, envio e edição ──
+
+  /** Triagem IA de um único item (botão Triar/Re-triar), com toast em caso de erro. */
   const handleClassify = async (item: TriageQueueItem) => {
     if (!item.input_hash) return;
     const res = await classifyOne(item.input_hash);
@@ -276,6 +319,7 @@ export function RemoteTriageQueue() {
     void fetchItems();
   };
 
+  /** Alterna a seleção p/ lote, respeitando o teto de MAX_BATCH_TRIAGE. */
   const toggleSelected = (hash: string) => {
     setSelectedHashes(prev => {
       const next = new Set(prev);
@@ -314,6 +358,7 @@ export function RemoteTriageQueue() {
     }
   };
 
+  /** Remove e descarta a gravação da fila (DELETE), após confirmação. */
   const handleDelete = async (item: TriageQueueItem) => {
     if (!item.input_hash) return;
     if (!window.confirm('Tem certeza que deseja remover e descartar esta gravação?')) return;
@@ -332,6 +377,11 @@ export function RemoteTriageQueue() {
     }
   };
 
+  /**
+   * Envia p/ auditoria IA: campos faltando abrem o editor (não forçável);
+   * bloqueio forçável pede confirm() e reenvia com force=true; o 202 do
+   * backend inicia o polling do resultado.
+   */
   const handleSendToAudit = async (item: TriageQueueItem, { force = false }: { force?: boolean } = {}) => {
     if (!item.input_hash) return;
     const missing = getMissingFields(item);
@@ -380,6 +430,7 @@ export function RemoteTriageQueue() {
     }
   };
 
+  /** Cancela a auditoria em background e devolve o item à fila para edição. */
   const handleCancelAudit = async (item: TriageQueueItem) => {
     if (!item.input_hash) return;
     if (!window.confirm('Deseja cancelar o envio para auditoria e liberar este arquivo para edição?')) return;
@@ -403,6 +454,7 @@ export function RemoteTriageQueue() {
     }
   };
 
+  /** Abre a edição inline normalizando setor/alerta inválidos ('erro'/'desconhecido') p/ o 1º válido. */
   const handleStartEdit = (item: TriageQueueItem) => {
     if (!item.input_hash) return;
 
@@ -431,6 +483,7 @@ export function RemoteTriageQueue() {
     setEditingHash(null);
   };
 
+  /** Troca o setor em edição; mantém o alerta atual se ele existir no novo setor. */
   const handleEditSectorChange = (sectorId: string) => {
     setEditSectorId(sectorId);
     const alerts = getAlertsForSector(sectorId);
@@ -442,6 +495,7 @@ export function RemoteTriageQueue() {
     }
   };
 
+  /** Persiste a correção (PATCH /api/classify/{hash}) e abre o AIFeedbackModal para ensinar a IA. */
   const handleConfirmEdit = async () => {
     if (!editingHash) return;
     const sector = sectors.find(s => s.id === editSectorId);
@@ -492,6 +546,7 @@ export function RemoteTriageQueue() {
     }
   };
 
+  // ── Render: o painel some quando a fila está vazia; tabela alterna linha normal | linha em edição ──
   if (!loading && items.length === 0) {
     return null;
   }

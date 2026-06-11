@@ -1,3 +1,29 @@
+/**
+ * AuditModal — detalhe/edição de uma auditoria aberto a partir do painel de
+ * Automação (lista "Auditorias do mês").
+ *
+ * Papel no fluxo: parte do gate humano. Auditorias automáticas caem em
+ * `arquivo_salvo` misturadas às manuais (por design) e este modal permite
+ * revisar, editar, exportar, excluir ou promover ao supervisor sem sair do
+ * painel — espelho em modal das ações de Arquivos Salvos.
+ *
+ * Dados (API):
+ * - GET    /api/salvos/{id}        → detalhe completo ao abrir
+ * - PUT    /api/salvos/{id}        → salva edição (texto livre ou estruturada)
+ * - POST   /api/audit/{id}/discard → descarta a auditoria vinculada antes do delete
+ * - DELETE /api/salvos/{id}        → remove o registro (sempre, mesmo se discard falhar)
+ * - POST   /api/dashboard/force-send → envia ao supervisor (pending_approval);
+ *   HTTP 429 = cota mensal de 2/operador; confirm() permite reenviar com force=true
+ * - POST   /api/export/report/pdf  → exporta PDF (fallback: download .txt local)
+ * - GET    /api/audit/{id}/audio   → áudio autenticado para o player
+ *
+ * Particularidades:
+ * - A prop `auditId` é o id da tabela `arquivo_salvo`, NÃO o audit_id da auditoria.
+ * - A edição estruturada recalcula a nota replicando as regras de zeragem do
+ *   backend (senha, comportamento hostil, abandono — por setor) e regrava
+ *   `conteudo` em texto para retrocompatibilidade.
+ * - Os helpers de parse espelham os de SavedFiles.tsx — manter os dois em sincronia.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Download,
@@ -25,24 +51,29 @@ import {
 import { useBodyScrollLock } from '../../../shared/hooks/useBodyScrollLock';
 import { useDialogFocusTrap } from '../../../shared/hooks/useDialogFocusTrap';
 
+/** Registro de `arquivo_salvo` como vem de GET /api/salvos/{id}. */
 interface ArquivoSalvo {
   id: number;
+  /** Tipo do documento (Auditoria, Transcrição...). Define o modo de edição. */
   tipo: string;
   conteudo: string;
   arquivo: string;
   data_analise: string;
+  /** ID da auditoria vinculada — habilita áudio, discard e envio ao supervisor. */
   audit_id: number | null;
   operator_name: string;
   sector_id: string;
   alert_label: string;
   score: number | null;
   metadata: Record<string, unknown>;
+  /** Origem do registro (manual/automação). */
   criado_por: string;
   audit_status?: string;
 }
 
 
 
+/** Critério avaliado pela IA/auditor, como persistido em metadata.details. */
 interface SavedAuditMetadataDetail {
   criterionId?: string;
   label: string;
@@ -52,6 +83,7 @@ interface SavedAuditMetadataDetail {
   comment: string;
 }
 
+/** Shape esperado do campo `metadata` quando o arquivo é uma auditoria estruturada. */
 interface SavedAuditMetadata {
   kind?: string;
   summary?: string;
@@ -60,11 +92,13 @@ interface SavedAuditMetadata {
   maxPossibleScore?: number;
   details?: SavedAuditMetadataDetail[];
   transcription?: TranscriptionSegment[];
+  /** 'pdf' = auditoria de documento (sem player de áudio). */
   source_type?: 'audio' | 'pdf';
   timestamp?: string;
   audio_date?: string;
 }
 
+/** Visão normalizada para render: derivada de metadata ou do parse do texto legado. */
 interface SavedAuditView {
   summary: string;
   aiFeedback: string;
@@ -77,6 +111,9 @@ interface SavedAuditView {
   audioDate?: string;
 }
 
+// ── Helpers puros (parse/normalização de metadata — espelham SavedFiles.tsx) ──
+
+/** Lê o primeiro texto não vazio entre as chaves dadas (busca também em metadata.operator). */
 function readMetadataText(metadata: Record<string, unknown>, keys: string[]): string {
   for (const key of keys) {
     const value = metadata[key];
@@ -101,13 +138,16 @@ function readMetadataText(metadata: Record<string, unknown>, keys: string[]): st
 
 
 
+/** true quando o tipo é "Auditoria" — habilita visão/edição estruturada. */
 function isAuditFileType(tipo: string): boolean {
   return tipo.trim().toLowerCase() === 'auditoria';
 }
 
 
+/** Linha de critério no texto legado: "[STATUS] Label: comentário". */
 const DETAIL_LINE_REGEX = /^\[([^\]]+)\]\s*(.+?)\s*:\s*(.+)$/;
 
+/** Data em pt-BR (fuso America/Sao_Paulo); devolve o ISO cru se inválido. */
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
@@ -117,6 +157,7 @@ function formatDate(iso: string): string {
   }
 }
 
+/** Hora HH:MM em pt-BR; string vazia se inválido. */
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
@@ -126,6 +167,7 @@ function formatTime(iso: string): string {
   }
 }
 
+/** Metadata tipado (objeto vazio quando ausente/inválido). */
 function readAuditMetadata(item: ArquivoSalvo): SavedAuditMetadata {
   if (!item.metadata || typeof item.metadata !== 'object') {
     return {};
@@ -133,6 +175,7 @@ function readAuditMetadata(item: ArquivoSalvo): SavedAuditMetadata {
   return item.metadata as SavedAuditMetadata;
 }
 
+/** Extrai o ID do operador testando as várias chaves históricas do metadata. */
 function extractSavedOperatorId(item: ArquivoSalvo): string {
   if (!item.metadata || typeof item.metadata !== 'object') {
     return '';
@@ -148,6 +191,7 @@ function extractSavedOperatorId(item: ArquivoSalvo): string {
   ]);
 }
 
+/** Sanitiza metadata.details: descarta entradas sem status/label válidos. */
 function normalizeAuditDetails(rawDetails: unknown): SavedAuditMetadataDetail[] {
   if (!Array.isArray(rawDetails)) {
     return [];
@@ -181,6 +225,7 @@ function normalizeAuditDetails(rawDetails: unknown): SavedAuditMetadataDetail[] 
   return normalizedDetails;
 }
 
+/** Sanitiza os segmentos de transcrição (descarta os sem texto). */
 function normalizeTranscription(rawSegments: unknown): TranscriptionSegment[] {
   if (!Array.isArray(rawSegments)) {
     return [];
@@ -206,6 +251,7 @@ function normalizeTranscription(rawSegments: unknown): TranscriptionSegment[] {
     .filter((segment): segment is TranscriptionSegment => segment !== null);
 }
 
+/** Fallback legado: extrai resumo e critérios do `conteudo` em texto puro. */
 function parseAuditContent(content: string): Pick<SavedAuditView, 'summary' | 'details'> {
   const lines = content.split(/\r?\n/);
   const summaryLines: string[] = [];
@@ -276,6 +322,7 @@ function parseAuditContent(content: string): Pick<SavedAuditView, 'summary' | 'd
   };
 }
 
+/** Monta a visão estruturada: prioriza metadata; cai pro parse do texto legado. */
 function buildSavedAuditView(item: ArquivoSalvo | null): SavedAuditView | null {
   if (!item || !isAuditFileType(item.tipo)) {
     return null;
@@ -312,6 +359,7 @@ function buildSavedAuditView(item: ArquivoSalvo | null): SavedAuditView | null {
   };
 }
 
+/** Payload de POST /api/export/report/pdf; null quando não há nota calculável (cai pro .txt). */
 function buildAuditExportPayload(item: ArquivoSalvo) {
   const view = buildSavedAuditView(item);
   if (!view) {
@@ -367,12 +415,19 @@ function buildAuditExportPayload(item: ArquivoSalvo) {
   };
 }
 
+/** Nota do critério: peso integral no pass, zero no fail. */
 function getObtainedScore(detail: Pick<SavedAuditMetadataDetail, 'status' | 'weight'>): number {
   const weight = typeof detail.weight === 'number' ? detail.weight : 0;
   if (detail.status === 'pass') return weight;
   return 0;
 }
 
+/**
+ * Recalcula nota/teto após edição replicando as regras de ZERAGEM do backend:
+ * setores de rastreamento zeram por falha de senha (e variações: dica, senha ou
+ * CPF); demais grupos zeram por comportamento hostil/incomum/abandono conforme
+ * o setor. Mantém a nota exibida coerente com o que o backend gravaria.
+ */
 function calculateSavedAuditScores(details: SavedAuditMetadataDetail[], sectorId?: string) {
   let score = 0;
   let maxPossibleScore = 0;
@@ -441,9 +496,11 @@ function calculateSavedAuditScores(details: SavedAuditMetadataDetail[], sectorId
 
 
 interface AuditModalProps {
-  auditId: number; // This is actually the id in arquivo_salvo table
+  /** id na tabela `arquivo_salvo` (NÃO é o audit_id da auditoria vinculada). */
+  auditId: number;
   isOpen: boolean;
   onClose: () => void;
+  /** Notifica o pai para recarregar a listagem após salvar/excluir/enviar. */
   onUpdate: () => void;
 }
 
@@ -454,9 +511,10 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
   useBodyScrollLock(isOpen);
   useDialogFocusTrap(modalRef, isOpen, { onDismiss: onClose });
 
+  // ── Estado: carga do detalhe + modos de edição (texto livre × estruturada) ──
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ArquivoSalvo | null>(null);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -471,9 +529,10 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
   const detailsContainerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // ── Dados: busca o detalhe ao abrir (GET /api/salvos/{id}) ──
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const fetchAudit = async () => {
       setLoading(true);
       try {
@@ -490,6 +549,9 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     fetchAudit();
   }, [auditId, isOpen, showToast]);
 
+  // ── Handlers: player, transcrição, envio, exclusão, edição e export ──
+
+  /** Converte "hh:mm:ss"/"mm:ss" em segundos e posiciona o player. */
   const handleSeekAudio = useCallback((timeStr: string) => {
     if (!audioRef.current) return;
     const parts = timeStr.split(':').map(Number);
@@ -501,6 +563,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     audioRef.current.play().catch(() => {});
   }, []);
 
+  /** Edita um campo (start/end/text) de um segmento da transcrição em edição. */
   const updateEditTranscriptionSegment = (index: number, field: keyof TranscriptionSegment, value: string) => {
     setEditTranscription((prev) => {
       const updated = [...prev];
@@ -509,6 +572,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     });
   };
 
+  /** Insere uma fala vazia logo após o índice dado (herda o tempo final do segmento anterior). */
   const addEditTranscriptionSegment = (afterIndex: number) => {
     setEditTranscription((prev) => {
       const updated = [...prev];
@@ -526,6 +590,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     setEditTranscription((prev) => prev.filter((_, i) => i !== index));
   };
 
+  /** Promove ao supervisor; HTTP 429 (cota mensal) abre confirm() e repete com force=true. */
   const handleSendToSupervisor = async (auditDbId: number, force: boolean = false) => {
     setSendingSupervisorId(auditDbId);
     try {
@@ -549,6 +614,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     }
   };
 
+  /** Exclui: tenta descartar a auditoria vinculada (soft-delete) e SEMPRE remove o arquivo_salvo. */
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este arquivo? A auditoria vinculada será descartada.')) return;
     try {
@@ -578,6 +644,11 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     }
   };
 
+  /**
+   * Salva a edição (PUT /api/salvos/{id}): no modo estruturado recalcula
+   * nota/zeragem e regrava `conteudo` em texto (retrocompatibilidade);
+   * no modo livre persiste apenas o texto.
+   */
   const handleSaveEdit = async () => {
     if (!selectedItem) return;
     setSaving(true);
@@ -641,6 +712,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     }
   };
 
+  /** Fallback de exportação: baixa o conteúdo cru como .txt local. */
   const handleExportTxt = (item: ArquivoSalvo) => {
     const blob = new Blob([item.conteudo], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -651,6 +723,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     URL.revokeObjectURL(url);
   };
 
+  /** Exporta PDF via backend; sem payload válido ou em erro, cai pro .txt. */
   const handleExportPdf = async (item: ArquivoSalvo) => {
     const payload = buildAuditExportPayload(item);
     if (!payload) {
@@ -676,6 +749,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     }
   };
 
+  /** Entra em edição: estruturada quando há visão de auditoria; senão, texto livre. */
   const startEdit = (item: ArquivoSalvo) => {
     const auditView = buildSavedAuditView(item);
     if (auditView && (auditView.details.length > 0 || auditView.summary)) {
@@ -692,6 +766,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     setIsEditing(true);
   };
 
+  /** Atualiza status/comentário de um critério em edição (status passa pelo normalizador). */
   const updateEditDetail = (index: number, field: 'status' | 'comment', value: string) => {
     setEditDetails(prev => {
       const updated = [...prev];
@@ -708,6 +783,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
   const selectedAuditView = useMemo(() => buildSavedAuditView(selectedItem), [selectedItem]);
   const selectedOperatorId = useMemo(() => (selectedItem ? extractSavedOperatorId(selectedItem) : ''), [selectedItem]);
 
+  // ── Render: header + barra de ações + corpo (leitura | edição livre | edição estruturada) ──
   if (!isOpen) return null;
 
   return (

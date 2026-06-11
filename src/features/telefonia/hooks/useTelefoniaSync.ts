@@ -1,8 +1,32 @@
+/**
+ * useTelefoniaSync — hook da tela Telefonia (coleta ad-hoc Huawei AICC).
+ *
+ * Gerencia o cofre de credenciais Huawei, o disparo manual da coleta (janela
+ * explícita ou horas retroativas), pause/resume/cancel, destravamento do lock
+ * e o acompanhamento via polling. Também observa o motor de automação para a
+ * UI exibir o banner de "ciclo automático rodando". As gravações coletadas
+ * alimentam a Fila de Triagem (início do fluxo de auditoria).
+ *
+ * Dados (API):
+ * - GET/POST /api/configuracoes        → lê/salva credenciais (chaves huawei_*)
+ * - GET  /api/telefonia/sync/status    → status da coleta (polling 5s enquanto roda)
+ * - POST /api/telefonia/sync/manual    → dispara a coleta (timeout 5min; resposta
+ *   "accepted"/"running" mantém o polling acompanhando em background)
+ * - POST /api/telefonia/sync/{pause|resume|cancel|clear|reset-lock}
+ * - GET  /api/automation/engine/status → banner de automação (polling 8s rodando / 60s repouso)
+ *
+ * Particularidades:
+ * - 401/403 nas leituras vira accessDeniedMessage (tela restrita a admin).
+ * - O toast de conclusão dispara na TRANSIÇÃO rodando→parado
+ *   (previousSyncStatusRef), não a cada fetch de status.
+ * - Polling adaptativo em repouso (60s) para reduzir consultas ao Neon.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, apiFetchJson } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 
+/** Credenciais/parâmetros Huawei persistidos na tabela `configuracoes`. */
 export interface HuaweiConfig {
   huawei_ccid: string;
   huawei_vdn: string;
@@ -12,6 +36,7 @@ export interface HuaweiConfig {
   huawei_horas_retroativas: string;
 }
 
+/** Relatório de uma coleta: contadores de cada etapa do funil descoberta → filtro → download. */
 export interface SyncResult {
   status?: string;
   message?: string;
@@ -47,6 +72,7 @@ export interface SyncResult {
   erros?: string[];
 }
 
+/** Estado corrente da coleta, como vem de GET /api/telefonia/sync/status. */
 export interface SyncStatus {
   status: 'idle' | 'running' | 'cancelling' | 'cancelled' | 'paused' | 'ok' | 'failed' | 'stub' | string;
   started_at: string | null;
@@ -61,6 +87,7 @@ export interface SyncStatus {
   };
 }
 
+// Defaults exibidos antes do fetch (ccid/vdn padrão da operação).
 const DEFAULT_CONFIG: HuaweiConfig = {
   huawei_ccid: '1',
   huawei_vdn: '170',
@@ -72,6 +99,7 @@ const DEFAULT_CONFIG: HuaweiConfig = {
 
 const CONFIG_KEYS = Object.keys(DEFAULT_CONFIG) as Array<keyof HuaweiConfig>;
 
+/** Recorte mínimo do status do motor de automação (apenas o que o banner usa). */
 interface AutomationStatusLite {
   is_running?: boolean;
   is_cycle_running?: boolean;
@@ -81,6 +109,7 @@ interface AutomationStatusLite {
 
 export function useTelefoniaSync() {
   const { showToast } = useToast();
+  // ── Estado: cofre de credenciais, coleta em andamento e status da automação ──
   const [config, setConfig] = useState<HuaweiConfig>(DEFAULT_CONFIG);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isSlowLoading, setIsSlowLoading] = useState(false);
@@ -92,6 +121,9 @@ export function useTelefoniaSync() {
   const [automationStatus, setAutomationStatus] = useState<AutomationStatusLite | null>(null);
   const previousSyncStatusRef = useRef<string | null>(null);
 
+  // ── Dados: fetchers de status/config ──
+
+  /** Status do motor de automação (informativo; falha silenciosa). */
   const fetchAutomationStatus = useCallback(async () => {
     try {
       const data = await apiFetchJson<AutomationStatusLite>('/api/automation/engine/status');
@@ -106,6 +138,7 @@ export function useTelefoniaSync() {
     }
   }, []);
 
+  /** Carrega as credenciais do cofre; 401/403 bloqueia a tela p/ não-admin. */
   const fetchConfig = useCallback(async () => {
     // v1.3.91: timer pra trocar mensagem do loading apos 4s e dar pista
     // ao usuario quando o request fica lento (ex: automacao consumindo
@@ -141,6 +174,7 @@ export function useTelefoniaSync() {
     }
   }, [showToast]);
 
+  /** Atualiza o status da coleta; toast de conclusão só na transição rodando→parado. */
   const fetchStatus = useCallback(async () => {
     try {
       const data = await apiFetchJson<SyncStatus>('/api/telefonia/sync/status');
@@ -178,6 +212,7 @@ export function useTelefoniaSync() {
     }
   }, [showToast]);
 
+  // Carga inicial: config + status da coleta + status da automação.
   useEffect(() => {
     fetchConfig();
     fetchStatus();
@@ -197,6 +232,7 @@ export function useTelefoniaSync() {
     return () => window.clearInterval(intervalId);
   }, [automationPollingMs, fetchAutomationStatus]);
 
+  // Polling do status da coleta (5s) apenas enquanto há execução em andamento.
   useEffect(() => {
     if (
       !isSyncing
@@ -216,6 +252,9 @@ export function useTelefoniaSync() {
     };
   }, [fetchStatus, isSyncing, status?.status]);
 
+  // ── Handlers: controle da coleta (cancelar/pausar/retomar/limpar/lock) ──
+
+  /** Solicita o cancelamento imediato da coleta em andamento. */
   const cancelManualSync = useCallback(async () => {
     try {
       const result = await apiFetchJson<{ status?: string; message?: string; result?: SyncResult }>(
@@ -247,6 +286,7 @@ export function useTelefoniaSync() {
     }
   }, [fetchStatus, showToast]);
 
+  /** Pausa a coleta (retomável via resume). */
   const pauseManualSync = useCallback(async () => {
     try {
       const result = await apiFetchJson<{ status?: string; message?: string; result?: SyncResult }>(
@@ -277,6 +317,7 @@ export function useTelefoniaSync() {
     }
   }, [fetchStatus, showToast]);
 
+  /** Retoma uma coleta pausada. */
   const resumeManualSync = useCallback(async () => {
     try {
       const result = await apiFetchJson<{ status?: string; message?: string; result?: SyncResult }>(
@@ -307,6 +348,7 @@ export function useTelefoniaSync() {
     }
   }, [fetchStatus, showToast]);
 
+  /** Limpa o relatório da última execução exibido na tela. */
   const clearSyncReport = useCallback(async () => {
     try {
       await apiFetchJson('/api/telefonia/sync/clear', { method: 'POST' });
@@ -326,10 +368,12 @@ export function useTelefoniaSync() {
     }
   }, [fetchStatus, showToast]);
 
+  /** Edição local de um campo do cofre (salvar é ação separada — saveConfig). */
   const updateField = useCallback((key: keyof HuaweiConfig, value: string) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  /** Persiste as chaves huawei_* uma a uma em POST /api/configuracoes. */
   const saveConfig = useCallback(async () => {
     try {
       setIsSavingConfig(true);
@@ -357,6 +401,11 @@ export function useTelefoniaSync() {
     }
   }, [config, fetchStatus, showToast]);
 
+  /**
+   * Dispara a coleta manual com prioridade: janela explícita (begin/end) >
+   * horas retroativas informadas > valor da config. Resposta "accepted"/
+   * "running" mantém isSyncing ligado e deixa o polling acompanhar.
+   */
   const triggerManualSync = useCallback(async (window?: { beginAt?: string; endAt?: string; horasRetroativas?: string }) => {
     // Sem pre-check de credenciais aqui: o backend valida e devolve um 400 com
     // a lista exata de campos ausentes. Pre-checar via `status` causava o falso
@@ -441,6 +490,7 @@ export function useTelefoniaSync() {
     }
   }, [config, fetchStatus, showToast]);
 
+  /** Libera o lock da coleta (uso excepcional, após travamento do sistema). */
   const resetSyncLock = useCallback(async () => {
     try {
       const confirmed = globalThis.confirm('Deseja realmente destravar a coleta? Faça isso apenas se tiver certeza de que não há nenhum processo rodando de fato (ex: após um travamento do sistema).');

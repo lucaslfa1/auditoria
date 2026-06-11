@@ -1,4 +1,29 @@
-
+/**
+ * App — shell raiz: autenticação, tema, roteamento por view e orquestração da
+ * auditoria manual.
+ *
+ * Fluxo de negócio coberto pelas rotas: triagem/classificação (/classifier) →
+ * auditoria (rota padrão sem match, AuditWorkspace) → Arquivos Salvos (/salvos,
+ * gate humano onde automáticas e manuais se misturam por design) → aprovação
+ * (/supervisor) → fechamento (/fechamento). Telefonia e Automação alimentam a
+ * entrada do funil.
+ *
+ * Responsabilidades:
+ * - Sessão por cookie: GET /api/auth/me na carga; POST /api/auth/login e
+ *   /api/auth/logout. Role 'supervisor' cai direto no portal; telas admin
+ *   (ia, criterios, admin-*) redirecionam não-admin para o portal.
+ * - Roteamento: o 1º segmento do path define a view (default 'automacao');
+ *   todas as páginas são lazy (code-splitting) com Suspense + LazyErrorBoundary.
+ * - Tema dark/light persistido em localStorage e aplicado via classes no <body>.
+ * - Auditoria manual: composição useTranscription + useAuditFlow +
+ *   useAuditOrchestrator + useAuditResultEditor repassada ao AuditWorkspace.
+ *
+ * Particularidades:
+ * - O Classifier fica SEMPRE montado (display:none fora da rota) para o estado
+ *   da triagem sobreviver à navegação entre telas.
+ * - A ordem dos gates de loading importa (auth ANTES de criteria) — ver
+ *   comentário antes do primeiro return.
+ */
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Sun, Moon } from 'lucide-react';
@@ -13,6 +38,7 @@ import { useAuditFlow } from './features/audit/hooks/useAuditFlow';
 import { useAuditOrchestrator } from './features/audit/hooks/useAuditOrchestrator';
 import { LazyErrorBoundary } from './shared/components/LazyErrorBoundary';
 
+// ── Páginas carregadas sob demanda (code-splitting por feature) ──
 const Dashboard = lazy(() =>
   import('./features/dashboard/components/Dashboard').then((module) => ({ default: module.Dashboard }))
 );
@@ -71,6 +97,7 @@ const PendingDispatch = lazy(() =>
 
 type ThemeMode = 'dark' | 'light';
 
+// Preset visual ativo; os legados são removidos do <body> a cada troca de tema.
 const ACTIVE_THEME_PRESET_CLASSNAME = 'theme-preset-corporativo';
 const LEGACY_THEME_PRESET_CLASSNAMES = [
   'theme-preset-corporativo',
@@ -110,13 +137,15 @@ function App() {
     recordAuditCorrections
   } = useTranscription();
 
+  // ── Roteamento: 1º segmento do path = view; default 'automacao' ──
   const location = useLocation();
   const navigate = useNavigate();
   let view = location.pathname.split('/')[1] as any;
   if (!view || view === '') view = 'automacao';
-  
+
   const setView = (v: string) => navigate(`/${v}`);
 
+  // ── Estado: tema, sessão/role e UI do shell ──
   const [theme, setTheme] = useState<ThemeMode>(() => {
     const savedTheme = localStorage.getItem('nstech-theme');
     return savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'dark';
@@ -131,6 +160,7 @@ function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [hasMountedClassifier, setHasMountedClassifier] = useState(false);
 
+  // ── Auditoria manual: critérios + fluxo + orquestração + edição do resultado ──
   const { data: auditData, isLoading: isAuditDataLoading, error: auditDataError, refresh: refreshAuditData } = useAuditCriteria();
 
   const flow = useAuditFlow({
@@ -165,10 +195,12 @@ function App() {
 
   useBodyScrollLock(isMobileSidebarOpen);
 
+  // Monta o Classifier na 1ª visita à rota e nunca mais desmonta (ver render).
   useEffect(() => {
     if (view === 'classifier' && !hasMountedClassifier) setHasMountedClassifier(true);
   }, [view, hasMountedClassifier]);
 
+  // Aplica o tema no <body> e persiste; 'theme-switching' suprime transições durante a troca.
   useEffect(() => {
     document.body.classList.add('theme-switching');
     document.body.classList.toggle('theme-light', theme === 'light');
@@ -188,6 +220,7 @@ function App() {
     };
   }, [theme]);
 
+  // Checa a sessão na carga (GET /api/auth/me); supervisor cai direto no portal.
   useEffect(() => {
     let isMounted = true;
 
@@ -225,6 +258,7 @@ function App() {
     };
   }, []);
 
+  /** Login por sessão (cookie); refaz o fetch de critérios após autenticar. */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
@@ -254,7 +288,7 @@ function App() {
       setLoginUsername(trimmedUsername);
       setLoginPassword('');
       setLoginError(null);
-      // Re-fetch audit criteria now that the session cookie is set
+      // Recarrega os critérios agora que o cookie de sessão existe
       refreshAuditData();
       if (res.role === 'supervisor') {
         setView('supervisor');
@@ -275,13 +309,14 @@ function App() {
     }
   };
 
+  /** Encerra a sessão no backend (best-effort) e limpa o estado local. */
   const handleLogout = async () => {
     try {
       await apiFetchJson<{ success: boolean }>('/api/auth/logout', {
         method: 'POST',
       });
     } catch {
-      // no-op: force local logout state even if network fails
+      // best-effort: força o logout local mesmo se a rede falhar
     }
     setIsAuthenticated(false);
     setUserRole(null);
@@ -291,6 +326,7 @@ function App() {
     setLoginError(null);
   };
 
+  // ── Render: resolve a view atual (telas admin redirecionam supervisor pro portal) ──
   const renderCurrentView = () => {
     if (view === 'supervisor') {
       return (
@@ -473,7 +509,7 @@ function App() {
     }
 
     if (view === 'classifier') {
-      return null; // Classifier is always mounted below, shown via CSS
+      return null; // Classifier fica sempre montado mais abaixo; só alterna via CSS
     }
 
     return (
@@ -506,11 +542,11 @@ function App() {
     );
   };
 
-  // Auth check MUST come first to prevent race condition:
-  // AuditCriteriaProvider fires /api/criteria/export immediately on mount,
-  // which returns 401 if no session cookie is set yet. If we check
-  // isAuditDataLoading first, React rapidly swaps between loading→login→app
-  // states as auth/me resolves, causing removeChild DOM crashes.
+  // O gate de auth PRECISA vir primeiro para evitar race condition:
+  // o AuditCriteriaProvider dispara /api/criteria/export já no mount, que
+  // retorna 401 enquanto não há cookie de sessão. Se isAuditDataLoading fosse
+  // checado antes, o React alternaria rápido entre loading→login→app enquanto
+  // o auth/me resolve, causando crashes de removeChild no DOM.
   if (isAuthenticated === null) {
     return (
       <div className="app-theme min-h-[100dvh] text-slate-200 font-sans selection:bg-primary-500/30">
@@ -679,7 +715,7 @@ function App() {
           <div key={view}>
             {renderCurrentView()}
           </div>
-          {/* Classifier always mounted (hidden when not active) so state persists */}
+          {/* Classifier sempre montado (oculto fora da rota) para preservar o estado da triagem */}
           <div style={{ display: view === 'classifier' ? 'block' : 'none' }}>
             {hasMountedClassifier && (
               <LazyErrorBoundary fallbackLabel="Triagem">

@@ -1,3 +1,28 @@
+/**
+ * useAutomacaoDashboard — hook central do painel de Automação (React Query).
+ *
+ * Agrega numa visão única: resumo do pipeline D-1, status do motor de automação,
+ * health do backend e as auditorias do mês (que caem em Arquivos Salvos junto
+ * com as manuais — gate humano por design). Expõe as ações de configuração,
+ * liga/desliga, execução manual e controle do ciclo.
+ *
+ * Dados (API):
+ * - GET  /api/telefonia/sync/d-minus-1/summary → resumo + config do pipeline D-1
+ * - GET  /api/automation/engine/status         → motor (rodando? ciclo? progresso)
+ * - GET  /api/health                           → health do backend
+ * - GET  /api/salvos?tipo=auditoria&limit=100  → auditorias (mês corrente filtrado no cliente)
+ * - POST /api/configuracoes                    → grava chave/valor de config
+ * - POST /api/automation/engine/toggle         → liga/desliga (atômico: auditor + D-1 + coletor)
+ * - POST /api/automation/run-now               → dispara ciclo manual
+ * - POST /api/automation/{pause|resume|cancel} → controla o ciclo em execução
+ *
+ * Particularidades:
+ * - Polling adaptativo p/ economizar compute do banco: refetch a cada 5s com
+ *   ciclo rodando, 30s em repouso.
+ * - Config editada vira "draft" com dirty-tracking: refetches do servidor NÃO
+ *   sobrescrevem campos alterados e ainda não salvos pelo usuário.
+ * - Mutações usam update otimista (snapshot do cache + rollback no erro).
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -18,6 +43,7 @@ const AUTOMACAO_QUERY_KEY = ['automacao', 'dashboard'] as const;
 const AUDITORIAS_MES_QUERY_KEY = ['automacao', 'auditorias-mes'] as const;
 const RETRYABLE_CYCLE_STATUSES = new Set(['error', 'partial']);
 
+/** Auditoria listada no painel (subset do registro de `arquivo_salvo`). */
 export interface AuditoriaDoMes {
   id: number;
   tipo: string;
@@ -36,6 +62,7 @@ interface AuditoriasResponse {
   total: number;
 }
 
+/** Busca as auditorias salvas e filtra client-side as do mês corrente. */
 async function fetchAuditoriasDoMes(): Promise<AuditoriaDoMes[]> {
   const response = await apiFetchJson<AuditoriasResponse>('/api/salvos?tipo=auditoria&limit=100');
   const items = Array.isArray(response?.items) ? response.items : [];
@@ -50,6 +77,7 @@ async function fetchAuditoriasDoMes(): Promise<AuditoriaDoMes[]> {
 
 type ConfigField = keyof PipelineConfig;
 
+/** Visão agregada do painel, cacheada sob AUTOMACAO_QUERY_KEY. */
 interface AutomationDashboardData {
   summary: PipelineSummary;
   engineStatus: EngineStatus;
@@ -67,6 +95,7 @@ interface SaveConfigVariables {
 
 type ControlAction = 'pause' | 'resume' | 'cancel';
 
+// Mapeia campo da UI → chave persistida na tabela `configuracoes`.
 const CONFIG_KEY_BY_FIELD: Partial<Record<ConfigField, string>> = {
   horario_execucao: 'huawei_d1_horario_execucao',
   max_retries: 'huawei_d1_max_retries',
@@ -79,6 +108,7 @@ const CONFIG_KEY_BY_FIELD: Partial<Record<ConfigField, string>> = {
   automacao_intervalo_segundos: 'automacao_intervalo_segundos',
 };
 
+// Clamps de UI por campo numérico (o backend só garante o mínimo).
 const FIELD_LIMITS: Partial<Record<ConfigField, { min: number; max?: number }>> = {
   max_retries: { min: 1, max: 20 },
   retry_intervalo_minutos: { min: 5, max: 480 },
@@ -105,6 +135,7 @@ const CONFIG_FIELDS: ConfigField[] = [
 
 const DEFAULT_PIPELINE_CONFIG = PipelineSummarySchema.parse({}).config;
 
+/** Consolida os 3 gates (D-1, motor, telefonia) p/ o banner "tudo ligado?". */
 function buildAutomationGateStatus(summary: PipelineSummary, engineStatus: EngineStatus): AutomationGateStatus {
   const items: AutomationGateStatus['items'] = [
     { id: 'pipeline', label: 'D-1', enabled: summary.config.enabled },
@@ -119,6 +150,7 @@ function buildAutomationGateStatus(summary: PipelineSummary, engineStatus: Engin
   };
 }
 
+/** Busca summary+engine+health em paralelo; engine/health toleram falha (parse com defaults do schema). */
 async function fetchAutomacaoDashboard(): Promise<AutomationDashboardData> {
   const [summaryRaw, engineRaw, healthRaw] = await Promise.all([
     apiFetchJson('/api/telefonia/sync/d-minus-1/summary'),
@@ -146,6 +178,10 @@ async function fetchAutomacaoDashboard(): Promise<AutomationDashboardData> {
   };
 }
 
+/**
+ * Converte um campo do draft no payload de POST /api/configuracoes
+ * (horário valida HH:MM; números são clampados em FIELD_LIMITS).
+ */
 function serializeConfigField(field: ConfigField, draft: PipelineConfig): SaveConfigVariables | null {
   const chave = CONFIG_KEY_BY_FIELD[field];
   if (!chave) return null;
@@ -171,6 +207,7 @@ function serializeConfigField(field: ConfigField, draft: PipelineConfig): SaveCo
   return { field, chave, valor: String(sanitized), value: sanitized };
 }
 
+/** Imutável: devolve a config com um único campo substituído. */
 function withConfigValue(
   config: PipelineConfig,
   field: ConfigField,
@@ -179,6 +216,7 @@ function withConfigValue(
   return { ...config, [field]: value } as PipelineConfig;
 }
 
+/** Aplica patch otimista no cache (config e/ou engineStatus) e recalcula os gates. */
 function patchDashboardConfig(
   oldData: AutomationDashboardData | undefined,
   configPatch: Partial<PipelineConfig>,
@@ -198,6 +236,11 @@ function patchDashboardConfig(
   };
 }
 
+/**
+ * Resolve a "próxima execução" exibida: se o último ciclo terminou em
+ * error/partial, antecipa para o horário de retry — espelhando o gate do
+ * backend (_calcular_proxima_execucao_d1_sp). Caso contrário, horário diário.
+ */
 function resolveNextExecution(summary: PipelineSummary, engineStatus: EngineStatus): string | null {
   if (
     !summary.config.enabled ||
@@ -238,10 +281,12 @@ function resolveNextExecution(summary: PipelineSummary, engineStatus: EngineStat
   return new Date(retryTs).toISOString();
 }
 
+/** Igualdade campo a campo (Object.is) sobre CONFIG_FIELDS. */
 function configsAreEqual(left: PipelineConfig, right: PipelineConfig): boolean {
   return CONFIG_FIELDS.every((field) => Object.is(left[field], right[field]));
 }
 
+/** Mescla a config do servidor preservando os campos dirty do draft (edição local vence). */
 function mergeServerConfigWithDraft(
   serverConfig: PipelineConfig,
   previous: PipelineConfig | null,
@@ -260,13 +305,16 @@ function mergeServerConfigWithDraft(
   return configsAreEqual(previous, next) ? previous : next;
 }
 
+/** Ver doc do módulo. Retorna dados agregados, draft de config, flags de pending e ações. */
 export function useAutomacaoDashboard() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  // ── Draft de config com dirty-tracking (preservado contra refetches) ──
   const [draft, setDraft] = useState<PipelineConfig | null>(null);
   const draftRef = useRef<PipelineConfig | null>(null);
   const [dirtyFields, setDirtyFields] = useState<Set<ConfigField>>(() => new Set());
 
+  // ── Queries: dashboard + auditorias do mês (polling adaptativo 5s/30s) ──
   const dashboardQuery = useQuery({
     queryKey: AUTOMACAO_QUERY_KEY,
     queryFn: fetchAutomacaoDashboard,
@@ -337,6 +385,7 @@ export function useAutomacaoDashboard() {
     });
   }, []);
 
+  // ── Mutações: salvar config / toggle / run-now / controle do ciclo (todas otimistas) ──
   const saveConfigMutation = useMutation({
     mutationFn: async ({ chave, valor }: SaveConfigVariables) => {
       await apiFetchJson('/api/configuracoes', {
@@ -413,10 +462,10 @@ export function useAutomacaoDashboard() {
     [clearDirtyField, draft, saveConfigMutation, serverConfig, showToast],
   );
 
-  // Canonical React Query optimistic-update pattern:
-  // onMutate snapshots the cache, immediately applies the new value, and
-  // onError restores the snapshot. The backend toggle is now a single
-  // atomic call that updates the auditor, D-1, and Telefonia collector gates.
+  // Padrão canônico de update otimista do React Query: onMutate tira snapshot
+  // do cache e aplica o novo valor na hora; onError restaura o snapshot.
+  // O toggle do backend é uma chamada atômica que atualiza os gates do
+  // auditor, do D-1 e do coletor de Telefonia de uma vez.
   const toggleMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
       await apiFetchJson('/api/automation/engine/toggle', {
@@ -479,8 +528,8 @@ export function useAutomacaoDashboard() {
       showToast({ title: 'Erro ao alterar automação', variant: 'error' });
     },
     onSettled: () => {
-      // Always reconcile with the server on completion to catch any drift
-      // between the optimistic value and what the backend persisted.
+      // Sempre reconcilia com o servidor ao final, para capturar qualquer
+      // divergência entre o valor otimista e o que o backend persistiu.
       invalidateAutomation();
     },
   });
@@ -592,6 +641,7 @@ export function useAutomacaoDashboard() {
     },
   });
 
+  // ── API pública do hook ──
   const actions = useMemo(
     () => ({
       refresh: () => {

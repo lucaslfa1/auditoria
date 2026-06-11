@@ -1,3 +1,22 @@
+/**
+ * Classificação de Arquivos ("Triagem manual") — porta de ENTRADA do fluxo
+ * (**triagem/classificação** → auditoria → aprovação → fechamento), rota /classifier.
+ *
+ * O auditor sobe áudios avulsos, a IA identifica setor/alerta/operador e cada
+ * linha pode ser corrigida, baixada com nome classificado ou enviada à auditoria.
+ * A tela também embute a <RemoteTriageQueue/> (gravações retidas do sync Huawei).
+ *
+ * Dados (API — encapsulados no hook useClassifier):
+ * - POST  /api/classify        → classifica os arquivos enviados (com progresso)
+ * - PATCH /api/classify/{hash} → persiste a correção manual (setor/alerta/operador)
+ *
+ * Particularidades:
+ * - O componente fica SEMPRE montado no App (display:none fora da rota) para o
+ *   estado da triagem sobreviver à navegação entre telas.
+ * - "Auditar" NÃO chama API aqui: abre o modal de operador e delega ao App via
+ *   onStartAudit, que injeta o arquivo no fluxo de auditoria manual.
+ * - Player de áudio local com URL.createObjectURL (sem upload prévio).
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2, Play, Pause, Loader2, AlertCircle, Download, Mic, AudioLines, Pencil, Check, X } from 'lucide-react';
 import { useClassifier, type ClassificationResult } from '../hooks/useClassifier';
@@ -9,12 +28,15 @@ import { RemoteTriageQueue } from './RemoteTriageQueue';
 
 import { useAuditCriteria } from '../../../contexts/AuditCriteriaContext';
 
+/** Props injetadas pelo App (shell). */
 interface ClassifierProps {
     theme: 'dark' | 'light';
+    /** Índices já auditados nesta sessão — trocam o botão "Auditar" pelo selo "Auditado". */
     auditedIndices?: Set<number>;
+    /** Entrega o arquivo classificado ao fluxo de auditoria manual (orquestrado pelo App). */
     onStartAudit?: (file: File, sectorId: string, sectorLabel: string, alertId: string, alertLabel: string, operatorName: string, operatorId: string, fileIndex: number) => void;
 }
-// Pending audit data for modal
+/** Dados retidos entre o clique em "Auditar" e a confirmação no modal de operador. */
 interface PendingAuditData {
     file: File;
     fileIndex: number;
@@ -42,7 +64,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         forceReclassify,
     } = useClassifier();
 
-    // Edit mode state: index of row being edited, null = none
+    // ── Estado: edição inline da classificação (índice da linha em edição; null = nenhuma) ──
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editSectorId, setEditSectorId] = useState('');
     const [editAlertId, setEditAlertId] = useState('');
@@ -61,6 +83,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         return sector?.alerts.map(a => ({ id: a.id, label: a.label })) || [];
     };
 
+    /** Abre a edição inline normalizando setor/alerta inválidos ('erro'/'desconhecido') para o 1º válido. */
     const handleStartEdit = (index: number) => {
         const result = results[index];
         if (!result) return;
@@ -96,6 +119,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         setEditEscala('');
     };
 
+    /** Persiste a correção manual (PATCH /api/classify/{hash}, via hook) e atualiza a linha local. */
     const handleConfirmEdit = async () => {
         if (editingIndex === null) return;
         const sector = sectors.find(s => s.id === editSectorId);
@@ -126,6 +150,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         setIsSavingEdit(false);
     };
 
+    /** Troca o setor em edição; mantém o alerta atual se ele existir no novo setor. */
     const handleEditSectorChange = (sectorId: string) => {
         setEditSectorId(sectorId);
         const alerts = getAlertsForSector(sectorId);
@@ -140,7 +165,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Modal state for operator info
+    // ── Estado: modal de operador (coleta dados antes de auditar) ──
     const [showOperatorModal, setShowOperatorModal] = useState(false);
     const [pendingAudit, setPendingAudit] = useState<PendingAuditData | null>(null);
     const [operatorName, setOperatorName] = useState('');
@@ -149,7 +174,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
 
     const modalRef = useRef<HTMLDivElement | null>(null);
 
-    // Audio playback state
+    // ── Estado: player de áudio local (ObjectURL, um arquivo por vez) ──
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const audioUrlRef = useRef<string | null>(null);
     const [playingIndex, setPlayingIndex] = useState<number | null>(null);
@@ -160,6 +185,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
 
     useBodyScrollLock(showOperatorModal);
 
+    /** Segundos → "m:ss" para o slider do player. */
     const formatTime = (seconds: number) => {
         if (!seconds || isNaN(seconds)) return "0:00";
         const mins = Math.floor(seconds / 60);
@@ -167,6 +193,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // ── Handlers: upload (drag & drop + seletor de arquivos) ──
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -209,6 +236,8 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
 
 
 
+    // ── Helpers de exibição (operador/supervisor/identificadores) ──
+
     const safeText = (value?: string | null) => value?.trim() || '';
 
     const getOperatorDisplayName = (result: ClassificationResult) =>
@@ -217,6 +246,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
     const getSupervisorDisplayName = (result: ClassificationResult) =>
         safeText(result.operator_rh?.supervisor) || 'Nao identificado';
 
+    /** Identificador exibido, em ordem de preferência: ID Huawei → matrícula → ID → telefonia. */
     const getOperatorIdentifierLabel = (result: ClassificationResult) => {
         const idHuawei = safeText(result.id_huawei) || safeText(result.operator_rh?.idHuawei);
         const matricula = safeText(result.matricula) || safeText(result.operator_rh?.matricula);
@@ -230,7 +260,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         return 'Sem vinculo no RH';
     };
 
-    // Normalize string for filename (remove accents, spaces, special chars)
+    /** Normaliza p/ nome de arquivo: sem acentos/espaços/caracteres especiais, em MAIÚSCULAS. */
     const normalizeForFilename = (str: string) => {
         return str
             .normalize('NFD')
@@ -241,7 +271,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
             .toUpperCase();
     };
 
-    // Generate classified filename for download
+    /** Monta o nome de download: SETOR_ALERTA_nomeOriginal.ext. */
     const getClassifiedFilename = (index: number) => {
         const result = results[index];
         const file = files[index];
@@ -254,7 +284,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         return `${sector}_${alert}_${originalName}.${extension}`;
     };
 
-    // Download file with renamed name
+    /** Baixa o arquivo local já com o nome classificado (sem chamada de rede). */
     const handleDownload = (index: number) => {
         const result = results[index];
         const file = files[index];
@@ -272,6 +302,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         URL.revokeObjectURL(url);
     };
 
+    /** Encerra o player e libera o ObjectURL (evita vazamento de memória). */
     const stopPlayback = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
@@ -289,6 +320,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         setDuration(0);
     }, []);
 
+    /** Toca/pausa o arquivo da linha; sempre encerra o player anterior antes de trocar. */
     const togglePlayback = useCallback((index: number) => {
         const file = files[index];
         if (!file) return;
@@ -325,13 +357,13 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         return () => stopPlayback();
     }, [stopPlayback]);
 
-    // Open modal to collect operator info before starting audit
+    /** Abre o modal de operador pré-preenchido com as sugestões da triagem. */
     const handleStartAudit = (index: number) => {
         const result = results[index];
         const file = files[index];
         if (!file || !result || !onStartAudit) return;
 
-        // Store pending audit data and open modal
+        // Guarda os dados pendentes e abre o modal
         setPendingAudit({
             file,
             fileIndex: index,
@@ -348,7 +380,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         setShowOperatorModal(true);
     };
 
-    // Confirm and start audit with operator info
+    /** Valida o ID do operador e dispara onStartAudit — o App leva para a tela de auditoria. */
     const handleConfirmAudit = () => {
         if (!pendingAudit || !onStartAudit) return;
         if (!operatorId.trim()) {
@@ -385,6 +417,8 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
 
 
 
+    // Focus trap do modal: Esc fecha, Tab circula entre os focáveis e inputs
+    // focados rolam para o centro (teclado virtual no mobile).
     useEffect(() => {
         if (!showOperatorModal) return;
 
@@ -449,6 +483,7 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
         };
     }, [handleCancelModal, showOperatorModal]);
 
+    // ── Render: header + fila remota + upload + tabela (cards no mobile) + modal ──
     const isDark = theme === 'dark';
     const mutedTextClass = isDark ? 'text-slate-400' : 'text-gray-600';
     const softTextClass = isDark ? 'text-slate-500' : 'text-gray-500';
