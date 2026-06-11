@@ -165,6 +165,11 @@ REGRA CRÍTICA SEVERIDADE:
         # Seed: setores, alertas e critérios de auditoria
         _seed_audit_criteria(c)
 
+        # Seed: catálogo OFICIAL completo (dump de produção) em banco novo.
+        # Sem ele, um banco recém-criado fica só com o setor 'logistica' do
+        # seed legado — classificação/guardrails dos demais setores quebram.
+        _seed_official_catalog(c)
+
         # Seed: aliases de setor (Fase 2 — DB-first sem hardcoded)
         _seed_sector_aliases(c)
 
@@ -448,6 +453,69 @@ _SECTOR_ALIASES_BOOTSTRAP: tuple[tuple[str, str, str, int, str], ...] = (
     ("setor_exact", "celula atendimento", "celula_atendimento", 200, "Legado: 'celula atendimento' com espaço"),
     ("setor_exact", "celula_atendimento", "celula_atendimento", 200, "Identidade: já canônico"),
 )
+
+
+def _seed_official_catalog(c):
+    """Aplica o catálogo OFICIAL de setores/alertas/critérios em banco NOVO.
+
+    Fonte: backend/db/seeds/audit_catalog_oficial.sql — dump --data-only do
+    banco de produção (12 setores, 71 alertas, 1051 critérios em 2026-06-11;
+    catálogo é a ground truth da auditoria, mantido pela auditora oficial).
+
+    Guarda de segurança: só roda quando audit_sectors tem <= 1 linha (banco
+    recém-criado, contendo no máximo o seed legado 'logistica'). Em qualquer
+    banco real (>= 2 setores) é no-op — edições via UI nunca são tocadas.
+
+    Em banco novo, o seed legado é REMOVIDO antes do dump para evitar colisão
+    de ids seriais de audit_criteria (ON CONFLICT DO NOTHING esconderia
+    critérios oficiais cujos ids coincidissem com os do seed legado).
+    """
+    c.execute("SELECT COUNT(*) FROM audit_sectors")
+    if (c.fetchone() or [0])[0] > 1:
+        return
+
+    seed_path = os.path.join(os.path.dirname(__file__), "seeds", "audit_catalog_oficial.sql")
+    if not os.path.exists(seed_path):
+        logger.warning("[seed] catálogo oficial ausente em %s — banco fica só com o seed legado.", seed_path)
+        return
+
+    with open(seed_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.read().splitlines()
+
+    # O cabeçalho do pg_dump tem meta-comandos psql (\restrict) e SETs de
+    # sessão de versões mais novas do Postgres (ex.: transaction_timeout é
+    # PG17+) que quebram em servidores mais antigos/psycopg2. Os dados são
+    # só INSERTs — aplica do primeiro INSERT em diante.
+    first_insert = next(
+        (i for i, line in enumerate(raw_lines) if line.startswith("INSERT INTO")), None
+    )
+    if first_insert is None:
+        logger.warning("[seed] catálogo oficial sem INSERTs em %s — ignorado.", seed_path)
+        return
+    # Meta-comandos psql (\unrestrict) também aparecem no RODAPÉ do dump.
+    sql_text = "\n".join(
+        line for line in raw_lines[first_insert:] if not line.startswith("\\")
+    )
+
+    c.execute("DELETE FROM audit_criteria")
+    c.execute("DELETE FROM audit_alerts")
+    c.execute("DELETE FROM audit_sectors")
+    c.execute(sql_text)
+
+    # INSERTs vieram com ids explícitos: realinha a sequência serial para o
+    # próximo INSERT via UI não colidir.
+    c.execute("SELECT pg_get_serial_sequence('audit_criteria', 'id')")
+    seq_row = c.fetchone()
+    seq_name = seq_row[0] if seq_row else None
+    if seq_name:
+        c.execute(
+            "SELECT setval(%s, COALESCE((SELECT MAX(id) FROM audit_criteria), 1))",
+            (seq_name,),
+        )
+
+    c.execute("SELECT COUNT(*) FROM audit_sectors")
+    total = (c.fetchone() or [0])[0]
+    logger.info("[seed] catálogo oficial aplicado: %d setores.", total)
 
 
 def _seed_sector_aliases(c):
