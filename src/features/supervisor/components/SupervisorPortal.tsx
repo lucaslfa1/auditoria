@@ -1,3 +1,30 @@
+/**
+ * Portal do Supervisor — etapa de APROVAÇÃO do fluxo
+ * (triagem → classificação → auditoria → envio → **aprovação** → fechamento).
+ *
+ * O supervisor recebe as auditorias promovidas de Arquivos Salvos (status
+ * pending_approval), agrupadas por operador, e decide: aprovar (publica no painel
+ * oficial) ou contestar (segue para revisão técnica). Admin vê filtros extras
+ * (setor/supervisor/escala); supervisor comum vê só mês/ano/busca.
+ *
+ * Dados (API):
+ * - GET /api/gestores/auditorias?{filtros} → KPIs + lista (limit=500; busca com debounce de 400ms)
+ * - GET /api/rh/supervisores               → mapa supervisor → escalas (popula filtros de admin)
+ * - audit.audio_url                        → áudio autenticado; só carrega ao clicar num timestamp (lazy)
+ *
+ * Mutações:
+ * - POST /api/gestores/auditorias/{id}/approve | /contest → decisão do supervisor;
+ *   contestação exige texto e pode marcar critérios específicos com motivo individual
+ * - POST /api/gestores/feedback   → feedback do gestor (UI desligada via SHOW_SUPERVISOR_FEEDBACK)
+ * - POST /api/export/gestores(/pdf) → exporta Excel/PDF de uma auditoria
+ *
+ * Particularidades:
+ * - Após approve/contest o card sai da lista por update OTIMISTA (sem reload global),
+ *   preservando scroll/contexto do supervisor.
+ * - "Evidência" de critério: heurística client-side (findCriterionEvidence) que casa
+ *   palavras-chave do critério com a transcrição quando a IA não gravou timestamp.
+ * - Selo Aprovado/Reprovado usa corte de 80% (APPROVAL_THRESHOLD_RATIO) sobre score/max_score.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Download, FileText, ChevronDown, CheckCircle2, XCircle, AlertCircle, MessageSquarePlus, Loader2, Volume2, Clock } from 'lucide-react';
 import { apiFetchJson, apiFetchBlob } from '../../../shared/lib/apiClient';
@@ -9,6 +36,8 @@ import { AuthenticatedAudioPlayer } from '../../../shared/components/Authenticat
 import { ReadOnlyTranscription } from '../../../shared/components/ReadOnlyTranscription';
 
 // Types
+
+/** Feedback do gestor já registrado para uma auditoria (POST /api/gestores/feedback). */
 interface FeedbackData {
   id: number;
   audit_id: number;
@@ -18,6 +47,10 @@ interface FeedbackData {
   criado_em: string;
 }
 
+/**
+ * Auditoria como vem de GET /api/gestores/auditorias. Campos string|array (details,
+ * transcription) podem chegar como JSON serializado — sempre passar pelos parse*.
+ */
 interface AuditItem {
   id: number;
   timestamp: string;
@@ -29,6 +62,7 @@ interface AuditItem {
   details: string | CriterionDetail[];
   alert_id: string | null;
   alert_label: string | null;
+  /** pending_approval | approved | contestation_pending_review | contestation_accepted ... */
   status?: string;
   contestation_reason?: string | null;
   contestation_verdict?: 'accepted' | 'rejected' | null;
@@ -43,9 +77,11 @@ interface AuditItem {
   audio_available?: boolean;
   audio_url?: string | null;
   feedback: FeedbackData | null;
+  /** true = operador sem auditoria no período (placeholder "Não auditado" na lista). */
   is_missing?: boolean;
 }
 
+/** Indicadores agregados do período (cards do topo). */
 interface KPIs {
   total_auditorias: number;
   nota_media: number;
@@ -54,6 +90,7 @@ interface KPIs {
   total_reprovadas: number;
 }
 
+/** Critério avaliado dentro de `details`; timestamp/evidence_text são opcionais (gerados pela IA). */
 interface CriterionDetail {
   criterionId?: string;
   label: string;
@@ -61,7 +98,9 @@ interface CriterionDetail {
   weight?: number;
   obtainedScore?: number;
   comment?: string;
+  /** Momento do áudio em que o critério foi observado (clicável → seek no player). */
   timestamp?: string;
+  /** Trecho literal da transcrição citado pela IA como evidência. */
   evidence_text?: string;
 }
 
@@ -78,11 +117,15 @@ interface TranscriptionSegment {
 }
 
 interface SupervisorPortalProps {
+  /** admin libera filtros extras (setor/supervisor/escala); supervisor vê visão restrita. */
   userRole: 'admin' | 'supervisor' | null;
 }
 
+/** Corte de aprovação visual: score/max_score >= 80% exibe selo "Aprovado". */
 const APPROVAL_THRESHOLD_RATIO = 0.8;
+/** Flag para reativar o formulário de feedback do supervisor (desligado hoje). */
 const SHOW_SUPERVISOR_FEEDBACK = false;
+/** Palavras ignoradas ao casar critério × transcrição (heurística de evidência). */
 const MATCH_STOPWORDS = new Set([
   'a', 'o', 'os', 'as', 'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'no', 'na', 'nos', 'nas',
   'para', 'por', 'com', 'sem', 'uma', 'um', 'uns', 'umas', 'que', 'foi', 'ser', 'ter', 'ao',
@@ -91,13 +134,19 @@ const MATCH_STOPWORDS = new Set([
   'criterios', 'operador', 'ligacao', 'auditoria', 'atende', 'nao', 'não', 'motorista', 'cliente', 'policia', 'polícia', 'telefone', 'telefonia',
 ]);
 
-// Helpers
+// ── Helpers puros (parse, matching de evidência, agrupamento) ──
+
+/** Data+hora em pt-BR no fuso America/Sao_Paulo. */
 function formatDate(isoString: string | null | undefined): string {
   if (!isoString) return '';
   const d = new Date(isoString);
   return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Normaliza `details` (string JSON ou array). Status 'na'/'n/a'/'pending_manual'
+ * são exibidos como 'pass'; qualquer outro vira 'fail'.
+ */
 function parseDetails(raw: string | CriterionDetail[] | null | undefined): CriterionDetail[] {
   if (!raw) return [];
   try {
@@ -114,6 +163,7 @@ function parseDetails(raw: string | CriterionDetail[] | null | undefined): Crite
   }
 }
 
+/** Normaliza a transcrição (string JSON ou array); [] em caso de erro de parse. */
 function parseTranscription(raw: string | TranscriptionSegment[] | null | undefined): TranscriptionSegment[] {
   if (!raw) return [];
   try {
@@ -124,6 +174,7 @@ function parseTranscription(raw: string | TranscriptionSegment[] | null | undefi
   }
 }
 
+/** Remove acentos/pontuação e baixa caixa — base do matching critério × transcrição. */
 function normalizeMatchText(value: string | null | undefined): string {
   return String(value || '')
     .normalize('NFD')
@@ -134,6 +185,7 @@ function normalizeMatchText(value: string | null | undefined): string {
     .trim();
 }
 
+/** Extrai até 8 palavras-chave (>=3 letras, sem stopwords) do label+comentário do critério. */
 function extractMatchKeywords(detail: CriterionDetail): string[] {
   const source = normalizeMatchText(`${detail.label} ${detail.comment || ''}`);
   return Array.from(new Set(
@@ -144,6 +196,11 @@ function extractMatchKeywords(detail: CriterionDetail): string[] {
   )).slice(0, 8);
 }
 
+/**
+ * Heurística de evidência: pontua cada segmento da transcrição pelas palavras-chave do
+ * critério (palavras longas valem 2) e devolve o melhor trecho se score >= 2; senão null.
+ * Usada quando a IA não gravou timestamp/evidence_text no critério.
+ */
 function findCriterionEvidence(detail: CriterionDetail, transcription: TranscriptionSegment[]): TranscriptionSegment | null {
   if (!transcription.length) {
     return null;
@@ -180,6 +237,7 @@ function findCriterionEvidence(detail: CriterionDetail, transcription: Transcrip
   return bestScore >= 2 ? bestSegment : null;
 }
 
+/** Agrupa as auditorias por nome do operador (um OperatorCard por grupo). */
 function groupByOperator(audits: AuditItem[]): Record<string, AuditItem[]> {
   const groups: Record<string, AuditItem[]> = {};
   for (const a of audits) {
@@ -190,6 +248,7 @@ function groupByOperator(audits: AuditItem[]): Record<string, AuditItem[]> {
   return groups;
 }
 
+/** Traduz status/contestation_verdict da auditoria em badge (rótulo + classes CSS). */
 function getAuditListStatusMeta(audit: AuditItem): { label: string; className: string } {
   if (audit.is_missing) {
     return {
@@ -239,13 +298,15 @@ function getAuditListStatusMeta(audit: AuditItem): { label: string; className: s
   };
 }
 
+/** Rótulo da aba/registro: "Registro N · dd/mm/aaaa". */
 function getAuditRecordLabel(index: number, timestamp: string): string {
   const formattedDate = formatDate(timestamp)?.split(',')[0]?.trim();
   return formattedDate ? `Registro ${index + 1} · ${formattedDate}` : `Registro ${index + 1}`;
 }
 
-// Sub-components
+// ── Sub-componentes ──
 
+/** Cards de KPI do topo (total, nota média /10, taxa de aprovação, saldo). */
 function KPICards({ kpis }: { kpis: KPIs, isAdmin: boolean }) {
   const cards = [
     { label: 'Total de auditorias', value: kpis.total_auditorias, note: 'Amostra operacional do período' },
@@ -267,6 +328,7 @@ function KPICards({ kpis }: { kpis: KPIs, isAdmin: boolean }) {
   );
 }
 
+/** Ícone do critério: check (pass) ou X (fail). */
 function CriterionIcon({ status }: { status: string }) {
   switch (status) {
     case 'pass':
@@ -277,6 +339,10 @@ function CriterionIcon({ status }: { status: string }) {
   }
 }
 
+/**
+ * Formulário de feedback do gestor (POST /api/gestores/feedback). Hoje fica oculto
+ * pela flag SHOW_SUPERVISOR_FEEDBACK; mantido para reativação futura.
+ */
 function FeedbackForm({ audit, onSaved }: { audit: AuditItem; onSaved: () => void }) {
   const { showToast } = useToast();
   const hasFeedback = !!audit.feedback;
@@ -406,6 +472,11 @@ function FeedbackForm({ audit, onSaved }: { audit: AuditItem; onSaved: () => voi
   );
 }
 
+/**
+ * Conteúdo de UMA auditoria (aba ativa do OperatorCard): critérios com evidência,
+ * player de áudio lazy, transcrição, nota e o bloco de decisão approve/contest.
+ * O áudio só é baixado quando o supervisor clica em um timestamp (autoLoad sob demanda).
+ */
 function AuditTab({
   audit,
   onFeedbackSaved,
@@ -427,7 +498,9 @@ function AuditTab({
   const pass = audit.max_score > 0 && (audit.score / audit.max_score) >= APPROVAL_THRESHOLD_RATIO;
 
 
+  // ── Estado: player de áudio com carga sob demanda ──
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Guarda o seek pedido antes do áudio carregar; aplicado no onCanPlay.
   const pendingSeekSecondsRef = useRef<number | null>(null);
   const [shouldLoadAudio, setShouldLoadAudio] = useState(false);
 
@@ -442,6 +515,10 @@ function AuditTab({
     audioRef.current.play().catch(console.error);
   }, []);
 
+  /**
+   * Converte "hh:mm:ss"/"mm:ss" em segundos e toca a partir dali. Se o áudio ainda
+   * não foi carregado, agenda o seek e dispara o autoLoad do player.
+   */
   const seekAudio = useCallback((timeStr: string) => {
     if (!timeStr) return;
     const parts = timeStr.split(':');
@@ -473,10 +550,13 @@ function AuditTab({
     playFromSeconds(pendingSeconds);
   }, [playFromSeconds]);
 
+  // ── Estado: decisão do supervisor (aprovar/contestar) ──
   const [savingAction, setSavingAction] = useState(false);
   const [contestReason, setContestReason] = useState('');
+  // Critérios marcados para contestação: label → motivo individual.
   const [selectedCriteria, setSelectedCriteria] = useState<Map<string, string>>(new Map());
 
+  /** Marca/desmarca um critério para contestação (checkbox ao lado do critério). */
   const toggleCriterion = (label: string) => {
     setSelectedCriteria((prev) => {
       const next = new Map(prev);
@@ -499,6 +579,11 @@ function AuditTab({
     });
   };
 
+  /**
+   * Decisão do supervisor: POST /api/gestores/auditorias/{id}/{approve|contest}.
+   * Contestar exige texto; envia também os critérios marcados com seus motivos.
+   * No sucesso remove o card da lista via onAuditActionComplete (update otimista).
+   */
   const handleAction = async (action: 'approve' | 'contest') => {
     if (action === 'contest' && !contestReason.trim()) {
       showToast({
@@ -543,6 +628,7 @@ function AuditTab({
 
 
 
+  /** Exporta a auditoria via POST /api/export/gestores(/pdf) e baixa o arquivo gerado. */
   const handleExport = async (format: 'excel' | 'pdf') => {
     try {
       const endpoint = format === 'excel' ? '/api/export/gestores' : '/api/export/gestores/pdf';
@@ -858,6 +944,10 @@ function AuditTab({
   );
 }
 
+/**
+ * Card de UM operador: cabeçalho com badges (setor/escala/supervisor/status) e
+ * abas — uma por auditoria do período. Expande sob demanda ("Abrir análise").
+ */
 function OperatorCard({
   operatorName,
   audits,
@@ -884,6 +974,7 @@ function OperatorCard({
     ...getAuditListStatusMeta(audit),
   }));
 
+  // Realinha a aba ativa quando uma auditoria sai da lista (ex.: aprovada/contestada).
   useEffect(() => {
     if (activeTab >= audits.length) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -980,8 +1071,11 @@ function OperatorCard({
   );
 }
 
-// Main component
+// ── Componente principal ──
+
+/** Tela do portal: KPIs + filtros + lista de OperatorCards (ver JSDoc do topo do arquivo). */
 export function SupervisorPortal({ userRole }: SupervisorPortalProps) {
+  // ── Estado: dados, filtros e busca ──
   const [audits, setAudits] = useState<AuditItem[]>([]);
   const [kpis, setKpis] = useState<KPIs | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1002,6 +1096,8 @@ export function SupervisorPortal({ userRole }: SupervisorPortalProps) {
 
   const isAdmin = userRole === 'admin';
 
+  // ── Efeitos: cargas iniciais e debounce ──
+
   // Load supervisors data
   useEffect(() => {
     apiFetchJson<Record<string, string[]>>('/api/rh/supervisores')
@@ -1017,6 +1113,7 @@ export function SupervisorPortal({ userRole }: SupervisorPortalProps) {
   }, [searchText]);
 
   // Fetch audits
+  /** Busca KPIs + auditorias com os filtros atuais; refeito a cada mudança de filtro. */
   const fetchAudits = useCallback(async () => {
     setLoading(true);
     try {
@@ -1047,6 +1144,7 @@ export function SupervisorPortal({ userRole }: SupervisorPortalProps) {
     fetchAudits();
   }, [fetchAudits]);
 
+  /** Update otimista: remove a auditoria decidida da lista local sem refetch. */
   const handleAuditActionComplete = useCallback((auditId: number) => {
     setAudits((prev) => prev.filter((a) => a.id !== auditId));
   }, []);
@@ -1083,6 +1181,7 @@ export function SupervisorPortal({ userRole }: SupervisorPortalProps) {
 
   const grouped = groupByOperator(audits);
 
+  // ── Render: header + KPIs + filtros + cards por operador ──
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}

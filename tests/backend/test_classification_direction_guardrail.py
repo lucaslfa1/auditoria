@@ -6,10 +6,21 @@ from unittest.mock import patch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from core.classification import enforce_operator_and_direction_guardrails, resolve_operator_identity
+from core.classification import (
+    enforce_operator_and_direction_guardrails,
+    load_audit_criteria_catalog,
+    resolve_operator_identity,
+)
 
 class TestClassificationDirectionGuardrail(unittest.TestCase):
     def test_registered_distribution_operator_overrides_rastreamento_signal(self):
+        """Operador cadastrado em distribuicao força o sector_id mesmo com sinal de
+        rastreamento (transferencia) vindo da IA.
+
+        O sector_label NÃO é mais asserido contra string fixa: desde a v1.3.106
+        (setores editáveis) o label de `audit_sectors` é dado mutável de admin
+        (em prod, p.ex., distribuicao = 'PSL - TRANSFERÊNCIA'); o contrato é o
+        id interno. Aqui validamos que o label cascateia do catálogo oficial."""
         classification = {
             "sector_id": "transferencia",
             "sector_label": "Transferencia",
@@ -24,7 +35,8 @@ class TestClassificationDirectionGuardrail(unittest.TestCase):
             result = enforce_operator_and_direction_guardrails(classification, "Carlos Distribuicao")
 
         self.assertEqual(result["sector_id"], "distribuicao")
-        self.assertEqual(result["sector_label"], "Distribuição")
+        catalog = load_audit_criteria_catalog()
+        self.assertEqual(result["sector_label"], str(catalog["distribuicao"]["label"]))
 
     def test_operator_sector_override_preserves_alert_type_and_actor(self):
         classification = {
