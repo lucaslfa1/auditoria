@@ -1,31 +1,49 @@
-# Docs
+# Documentação — índice canônico
 
-Data de referencia: 2026-03-06
+Atualizado em 2026-06-11 (handover). A suíte numerada 01–12 é a documentação
+canônica do sistema: leia na ordem para entender, operar e migrar. O restante
+da pasta é material complementar ou histórico (ver §3).
 
-## Estrutura
-- `architecture/`: arquitetura e organizacao canonica do projeto
-- `branding/`: referencia visual e identidade
-- `manual-gestores/`: manual operacional em linguagem gerencial
-- `references/`: fontes canonicas externas e operacionais usadas como base
-- `reviews/`: relatorios de revisao funcional, layout e auditoria
-- `reports/`: relatorios operacionais e exportacoes documentadas
+## 1. Suíte canônica (01–12)
 
-## Fonte canonica atual
-- `architecture/project-organization-policy.md`: politica de organizacao, documentacao, arquivos grandes e plano de migracao estrutural
-- `architecture/system-flow-structure.md`: organizacao do frontend alinhada ao fluxo do sistema
-- `references/`: fonte canonica para criterios, dicionario operacional e manuais externos
-- `database.md`: operacao local do banco e migracoes
-- `database/sqlserver-readonly-integration-plan.md`: plano para integrar SQL Server corporativo apenas como leitura
-- `database/sqlserver-dba-checklist.md`: checklist objetivo para o DBA
-- `manual-gestores/README.md`: indice do manual gerencial do sistema
-- `manual-gestores/03-triagem.md`: resumo operacional da triagem apos a revisao formal
-- `reviews/triagem-review-2026-04-08.md`: contrato funcional e tecnico do modulo de triagem, com abertura formal da Prioridade 1
-- `../GUIA_AGENTES.md`: diretrizes de colaboracao e design
+| Doc | Cobre |
+| --- | --- |
+| [01-visao-geral.md](01-visao-geral.md) | O que o sistema faz (negócio), quem usa e o fluxo ponta a ponta com diagrama |
+| [02-arquitetura.md](02-arquitetura.md) | Mapa do código: backend por subsistema, frontend por feature, o que é legado |
+| [03-banco-de-dados.md](03-banco-de-dados.md) | Dicionário do schema (38 tabelas, views, pgvector), mecânica de migrations e seeds |
+| [04-variaveis-de-ambiente.md](04-variaveis-de-ambiente.md) | Convenções do `.env.example` (179 vars) e o mínimo para produção |
+| [05-operacao-runbook.md](05-operacao-runbook.md) | Ciclo diário, endpoints de diagnóstico, troubleshooting dos problemas comuns |
+| [06-integracao-huawei.md](06-integracao-huawei.md) | AICC: autenticação, endpoints, pipeline D-1, filtros de negócio, tombstones, timezone |
+| [07-custos-e-guardrails.md](07-custos-e-guardrails.md) | Onde o dinheiro é gasto, o incidente de jun/2026, tetos diários e kill-switch |
+| [08-seguranca.md](08-seguranca.md) | Estado de segurança real, segredos comprometidos no histórico git, rotação, Key Vault |
+| [09-testes.md](09-testes.md) | Como rodar a suíte (0 falhas toleradas), banco de teste obrigatório, guard de prod |
+| [10-migracao-banco.md](10-migracao-banco.md) | Migração Neon → PostgreSQL gerenciado (destino indefinido): requisitos, scripts, janela, rollback |
+| [11-deploy.md](11-deploy.md) | O que o sistema exige de qualquer plataforma; mapeamento Cloud Run → Azure |
+| [12-checklist-handover.md](12-checklist-handover.md) | Checklist executável do handover, fase a fase, com responsáveis |
 
-## Convencoes locais
-- `vite.config.ts` e a configuracao canonica do frontend
-- `scripts/experiments/` guarda scripts exploratorios
-- `tests/manual/` guarda testes manuais e fixtures avulsas
-- `tmp/diagnostics/` guarda saidas temporarias de diff e status
-- pastas ocultas locais de ferramenta nao fazem parte do runtime da aplicacao
-- `tmp/local-secrets/` guarda anotacoes e credenciais locais fora do fluxo normal do projeto
+## 2. Complementares ativos
+
+| Local | Conteúdo |
+| --- | --- |
+| `manual-gestores/` | Manual operacional em linguagem gerencial (triagem, fluxo, regras de negócio) |
+| `infra/HUAWEI_NETWORK_MANIFEST.md` | Whitelist de IPs, modo de autenticação em produção e chaves Huawei no banco — referenciado pelo doc 06 |
+| `references/` | Fontes canônicas externas (critérios, dicionário operacional, manuais) |
+| `../backend/.env.example` | Referência sempre atualizada das variáveis de ambiente |
+| `../logs/versions/` | Changelog técnico por versão (x.y.z.md) — histórico de toda mudança relevante |
+
+## 3. Documentos legados (material histórico — manter, não usar como fonte atual)
+
+Os itens abaixo refletem estados anteriores do projeto (Supabase/SQLite,
+planos não executados, revisões pontuais). Úteis como contexto histórico;
+quando conflitarem com a suíte 01–12, **a suíte vence**.
+
+| Local | O que era |
+| --- | --- |
+| `architecture/` | Política de organização e fluxos de uma fase anterior do projeto |
+| `arquitetura/` | Levantamento antigo das APIs Azure (era "Sentinel") |
+| `database/`, `database.md`, `01-arquitetura-sqlite-testes.md` | Planos de SQL Server readonly, acoplamento SQLite e operação de banco de fases anteriores (o banco atual é PostgreSQL — doc 03/10) |
+| `reviews/`, `reports/`, `relatorio_*.md` | Relatórios de revisão e migração pontuais, já absorvidos |
+| `GUIA_DE_SOBREVIVENCIA_AUTOMACAO.md` | Manual de bolso informal da automação (mesmo espírito do doc 05) |
+| `SYSTEM_DOCUMENTATION.md`, `MIT_BEST_PRACTICES_REPORT.md` | Documentação geral e relatório de boas práticas de fases anteriores |
+| `backlog/`, `superpowers/`, `prompt_gemini_deep_think_projeto_completo.txt` | Planejamento, specs e prompts de trabalho dos agentes |
+| `branding/`, `integracoes/`, planilhas `.xlsx` | Referência visual e anexos operacionais |

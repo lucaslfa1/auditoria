@@ -1,5 +1,12 @@
 # Sistema de Auditoria nstech
 
+## Documentacao
+
+A documentacao canonica do projeto vive em **[`docs/README.md`](docs/README.md)**
+(indice da suite 01-12: visao geral, arquitetura, banco, operacao, Huawei,
+custos, seguranca, testes, migracao e deploy). Para o handover ao time de
+engenharia, comece pelo **[`docs/12-checklist-handover.md`](docs/12-checklist-handover.md)**.
+
 Documentacao atualizada para refletir o estado real do codigo em 2026-03-26.
 
 ## Visao Geral

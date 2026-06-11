@@ -1,0 +1,60 @@
+# =============================================================================
+# EXEMPLO (INATIVO) — Deploy em Azure Container Apps via GitHub Actions.
+#
+# Este arquivo tem sufixo .example DE PROPÓSITO: o GitHub Actions o ignora.
+# Quem ativa é o time de engenharia, quando a infra deles existir:
+#   1. Criar ACR, Container Apps Environment e o Container App (ver docs/11-deploy.md).
+#   2. Criar app registration com OIDC federado p/ o repo (ou usar publish profile).
+#   3. Preencher os secrets AZURE_* abaixo no repositório.
+#   4. Renomear para deploy-azure.yml (e DESATIVAR o deploy-cloudrun.yml,
+#      que hoje deploya em produção GCP a cada push na main).
+#
+# Espelha o pipeline atual (deploy-cloudrun.yml): build da imagem única
+# multi-stage + deploy. O Dockerfile é o mesmo — nada muda no código.
+# =============================================================================
+name: Build and Deploy to Azure Container Apps (EXAMPLE)
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  ACR_NAME: <registry-da-empresa>            # ex.: empresaacr (sem .azurecr.io)
+  IMAGE_NAME: auditoria
+  RESOURCE_GROUP: <rg-da-empresa>
+  CONTAINERAPP_NAME: auditoria
+
+jobs:
+  deploy:
+    permissions:
+      contents: 'read'
+      id-token: 'write'   # OIDC federado com o Entra ID (sem senha no repo)
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and Push to ACR
+        run: |
+          az acr login --name $ACR_NAME
+          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }} .
+          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name $CONTAINERAPP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}
+
+      # Segredos do app NÃO passam por aqui: ficam no Key Vault referenciados
+      # pelo Container App (docs/08-seguranca.md §3). Este pipeline só troca a
+      # imagem.
