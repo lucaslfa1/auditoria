@@ -871,12 +871,42 @@ async def _processar_candidato(
         
         # Apenas se o setor quer EXCLUSIVAMENTE ligações OUTBOUND (como áreas de risco)
         if expected_direction == "OUTBOUND" and sector_id in _AUDIO_DIRECTION_GATE_SECTORS:
-            from core.pre_triage import analyze_call_direction
-            logger.info("Executando pré-triagem de direção (Whisper+GPT) para '%s' (setor %s)", call_id, sector_id)
-            is_inbound = await analyze_call_direction(audio_bytes, duration_ms=30000)
-            
+            # Direcao resolvida pela CONSULTA VDN por callId (evidencia real,
+            # custo Azure zero), com fallback nos metadados da interacao.
+            # Substitui a antiga pre-triagem por audio (analyze_call_direction:
+            # Whisper + GPT, 2 chamadas pagas por candidata — ver relatorio de
+            # consumo de 10/06/2026). VDN vem primeiro porque o isCallIn dos
+            # metadados pode ser rotulo sintetico derivado da direcao da query
+            # (ver huawei_direction.resolve_huawei_is_call_in) — exatamente a
+            # mentira que a pre-triagem por audio existia para pegar.
+            # Semantica preservada: True=receptiva descarta, False=ativa segue,
+            # None=indeterminada descarta (na duvida nao audita receptiva).
+            # Defesa textual downstream: guardrail EFETUADA vs RECEPTIVA da
+            # v1.3.73 segue ativo na avaliacao.
+            is_inbound = None
+            direcao_fonte = "indeterminada"
+            try:
+                vdn_direction = await client.consultar_direcao_chamada(call_id)
+            except Exception:
+                logger.warning(
+                    "Consulta VDN de direção falhou para '%s'; caindo para metadados.",
+                    call_id, exc_info=True,
+                )
+                vdn_direction = None
+            if vdn_direction is True or vdn_direction is False:
+                is_inbound = vdn_direction
+                direcao_fonte = "vdn_api"
+            else:
+                metadata_direction = _resolve_huawei_is_call_in(interacao)
+                if metadata_direction is not None:
+                    is_inbound = metadata_direction
+                    direcao_fonte = "metadata"
+
             if is_inbound is True:
-                logger.info("Pré-triagem detectou '%s' como RECEPTIVA. Descartando antes do enfileiramento.", call_id)
+                logger.info(
+                    "Direção de '%s' = RECEPTIVA (fonte=%s). Descartando antes do enfileiramento.",
+                    call_id, direcao_fonte,
+                )
                 audio_direction_pre_triage = "inbound_quarantine"
                 delta["pretriagem_direcao_receptiva_descartadas"] += 1
                 database.huawei_sync_log_registrar(
@@ -884,7 +914,7 @@ async def _processar_candidato(
                     agent_id=agent_id,
                     media_url=None,
                     status="skipped_direction",
-                    failure_reason="receptiva_pretriagem_audio",
+                    failure_reason="receptiva_direcao_vdn",
                     operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
                     huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
                 )
@@ -896,7 +926,7 @@ async def _processar_candidato(
                 # Direcao indeterminada em SETOR DE RISCO: descarta por seguranca.
                 # Regra de negocio: na duvida, nao audita receptiva (so ativa).
                 logger.warning(
-                    "Pré-triagem não determinou direção de '%s' (setor de risco %s); "
+                    "Direção de '%s' indeterminada via metadados e VDN (setor de risco %s); "
                     "DESCARTANDO antes do enfileiramento (na dúvida não audita receptiva).",
                     call_id,
                     sector_id,

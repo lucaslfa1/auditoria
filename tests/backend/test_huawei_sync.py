@@ -1578,8 +1578,11 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
             ),
         )
 
-    async def test_processar_candidato_risco_descarta_receptiva_pela_pretriagem_de_audio(self):
+    async def test_processar_candidato_risco_descarta_receptiva_pela_consulta_vdn(self):
+        """A consulta VDN por callId (evidencia real) vence o isCallIn sintetico
+        dos metadados: VDN diz receptiva => descarta mesmo com isCallIn='false'."""
         client = AsyncMock()
+        client.consultar_direcao_chamada = AsyncMock(return_value=True)
         operador_real = {"id_huawei": "189", "nome": "Usuario", "setor": "UTI"}
         download_result = DownloadResult(
             audio_bytes=b"RIFFdata",
@@ -1589,8 +1592,7 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         )
 
         if True:
-            with patch("core.pre_triage.analyze_call_direction", AsyncMock(return_value=True)) as pre_triage:
-                with patch("core.huawei_sync.database.huawei_sync_log_registrar") as sync_log:
+            with patch("core.huawei_sync.database.huawei_sync_log_registrar") as sync_log:
                     with patch(
                         "core.huawei_sync._enfileirar_audio",
                         AsyncMock(return_value={"status": "queued", "filename": "media.wav"}),
@@ -1614,7 +1616,7 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
                 download_chain=huawei_sync.HuaweiDownloadChain(mode="manual_interval"),
             )
 
-        pre_triage.assert_awaited_once()
+        client.consultar_direcao_chamada.assert_awaited_once()
         enqueue.assert_not_awaited()
         sync_log.assert_called()
         self.assertEqual(delta["tentativas_download"], 1)
@@ -1624,43 +1626,51 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(delta["pretriagem_direcao_receptiva_descartadas"], 1)
 
     async def test_processar_candidato_risco_descarta_direcao_indefinida(self):
-        """Setor de risco + pré-triagem de áudio inconclusiva (None) => DESCARTA
-        (na dúvida não audita receptiva). Antes era fail-open (mantinha na fila)."""
+        """Defesa em profundidade: item que passou pelo skip upstream mas cuja
+        direção segue indeterminada (VDN sem resposta + metadados ambíguos)
+        => DESCARTA (na dúvida não audita receptiva).
+
+        Nota: no fluxo real, direção desconhecida costuma ser descartada antes
+        do download por _should_skip_call; este teste força a passagem para
+        exercitar o último gate."""
         client = AsyncMock()
+        client.consultar_direcao_chamada = AsyncMock(return_value=None)
         operador_real = {"id_huawei": "189", "nome": "Usuario", "setor": "UTI"}
 
-        with patch("core.pre_triage.analyze_call_direction", AsyncMock(return_value=None)) as pre_triage:
-            with patch("core.huawei_sync.database.huawei_sync_log_registrar") as sync_log:
-                with patch(
-                    "core.huawei_sync._enfileirar_audio",
-                    AsyncMock(return_value={"status": "queued", "filename": "media.wav"}),
-                ) as enqueue:
-                    delta = await huawei_sync._processar_candidato(
-                        {
-                            "callId": "1777516670-407526",
-                            "recordId": "407526",
-                            "isCallIn": "false",
-                            "workNo": "189",
-                            "beginTime": 1777516670000,
-                            "endTime": 1777516741000,
-                            "duration": 71,
-                        },
-                        client=client,
-                        obs_client=None,
-                        operator_by_id={"189": operador_real},
-                        operator_by_name={},
-                        should_cancel=None,
-                        download_chain=huawei_sync.HuaweiDownloadChain(mode="manual_interval"),
-                    )
+        with patch("core.huawei_sync._should_skip_call", return_value=None), \
+             patch("core.huawei_sync.database.huawei_sync_log_registrar") as sync_log:
+            with patch(
+                "core.huawei_sync._enfileirar_audio",
+                AsyncMock(return_value={"status": "queued", "filename": "media.wav"}),
+            ) as enqueue:
+                delta = await huawei_sync._processar_candidato(
+                    {
+                        # Sem isCallIn e sem callerNo/calleeNo: metadados nao
+                        # resolvem a direcao; VDN mockada tambem nao.
+                        "callId": "1777516670-407526",
+                        "recordId": "407526",
+                        "workNo": "189",
+                        "beginTime": 1777516670000,
+                        "endTime": 1777516741000,
+                        "duration": 71,
+                    },
+                    client=client,
+                    obs_client=None,
+                    operator_by_id={"189": operador_real},
+                    operator_by_name={},
+                    should_cancel=None,
+                    download_chain=huawei_sync.HuaweiDownloadChain(mode="manual_interval"),
+                )
 
-        pre_triage.assert_awaited_once()
+        client.consultar_direcao_chamada.assert_awaited_once()
         enqueue.assert_not_awaited()
         sync_log.assert_called()
         self.assertEqual(delta["enfileiradas"], 0)
         self.assertEqual(delta["pretriagem_direcao_indefinida"], 1)
 
-    async def test_processar_candidato_risco_enfileira_ativa_pela_pretriagem_de_audio(self):
+    async def test_processar_candidato_risco_enfileira_ativa_pela_consulta_vdn(self):
         client = AsyncMock()
+        client.consultar_direcao_chamada = AsyncMock(return_value=False)
         operador_real = {"id_huawei": "189", "nome": "Usuario", "setor": "UTI"}
         download_result = DownloadResult(
             audio_bytes=b"RIFFdata",
@@ -1670,8 +1680,7 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         )
 
         if True:
-            with patch("core.pre_triage.analyze_call_direction", AsyncMock(return_value=False)):
-                with patch("core.huawei_sync.database.huawei_sync_log_registrar"):
+            with patch("core.huawei_sync.database.huawei_sync_log_registrar"):
                     with patch(
                         "core.huawei_sync._enfileirar_audio",
                         AsyncMock(return_value={"status": "queued", "filename": "media.wav"}),
@@ -1698,6 +1707,41 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         enqueue.assert_awaited_once()
         metadata = enqueue.await_args.kwargs["extra_metadata"]
         self.assertEqual(metadata["audio_direction_pre_triage"], "outbound")
+
+    async def test_processar_candidato_risco_usa_metadados_quando_vdn_indisponivel(self):
+        """VDN falhando (excecao) nao pode travar o setor de risco: cai para a
+        direcao dos metadados (isCallIn='false' => ativa => enfileira)."""
+        client = AsyncMock()
+        client.consultar_direcao_chamada = AsyncMock(side_effect=RuntimeError("vdn down"))
+        operador_real = {"id_huawei": "189", "nome": "Usuario", "setor": "UTI"}
+
+        with patch("core.huawei_sync.database.huawei_sync_log_registrar"):
+            with patch(
+                "core.huawei_sync._enfileirar_audio",
+                AsyncMock(return_value={"status": "queued", "filename": "media.wav"}),
+            ) as enqueue:
+                delta = await huawei_sync._processar_candidato(
+                    {
+                        "callId": "1777516670-407526",
+                        "recordId": "407526",
+                        "isCallIn": "false",
+                        "workNo": "189",
+                        "beginTime": 1777516670000,
+                        "endTime": 1777516741000,
+                        "duration": 71,
+                    },
+                    client=client,
+                    obs_client=None,
+                    operator_by_id={"189": operador_real},
+                    operator_by_name={},
+                    should_cancel=None,
+                    download_chain=huawei_sync.HuaweiDownloadChain(mode="manual_interval"),
+                )
+
+        enqueue.assert_awaited_once()
+        metadata = enqueue.await_args.kwargs["extra_metadata"]
+        self.assertEqual(metadata["audio_direction_pre_triage"], "outbound")
+        self.assertEqual(delta["pretriagem_direcao_ativa_aprovadas"], 1)
         self.assertEqual(delta["baixadas"], 1)
         self.assertEqual(delta["enfileiradas"], 1)
         self.assertEqual(delta["pretriagem_direcao_ativa_aprovadas"], 1)
