@@ -241,6 +241,9 @@ export function RemoteTriageQueue() {
     };
 
     const interval = window.setInterval(() => {
+      // Aba oculta: pausa o polling para nao manter o Neon acordado a toa
+      // (compute-hours). O proximo tick com a aba visivel retoma o ciclo.
+      if (document.hidden) return;
       processingHashes.forEach(hash => { void checkOne(hash); });
     }, 5000);
 

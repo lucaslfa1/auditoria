@@ -145,6 +145,113 @@ class TestAuditEvaluatorPayloads(unittest.IsolatedAsyncioTestCase):
         self.assertIn("evidence_text", second_call_kwargs["messages"][1]["content"])
         self.assertIn("timestamp", second_call_kwargs["messages"][1]["content"])
 
+    async def test_weak_evidence_retry_desligado_aceita_payload_valido_com_uma_chamada(self):
+        """AUDIT_WEAK_EVIDENCE_RETRY=0: payload VALIDO com evidencia fraca e
+        aceito sem a segunda chamada GPT-4o (alavanca de custo v1.3.117)."""
+        weak_but_valid = json.dumps(
+            {
+                "resumo": "Operador conduziu a ligação.",
+                "criterios": [
+                    {
+                        "criterio": "Identificação Completa",
+                        "resultado": "pass",
+                        "justificativa": "Apresentou-se.",
+                    },
+                    {
+                        "criterio": "Despedida Padrão",
+                        "resultado": "pass",
+                        "justificativa": "Despediu-se.",
+                    },
+                ],
+            }
+        )
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = _build_completion(weak_but_valid)
+
+        dependencies = audit_evaluator.AuditEvaluationDependencies(
+            prompts_config={},
+            get_config_value=lambda *_args, **_kwargs: "",
+            get_colaboradores_para_prompt=lambda **_kwargs: [],
+            parse_json_with_repair=lambda raw_text, _schema_hint: json.loads(raw_text),
+            ai_client=None,
+            ai_audit_model=None,
+            generation_config=None,
+            azure_openai_key="test-key",
+            azure_openai_endpoint="https://example.openai.azure.com",
+            azure_openai_deployment="gpt-4o",
+            ai_priority="azure",
+            ai_enabled=False,
+        )
+
+        with patch.dict(os.environ, {"AUDIT_WEAK_EVIDENCE_RETRY": "0"}):
+            with patch("openai.AzureOpenAI", return_value=mock_client):
+                result = await audit_evaluator.evaluate_with_azure(
+                    transcription=[{"start": "00:00", "end": "00:10", "text": "Operador: bom dia."}],
+                    alert=self.alert,
+                    criteria_list=self.criteria,
+                    operator_name="Flávio",
+                    audio_quality=None,
+                    sector_id="transferencia",
+                    dependencies=dependencies,
+                )
+
+        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+        self.assertEqual(result["summary"], "Operador conduziu a ligação.")
+
+    async def test_weak_evidence_retry_default_mantem_segunda_chamada(self):
+        """Sem a env, o comportamento historico (1 retry) e preservado."""
+        weak_but_valid = json.dumps(
+            {
+                "resumo": "Operador conduziu a ligação.",
+                "criterios": [
+                    {
+                        "criterio": "Identificação Completa",
+                        "resultado": "pass",
+                        "justificativa": "Apresentou-se.",
+                    },
+                    {
+                        "criterio": "Despedida Padrão",
+                        "resultado": "pass",
+                        "justificativa": "Despediu-se.",
+                    },
+                ],
+            }
+        )
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = _build_completion(weak_but_valid)
+
+        dependencies = audit_evaluator.AuditEvaluationDependencies(
+            prompts_config={},
+            get_config_value=lambda *_args, **_kwargs: "",
+            get_colaboradores_para_prompt=lambda **_kwargs: [],
+            parse_json_with_repair=lambda raw_text, _schema_hint: json.loads(raw_text),
+            ai_client=None,
+            ai_audit_model=None,
+            generation_config=None,
+            azure_openai_key="test-key",
+            azure_openai_endpoint="https://example.openai.azure.com",
+            azure_openai_deployment="gpt-4o",
+            ai_priority="azure",
+            ai_enabled=False,
+        )
+
+        env = dict(os.environ)
+        env.pop("AUDIT_WEAK_EVIDENCE_RETRY", None)
+        with patch.dict(os.environ, env, clear=True):
+            with patch("openai.AzureOpenAI", return_value=mock_client):
+                result = await audit_evaluator.evaluate_with_azure(
+                    transcription=[{"start": "00:00", "end": "00:10", "text": "Operador: bom dia."}],
+                    alert=self.alert,
+                    criteria_list=self.criteria,
+                    operator_name="Flávio",
+                    audio_quality=None,
+                    sector_id="transferencia",
+                    dependencies=dependencies,
+                )
+
+        self.assertEqual(mock_client.chat.completions.create.call_count, 2)
+        self.assertEqual(result["summary"], "Operador conduziu a ligação.")
+
     def test_result_from_raw_marks_weak_evidence_in_audio_quality(self):
         raw_payload = {
             "summary": "Operador conduziu a ligacao.",

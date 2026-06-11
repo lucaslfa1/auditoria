@@ -45,6 +45,20 @@ def _get_min_matched_evidence_ratio() -> float:
     return max(0.0, min(parsed, 1.0))
 
 
+def _weak_evidence_retry_enabled() -> bool:
+    """Retry da avaliacao quando a evidencia ficou fraca (< ratio acima).
+
+    Default ON (1 retry, comportamento historico). `AUDIT_WEAK_EVIDENCE_RETRY=0`
+    desliga: a avaliacao VALIDA porem com evidencia fraca e aceita com warning,
+    cortando a segunda chamada GPT-4o (alavanca de custo). Payload INVALIDO
+    continua tendo retry independente desta flag — sem ele nao ha resultado.
+    """
+    raw = os.getenv("AUDIT_WEAK_EVIDENCE_RETRY")
+    if raw is None or str(raw).strip() == "":
+        return True
+    return str(raw).strip().lower() not in {"0", "false", "no", "off"}
+
+
 @dataclass(frozen=True)
 class AuditEvaluationDependencies:
     prompts_config: dict
@@ -839,6 +853,19 @@ async def evaluate_with_azure(
             sector_id=sector_id,
         )
         if _is_valid_evaluation_payload(normalized_payload, criteria_list) and _evidence_coverage_is_acceptable(normalized_payload):
+            return normalized_payload
+
+        # Alavanca de custo: payload VALIDO com evidencia fraca pode ser aceito
+        # sem a segunda chamada GPT-4o quando AUDIT_WEAK_EVIDENCE_RETRY=0.
+        if (
+            _is_valid_evaluation_payload(normalized_payload, criteria_list)
+            and not _weak_evidence_retry_enabled()
+        ):
+            logger.warning(
+                "Azure audit evaluation com evidencia fraca aceita sem retry "
+                "(AUDIT_WEAK_EVIDENCE_RETRY=0). evidence=%s",
+                normalized_payload.get("evidence_quality"),
+            )
             return normalized_payload
 
         logger.warning(
