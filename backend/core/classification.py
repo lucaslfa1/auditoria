@@ -27,8 +27,6 @@ import asyncio
 import json
 import logging
 import os
-import tempfile
-import subprocess
 import unicodedata
 from functools import lru_cache
 from pathlib import Path
@@ -52,6 +50,32 @@ from services import (
 from core import cost_guard
 from db.database import get_connection
 
+# Blocos extraídos para módulos próprios (sem mudança de comportamento).
+# Reimport explícito mantém `core.classification.<nome>` válido p/ terceiros.
+from core.classification_audio import (
+    MAX_AUDIO_DURATION_SECONDS,
+    _trim_leading_silence_enabled,
+    get_mime_type,
+    truncate_audio,
+)
+from core.classification_lexicon import (
+    TEMPERATURE_KEYWORDS,
+    TEMPERATURE_OFF_KEYWORDS,
+    DRIVER_CUES,
+    CLIENT_CUES,
+    TEMPERATURE_ALERTS_BY_CONTEXT,
+    TEMPERATURE_ALERT_IDS,
+    PARADA_DESVIO_ALERT_IDS,
+    POSITION_SIGNAL_WEIGHTS,
+    PRIORITY_SIGNAL_WEIGHTS,
+    POLICE_SIGNAL_WEIGHTS,
+    PARADA_SIGNAL_WEIGHTS,
+    DESVIO_SIGNAL_WEIGHTS,
+    MAINTENANCE_CONTEXT_KEYWORDS,
+    NON_AUDITABLE_OUTPUT_KEYWORDS,
+    STADIA_CONTEXT_KEYWORDS,
+)
+
 
 def get_operators_summary_for_prompt() -> str:
     """Lista colaboradores ativos auditaveis para o prompt de classificacao.
@@ -73,7 +97,6 @@ def get_operators_summary_for_prompt() -> str:
 
 
 # ── Configurações e constantes da classificação ─────────────────────────────
-MAX_AUDIO_DURATION_SECONDS = 60
 MAX_FILES_PER_REQUEST = 50
 LOW_CONFIDENCE_REVIEW_THRESHOLD = float(os.getenv("LOW_CONFIDENCE_REVIEW_THRESHOLD", "0.8"))
 VERY_LOW_CONFIDENCE_REVIEW_THRESHOLD = 0.5
@@ -1515,224 +1538,6 @@ def enforce_operator_and_direction_guardrails(
         _append_review_reason(classification, "direction_mismatch")
 
     return classification
-
-def get_mime_type(filename: str) -> str:
-    """MIME type pela extensão do arquivo (default 'audio/wav' p/ desconhecidos)."""
-    ext = os.path.splitext(filename)[1].lower()
-    mime_map = {
-        '.wav': 'audio/wav',
-        '.mp3': 'audio/mp3',
-        '.ogg': 'audio/ogg',
-        '.m4a': 'audio/m4a',
-        '.webm': 'audio/webm',
-        '.pdf': 'application/pdf',
-    }
-    return mime_map.get(ext, 'audio/wav')
-
-def _trim_leading_silence_enabled() -> bool:
-    """Canary flag: pular o silencio/URA inicial na janela de triagem.
-
-    Default OFF para rollout seguro no Cloud Run — habilitar com
-    CLASSIFICATION_TRIM_LEADING_SILENCE=true e desligar na hora em caso de
-    regressao, sem redeploy.
-    """
-    raw = os.getenv("CLASSIFICATION_TRIM_LEADING_SILENCE")
-    if raw is None:
-        return False
-    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
-
-
-def truncate_audio(
-    audio_bytes: bytes,
-    max_duration_seconds: int = MAX_AUDIO_DURATION_SECONDS,
-    *,
-    trim_leading_silence: bool | None = None,
-) -> bytes:
-    """Trunca o áudio (ffmpeg → WAV mono 16 kHz) para a janela de triagem.
-
-    Limita o custo de transcrição: a triagem só precisa do começo da conversa.
-    Com `trim_leading_silence` (canário, default OFF) remove o silêncio/URA
-    inicial antes de cortar. Em qualquer falha do ffmpeg, devolve os bytes
-    ORIGINAIS (nunca quebra o fluxo por causa do corte).
-    """
-    if trim_leading_silence is None:
-        trim_leading_silence = _trim_leading_silence_enabled()
-    try:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            in_path = os.path.join(tmp_dir, "input.bin")
-            wav_path = os.path.join(tmp_dir, "output.wav")
-            with open(in_path, "wb") as f:
-                f.write(audio_bytes)
-            cmd = ["ffmpeg", "-y", "-threads", "1", "-i", in_path, "-ac", "1", "-ar", "16000"]
-            if trim_leading_silence:
-                # Pula o silencio/URA inicial antes da janela (-t): chamadas Huawei
-                # com lead-in silencioso longo transcreviam so o silencio e caiam em
-                # alerta='desconhecido'. silenceremove corta apenas o primeiro periodo
-                # de silencio (start_periods=1), preservando a conversa.
-                cmd += ["-af", "silenceremove=start_periods=1:start_threshold=-45dB"]
-            cmd += ["-t", str(max_duration_seconds), "-f", "wav", wav_path]
-            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
-            with open(wav_path, "rb") as f:
-                return f.read()
-    except Exception:
-        return audio_bytes
-
-# ── Léxico de sinais (keywords ponderadas dos guardrails determinísticos) ───
-# Pesos maiores = evidência mais forte. Os guardrails somam ocorrências na
-# transcrição (e, com peso menor, no nome do arquivo) para decidir correções.
-
-TEMPERATURE_KEYWORDS = (
-    "temperatura",
-    "setpoint",
-    "set point",
-    "termografo",
-    "termometro",
-    "refrigerado",
-    "refrigerada",
-    "refrigeracao",
-    "bau refrigerado",
-    "controle de temperatura",
-    "desligamento de temperatura",
-)
-
-TEMPERATURE_OFF_KEYWORDS = (
-    "desligamento de temperatura",
-    "temperatura desligada",
-    "desligou a temperatura",
-    "temperatura foi desligada",
-    "desligar a temperatura",
-)
-
-DRIVER_CUES = ("motorista", "condutor", "caminhoneiro", "carreteiro")
-CLIENT_CUES = ("cliente", "destinatario", "recebedor", "embarcador")
-
-TEMPERATURE_ALERTS_BY_CONTEXT = {
-    "driver_control": ("LOGISTICA-TEMPERATURA-MOT", "Temperatura - Motorista"),
-    "driver_shutdown": ("LOGISTICA-DESLIG-TEMP-MOT", "Desligamento Temperatura - Motorista"),
-    "client_control": ("LOGISTICA-TEMPERATURA-CLI", "Temperatura - Cliente"),
-    "client_shutdown": ("LOGISTICA-DESLIG-TEMP-CLI", "Desligamento Temperatura - Cliente"),
-}
-
-TEMPERATURE_ALERT_IDS = {"LOGISTICA-TEMPERATURA-MOT", "LOGISTICA-TEMPERATURA-CLI", "LOGISTICA-DESLIG-TEMP-MOT", "LOGISTICA-DESLIG-TEMP-CLI"}
-
-PARADA_DESVIO_ALERT_IDS = {
-    "LOGISTICA-PARADA",
-    "LOGISTICA-DESVIO",
-    "LOGISTICA-PARADA-EXCESSIVA-MOT",
-    "LOGISTICA-PARADA-EXCESSIVA-CLI",
-    "UTI-PARADA-MOT",
-    "UTI-DESVIO-MOT",
-    "UTI-PARADA-CLI",
-    "UTI-DESVIO-CLI",
-    "TRANSFERENCIA-PARADA-MOT",
-    "TRANSFERENCIA-DESVIO-MOT",
-    "TRANSFERENCIA-PARADA-CLI",
-    "TRANSFERENCIA-DESVIO-CLI",
-    "DISTRIBUICAO-PARADA-MOT",
-    "DISTRIBUICAO-DESVIO-MOT",
-    "DISTRIBUICAO-PARADA-CLI",
-    "DISTRIBUICAO-DESVIO-CLI",
-    "FENIX-PARADA-MOT",
-    "FENIX-DESVIO-MOT",
-    "FENIX-PARADA-CLI",
-    "FENIX-DESVIO-CLI",
-}
-
-POSITION_SIGNAL_WEIGHTS = {
-    "posicao em atraso": 5,
-    "perda de posicao": 5,
-    "perda de sinal": 5,
-    "sem sinal": 4,
-    "sem posicao": 4,
-    "perdeu posicao": 4,
-    "forcar posicionamento": 4,
-    "posicionamento": 2,
-}
-
-PRIORITY_SIGNAL_WEIGHTS = {
-    "painel violado": 5,
-    "violacao de painel": 5,
-    "botao de panico": 5,
-    "sensor de desengate": 5,
-    "desengate": 4,
-    "violacao": 3,
-    "violacoes": 3,
-    "bau violado": 5,
-    "violacao de bau": 5,
-    "porta do bau": 3,
-    "bau aberto": 4,
-}
-
-POLICE_SIGNAL_WEIGHTS = {
-    "acionamento policial": 6,
-    "contato com a policia": 6,
-    "contato com policia": 6,
-    "viatura": 4,
-    "patrulhamento": 4,
-    "prf": 4,
-    "policia": 3,
-    "policial": 3,
-}
-
-PARADA_SIGNAL_WEIGHTS = {
-    "parada excessiva": 5,
-    "parada indevida": 4,
-    "parada": 3,
-    "parado": 2,
-    "parou": 2,
-    "ficou parado": 3,
-    "permaneceu parado": 3,
-}
-
-DESVIO_SIGNAL_WEIGHTS = {
-    "desvio de rota": 4,
-    "fora da rota": 4,
-    "fora de rota": 4,
-    "fora rota": 3,
-    "desvio": 3,
-    "desviou": 3,
-    "rota": 1,
-}
-
-MAINTENANCE_CONTEXT_KEYWORDS = (
-    "manutencao",
-    "oficina",
-    "conserto",
-    "reparo",
-    "reparar",
-    "arrumar",
-    "borracharia",
-    "pneu",
-    "mecanico",
-    "mecanica",
-    "guincho",
-    "quebrou",
-    "quebrado",
-    "pane",
-)
-
-NON_AUDITABLE_OUTPUT_KEYWORDS = (
-    "informativo",
-    "nao auditavel",
-    "nao auditavel manutencao",
-    "nao auditavel informativo",
-    "manutencao",
-)
-
-STADIA_CONTEXT_KEYWORDS = (
-    "doca",
-    "carga",
-    "descarga",
-    "carregamento",
-    "descarregamento",
-    "no cliente",
-    "na cliente",
-    "em cliente",
-    "no destinatario",
-    "na doca",
-    "em doca",
-)
-
 
 def normalize_classification_text(text: str) -> str:
     """Normaliza texto p/ busca de keywords: minúsculo, sem acento, espaços colapsados."""

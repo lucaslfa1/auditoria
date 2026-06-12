@@ -41,7 +41,7 @@ auditoria/
 | `auth.py` | Login/sessão (cookie HMAC), roles `admin`/`supervisor` |
 | `audit.py` | Auditoria manual (`POST /api/audit`, reavaliação, áudio/PDF) |
 | `classifier.py` | Triagem/classificação de lotes e fila de revisão |
-| `telefonia.py` | Integração Huawei: sync, cron, diagnostics, fila remota (maior router — ver §5 decisão de não dividir) |
+| `telefonia.py` + `telefonia_routes/` | Integração Huawei: orquestrador (estado/helpers) + subrouters `sync`, `cron_d1`, `recordings`, `audit_actions` (ver §5) |
 | `automation.py` | Motor de automação: status, run-now, controles |
 | `saved_files.py` | Arquivos Salvos (gate humano) |
 | `supervisor.py` | Portal do supervisor: aprovação, contestação, exportações |
@@ -159,10 +159,20 @@ endpoints (v1.3.126).
 
 ## 5. Decisões de arquitetura registradas (handover)
 
-- **`routers/telefonia.py` (~2,3k linhas) e `db/database.py` (~2,2k linhas)
-  NÃO foram divididos** no handover — refatoração conservadora: quebrar os
-  dois maiores arquivos às vésperas da entrega tinha risco alto e benefício
-  baixo. A navegação se apoia em comentários de seção e neste mapa.
+- **Divisão dos maiores arquivos (v1.3.133)** — revertendo a decisão
+  conservadora anterior, com a suíte verde como rede de segurança:
+  - `routers/telefonia.py` virou orquestrador (~1,2k linhas: estado, helpers
+    e montagem) + 4 subrouters em `routers/telefonia_routes/` (`sync`,
+    `cron_d1`, `recordings`, `audit_actions`). Prova: snapshot das 27 rotas
+    idêntico antes/depois. Os subrouters acessam helpers/estado via
+    `tf.<nome>` (resolução em runtime — preserva monkeypatch e estado único).
+  - `db/database.py` (~1,7k linhas) delega os blocos de lógica real para
+    `db/saved_audits.py` (espelho de Arquivos Salvos) e `db/audit_media.py`
+    (anexo/recuperação de áudio + `persist_audit_artifacts`), com reexports —
+    nenhum caller mudou.
+  - `core/classification.py` exporta agora de `classification_lexicon.py`
+    (constantes de keywords/pesos) e `classification_audio.py`
+    (`truncate_audio`, `get_mime_type`), com reimport explícito.
 - **Schema do banco evolui só por `migration_steps/`** (runner com
   `schema_migrations`, commit por step — `docs/03` §2). Não editar
   `runtime_schema.py` para mudanças novas.
