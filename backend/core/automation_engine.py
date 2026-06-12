@@ -8,8 +8,10 @@ anterior). O caminho querycalls (executar_sync_huawei) continua disponível
 apenas no módulo Telefonia para coleta manual ad-hoc, fora deste motor.
 
 Conceitos-chave para quem chega agora:
-- O ciclo roda via cron externo (Cloud Scheduler -> endpoint) OU loop
-  residente em processo (`ENABLE_IN_PROCESS_AUTOMATION_ENGINE`, hoje OFF).
+- O ciclo SÓ acorda por gatilho externo: Cloud Scheduler (1x/dia) -> endpoint
+  `/api/automation/cron/run`, ou "Executar agora" na UI. O antigo loop
+  residente em processo foi removido em 2026-06-12 (era o padrão de busca
+  contínua que estourou o orçamento de IA em junho).
 - Concorrência entre instâncias é resolvida por um row-lock com token de dono
   na tabela `configuracoes` (`_AutomationCycleLock`) + reconciliação de ciclos
   "zumbis" via heartbeat (`automation_cycle_runs.last_heartbeat_at`).
@@ -27,7 +29,6 @@ import os
 import secrets
 import time
 from datetime import datetime, timezone
-import traceback
 
 import db.database as database
 from core import cost_guard
@@ -39,9 +40,6 @@ logger = logging.getLogger(__name__)
 
 _AUTOMATION_CYCLE_LOCK_KEY = 2026042001
 
-# Controle em memória do loop
-_engine_task: asyncio.Task | None = None
-_stop_event: asyncio.Event | None = None
 _current_run_id: int | None = None
 _current_status = {
     "is_running": False,
@@ -1142,21 +1140,6 @@ async def _classify_pending_huawei_items(
     return await classification_task
 
 
-def _env_flag(name: str, default: bool = False) -> bool:
-    """Lê flag booleana de env var (1/true/yes/on = ligada)."""
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
-def is_in_process_engine_enabled() -> bool:
-    """Indica se o loop residente dentro do FastAPI deve subir.
-
-    Default OFF: em produção o ciclo é disparado por cron externo (Cloud
-    Scheduler → endpoint), não por loop em processo.
-    """
-    return _env_flag("ENABLE_IN_PROCESS_AUTOMATION_ENGINE", False)
-
 def is_automation_enabled() -> bool:
     """Verifica no banco se a automação híbrida está ligada."""
     val = database.get_config_value("automacao_hibrida_ativa", "false")
@@ -1273,17 +1256,18 @@ def set_automation_enabled_atomic(enabled: bool) -> None:
 
     O toggle da UI representa uma única intenção ("automação on/off").
     Historicamente o front fazia writes separados e o sistema ficava em estado
-    inconsistente (motor ligado, D-1 ligado, coletor da Telefonia desligado).
-    Este helper grava os 3 gates (`automacao_hibrida_ativa`, `huawei_d1_enabled`,
-    `telefonia_cron_sync_ativa`) numa única transação Postgres — tudo ou nada —
-    registrando cada mudança em `configuracoes_audit_log`.
+    inconsistente (motor ligado, D-1 desligado). Este helper grava os 2 gates
+    (`automacao_hibrida_ativa`, `huawei_d1_enabled`) numa única transação
+    Postgres — tudo ou nada — registrando cada mudança em
+    `configuracoes_audit_log`. O terceiro gate (`telefonia_cron_sync_ativa`)
+    foi removido em 2026-06-12: o coletor D-1 já respeita `huawei_d1_enabled`.
     """
     flag = "true" if enabled else "false"
     motivo = "set_automation_enabled_atomic(%s)" % bool(enabled)
     conn = database.get_connection()
     try:
         cursor = conn.cursor()
-        for chave in ("automacao_hibrida_ativa", "huawei_d1_enabled", "telefonia_cron_sync_ativa"):
+        for chave in ("automacao_hibrida_ativa", "huawei_d1_enabled"):
             # Snapshot pra audit_log antes do UPSERT
             cursor.execute("SELECT valor FROM configuracoes WHERE chave = %s", (chave,))
             row = cursor.fetchone()
@@ -1317,15 +1301,6 @@ def set_automation_enabled_atomic(enabled: bool) -> None:
         conn.close()
 
 
-def _get_automation_interval_seconds() -> int:
-    """Intervalo entre ciclos do loop residente (config `automacao_intervalo_segundos`, default 600s)."""
-    raw = database.get_config_value("automacao_intervalo_segundos", "600")
-    try:
-        return max(1, int(str(raw or "600").strip()))
-    except (TypeError, ValueError):
-        logger.warning("Configuracao automacao_intervalo_segundos invalida: %r. Usando 600.", raw)
-        return 600
-
 async def run_automation_cycle(*, source: str = "manual") -> dict:
     """Executa UM ciclo completo da automação (entrada principal do cron e da UI).
 
@@ -1338,8 +1313,9 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
     3. classificação IA dos itens ainda pendentes;
     4. auditoria em lote (`audit_all_pending`) — itens viram `awaiting_pair`.
 
-    `source` identifica o gatilho ('manual', 'manual_ui', 'resident_loop',
-    cron). `manual_ui` ignora o gate de "automação ligada" e força o D-1.
+    `source` identifica o gatilho ('manual', 'manual_ui', 'cloud_scheduler';
+    'resident_loop' só existe em registros históricos — o loop foi removido).
+    `manual_ui` ignora o gate de "automação ligada" e força o D-1.
 
     CUSTO: fases 3 e 4 consomem Azure OpenAI/Speech (pagas). Erro no D-1 pula
     a auditoria (ciclo 'partial') para não auditar itens inconsistentes.
@@ -1750,59 +1726,6 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
         _current_run_id = None
         cycle_lock.release()
 
-async def _automation_loop():
-    """Loop residente: roda `run_automation_cycle` a cada intervalo até `stop_engine()`.
-
-    Só existe quando `ENABLE_IN_PROCESS_AUTOMATION_ENGINE=true` (hoje OFF em
-    produção — o gatilho é cron externo). Erros de ciclo não derrubam o loop.
-    """
-    global _current_status
-    logger.info("Motor de Automacao Hibrida iniciado.")
-    
-    while not _stop_event.is_set():
-        try:
-            if not is_automation_enabled():
-                logger.debug("Automacao desligada. Aguardando proximo ciclo.")
-            else:
-                await run_automation_cycle(source="resident_loop")
-                
-        except asyncio.CancelledError:
-            logger.info("Loop de automacao cancelado.")
-            break
-        except Exception as exc:
-            logger.error(f"Erro no ciclo de automacao: {exc}")
-            logger.error(traceback.format_exc())
-            _current_status["last_error"] = str(exc)
-        
-        # Pausa entre os ciclos
-        intervalo_segundos = _get_automation_interval_seconds()
-        
-        try:
-            # Espera o stop_event ou o timeout
-            await asyncio.wait_for(_stop_event.wait(), timeout=intervalo_segundos)
-        except asyncio.TimeoutError:
-            # Timeout normal do sleep, o ciclo deve recomecar
-            pass
-
-    _current_status["is_running"] = False
-    logger.info("Motor de Automacao Hibrida parado.")
-
-def start_engine():
-    """Sobe o loop residente como task asyncio (idempotente; chamado no startup do FastAPI)."""
-    global _engine_task, _stop_event
-    if _engine_task and not _engine_task.done():
-        logger.warning("Motor de Automacao ja esta rodando.")
-        return
-
-    _stop_event = asyncio.Event()
-    _engine_task = asyncio.create_task(_automation_loop())
-
-def stop_engine():
-    """Sinaliza o loop residente para parar após o ciclo atual (shutdown do app)."""
-    global _stop_event
-    if _stop_event:
-        _stop_event.set()
-
 def get_engine_status() -> dict:
     """Status consolidado do motor para a UI (combina memória local + banco).
 
@@ -1813,7 +1736,6 @@ def get_engine_status() -> dict:
     Endpoint de polling — mantenha barato (cache de saúde tem TTL).
     """
     status = _current_status.copy()
-    resident_loop_running = bool(_engine_task and not _engine_task.done())
     latest_run = _latest_cycle_run()
     latest_run_stale = _latest_run_is_stale(latest_run)
     db_cycle_running = bool(latest_run and latest_run.get("status") == "running" and not latest_run_stale)
@@ -1862,9 +1784,9 @@ def get_engine_status() -> dict:
 
     status["latest_run"] = latest_run
     status["latest_run_is_stale"] = latest_run_stale
-    status["is_resident_loop_running"] = resident_loop_running
-    status["in_process_engine_enabled"] = is_in_process_engine_enabled()
-    status["mode"] = "resident_loop" if status["in_process_engine_enabled"] else "external_cron"
+    # O loop residente em processo foi removido em 2026-06-12 (revisao item 4):
+    # o ciclo so acorda por gatilho externo (Cloud Scheduler 1x/dia ou UI).
+    status["mode"] = "external_cron"
     cycle_running = bool(status.get("is_cycle_running") or db_cycle_running)
     status["is_cycle_running"] = cycle_running
     status["is_running"] = cycle_running

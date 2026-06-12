@@ -9,9 +9,9 @@ Telefonia D-1/OBS -> fila ready_for_audit -> Auditoria IA -> Arquivos
 
 ## Estado atual
 
-- Backend: `backend/automation_engine.py` expõe um ciclo reutilizável somente para auditoria e mantém o loop residente apenas quando `ENABLE_IN_PROCESS_AUTOMATION_ENGINE=true`.
-- Produção: o caminho recomendado é usar dois Cloud Schedulers: Coletor em `POST /api/telefonia/cron/sync` e Auditor em `POST /api/automation/cron/run`, ambos com `Authorization: Bearer <CRON_SECRET_TOKEN>`.
-- Telefonia e Automação têm gates separados: o cron de Telefonia usa `telefonia_cron_sync_ativa`; o motor de Automação usa `automacao_hibrida_ativa`; o pipeline D-1 mantém `huawei_d1_enabled`.
+- Backend: `backend/core/automation_engine.py` expõe um ciclo reutilizável que SÓ acorda por gatilho externo (não há loop residente; ele foi removido em 2026-06-12 junto com `ENABLE_IN_PROCESS_AUTOMATION_ENGINE` e o intervalo `automacao_intervalo_segundos`).
+- Produção: dois Cloud Schedulers, ambos 1x/dia, com `Authorization: Bearer <CRON_SECRET_TOKEN>`: Coletor em `POST /api/telefonia/cron/sync` e Auditor em `POST /api/automation/cron/run`.
+- Gates: o motor de Automação usa `automacao_hibrida_ativa`; o pipeline D-1 (e, por consequência, o coletor do cron) usa `huawei_d1_enabled`. O gate antigo `telefonia_cron_sync_ativa` foi removido — o toggle da UI grava os dois gates atomicamente.
 - Huawei: `backend/core/huawei_sync.py` consulta a VDN globalmente, sem `agentId`/`mediaType`, complementa a descoberta pelo manifesto `Contact_Record` do OBS, baixa a mídia, classifica áudio pelo classificador de triagem e enfileira o arquivo com `auto_resolved` quando não há motivo de revisão.
 - Regras Huawei: antes do download, o sync aplica apenas filtros operacionais mínimos, como duração, histórico de sincronização e limite de tentativas por ciclo. Cadastro de Operadores, classificação, RAG e auditoria não devem bloquear a descoberta nem o download da gravação.
 - Auditoria: `backend/automation.py` processa itens `ready_for_audit`, respeita cota mensal e marca a fila como `audited` somente após persistir uma auditoria. Auditorias persistidas ficam em `awaiting_pair`/Arquivos Salvos para revisão do auditor admin; só entram em `pending_approval` quando o admin aciona "Enviar ao supervisor".

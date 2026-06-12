@@ -267,14 +267,9 @@ async def clear_sync_report(_user: dict = Depends(require_admin)) -> Dict[str, A
 
 @router.get("/sync/status")
 async def sync_status(_user: dict = Depends(require_admin)) -> Dict[str, Any]:
-    """Status consolidado do sync para a UI: última run, progresso, flags do cron e credenciais."""
+    """Status consolidado do sync para a UI: última run, progresso e credenciais."""
     engine_enabled = (os.getenv("ENABLE_HUAWEI_SYNC", "false") or "").strip().lower() == "true"
     cron_token_configured = bool((os.getenv("CRON_SECRET_TOKEN", "") or "").strip())
-    try:
-        raw_val = configuration.get_config_value(database.get_connection, "telefonia_cron_sync_ativa", "true")
-        cron_db_flag = str(raw_val or "").strip().lower() == "true"
-    except Exception:
-        cron_db_flag = True
 
     status_dict = dict(tf._LAST_SYNC)
     if tf._is_sync_running() and status_dict.get("status") not in ("running", "cancelling"):
@@ -286,7 +281,6 @@ async def sync_status(_user: dict = Depends(require_admin)) -> Dict[str, Any]:
         "credentials": tf._credentials_status(),
         "engine_enabled": engine_enabled,
         "cron_token_configured": cron_token_configured,
-        "cron_db_flag": cron_db_flag,
     }
 
 
@@ -308,7 +302,6 @@ async def sync_diagnostics(_user: dict = Depends(require_admin)) -> Dict[str, An
     Inclui:
       - se o sync esta travado em memoria
       - estado atual do sync_lock no banco (e quem o segura)
-      - flag telefonia_cron_sync_ativa (gate do cron de Telefonia)
       - presenca do CRON_SECRET_TOKEN
       - flag ENABLE_HUAWEI_SYNC (gate do executar_sync_huawei)
     """
@@ -321,10 +314,6 @@ async def sync_diagnostics(_user: dict = Depends(require_admin)) -> Dict[str, An
         "enable_huawei_sync_env": (os.getenv("ENABLE_HUAWEI_SYNC", "") or "").strip().lower() == "true",
     }
     try:
-        info[tf.TELEFONIA_CRON_SYNC_CONFIG_KEY] = tf._is_telefonia_cron_sync_enabled()
-    except Exception:  # noqa: BLE001
-        info[tf.TELEFONIA_CRON_SYNC_CONFIG_KEY] = None
-    try:
         info["automacao_hibrida_ativa"] = str(
             configuration.get_config_value(database.get_connection, "automacao_hibrida_ativa", "false") or ""
         ).strip().lower() == "true"
@@ -336,10 +325,6 @@ async def sync_diagnostics(_user: dict = Depends(require_admin)) -> Dict[str, An
         ).strip().lower()
     except Exception:  # noqa: BLE001
         info["sync_lock_db_value"] = None
-    try:
-        info["intervalo_segundos"] = tf._get_telefonia_sync_interval_seconds()
-    except Exception:  # noqa: BLE001
-        info["intervalo_segundos"] = None
     # Guardrail de orcamento: consumo pago do dia, tetos e kill-switch —
     # visibilidade de "quanto do orcamento de hoje ja foi usado".
     try:
@@ -378,42 +363,8 @@ async def sync_reset_lock(_user: dict = Depends(require_admin)) -> Dict[str, Any
     return {"status": "ok", "message": "sync_lock destravado. Pode disparar uma nova coleta."}
 
 
-@router.post("/automacao/toggle")
-async def automacao_toggle(
-    request: Request,
-    _user: dict = Depends(require_admin),
-) -> Dict[str, Any]:
-    """Compat legado: liga/desliga apenas o cron do modulo Telefonia.
-
-    Body: {"enabled": true|false}. Sem body, retorna o estado atual.
-    """
-    estado_atual = tf._is_telefonia_cron_sync_enabled()
-    try:
-        body = await request.json()
-    except Exception:
-        body = None
-    if not isinstance(body, dict) or "enabled" not in body:
-        return {"status": "ok", tf.TELEFONIA_CRON_SYNC_CONFIG_KEY: estado_atual}
-    novo = bool(body.get("enabled"))
-    try:
-        configuration.update_config(
-            database.get_connection,
-            tf.TELEFONIA_CRON_SYNC_CONFIG_KEY,
-            "true" if novo else "false",
-            alterado_por=_user.get("username", "admin"),
-            motivo="toggle cron sync telefonia",
-            origem="ui",
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=f"Falha ao atualizar config: {exc}")
-    logger.info("%s alterada para %s pelo admin.", tf.TELEFONIA_CRON_SYNC_CONFIG_KEY, novo)
-    return {"status": "ok", tf.TELEFONIA_CRON_SYNC_CONFIG_KEY: novo}
-
-
-@router.post("/sync/cron-toggle")
-async def telefonia_cron_toggle(
-    request: Request,
-    _user: dict = Depends(require_admin),
-) -> Dict[str, Any]:
-    """Liga/desliga o cron de coleta do modulo Telefonia."""
-    return await automacao_toggle(request, _user)
+# Os endpoints POST /automacao/toggle e POST /sync/cron-toggle foram removidos
+# em 2026-06-12 (revisao item 4) junto com a config `telefonia_cron_sync_ativa`:
+# ligar/desligar a automacao agora e SO pelo toggle atomico
+# POST /api/automation/engine/toggle (gates automacao_hibrida_ativa +
+# huawei_d1_enabled). O coletor D-1 respeita huawei_d1_enabled por conta propria.

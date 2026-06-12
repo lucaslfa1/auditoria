@@ -17,6 +17,18 @@ AUDIT_STATUSES = (
 DEFAULT_AUDIT_STATUS = AUDIT_STATUS_AWAITING_PAIR
 LEGACY_AUDIT_STATUS_FALLBACK = AUDIT_STATUS_APPROVED
 
+# Status que contam na media OPERACIONAL/TELEFONICA do fechamento: toda
+# auditoria salva vale nota, exceto descartadas e contestacoes aceitas
+# (o score deixa de valer). Antes so 'approved' contava e a nota "sumia"
+# do fechamento enquanto o supervisor nao aprovava no portal.
+FECHAMENTO_NOTA_STATUSES = (
+    AUDIT_STATUS_AWAITING_PAIR,
+    AUDIT_STATUS_PENDING_APPROVAL,
+    AUDIT_STATUS_CONTESTATION_PENDING_REVIEW,
+    AUDIT_STATUS_APPROVED,
+    LEGACY_AUDIT_STATUS_CONTESTED,
+)
+
 AUDIT_CONTESTATION_VERDICT_ACCEPTED = "accepted"
 AUDIT_CONTESTATION_VERDICT_REJECTED = "rejected"
 AUDIT_CONTESTATION_VERDICTS = (

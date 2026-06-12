@@ -52,15 +52,19 @@ async def cron_sync_d_minus_1(
     request: Request,
     body: Optional[dict] = Body(default=None),
 ):
-    """Gatilho dedicado do Cloud Scheduler para o Coletor D-1/OBS."""
+    """Gatilho dedicado do Cloud Scheduler para o Coletor D-1/OBS.
+
+    Agendado 1x/dia. Não há gate próprio aqui (a config
+    `telefonia_cron_sync_ativa` foi removida em 2026-06-12): o pipeline
+    `executar_d_minus_1_pipeline` já se auto-governa — respeita
+    `huawei_d1_enabled` (desligado pelo toggle da automação), o horário
+    configurado e a tabela de runs por dia (um lote por data; disparos extras
+    no mesmo dia não reexecutam lote completo). O kill-switch e o teto diário
+    do cost_guard continuam valendo nas fases pagas.
+    """
     from routers.automation import _require_cron_token
 
     _require_cron_token(request)
-    if not tf._is_telefonia_cron_sync_enabled():
-        return {
-            "status": "disabled",
-            "message": "Cron de coleta de Telefonia desligado.",
-        }
     if not isinstance(body, dict):
         body = None
     return await sync_d_minus_1(request, body)
@@ -181,17 +185,6 @@ async def get_sync_d_minus_1_summary(_user: dict = Depends(require_admin)):
     proxima_iso = proxima.isoformat() if proxima else None
 
     try:
-        raw_cron = configuration.get_config_value(database.get_connection, "telefonia_cron_sync_ativa", "true")
-        cron_ativa = str(raw_cron or "").strip().lower() == "true"
-    except Exception:
-        cron_ativa = True
-
-    try:
-        raw_intervalo = configuration.get_config_value(database.get_connection, "automacao_intervalo_segundos", "600")
-        intervalo_segundos = max(60, int(str(raw_intervalo or "600")))
-    except Exception:
-        intervalo_segundos = 600
-    try:
         raw_audit_target = configuration.get_config_value(
             database.get_connection,
             "automacao_audit_target_count",
@@ -219,8 +212,6 @@ async def get_sync_d_minus_1_summary(_user: dict = Depends(require_admin)):
             "cota_max_por_operador_mes": max(1, tf._safe_int(cfg["huawei_cota_max_por_operador_mes"], 2)),
             "limite_ligacoes": limite_ligacoes,
             "limite_auditorias": limite_auditorias,
-            "telefonia_cron_sync_ativa": cron_ativa,
-            "automacao_intervalo_segundos": intervalo_segundos,
         },
         "config_defaults": PIPELINE_CONFIG_DEFAULTS,
         "now_sp": now_sp.isoformat(),

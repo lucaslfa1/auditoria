@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Download, Save, RefreshCw } from 'lucide-react';
+import { Download, Save, RefreshCw, Trash2, UserPlus } from 'lucide-react';
 import { ApiError, apiFetchJson, apiFetchBlob } from '../../../shared/lib/apiClient';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { PageHeader } from '../../../shared/components/PageHeader';
@@ -27,6 +27,15 @@ interface FechamentoRow {
   final: string;
   huawei: string;
   weon: string;
+}
+
+interface OperadorDisponivel {
+  id: number;
+  nome: string;
+  matricula: string | null;
+  supervisor: string | null;
+  setor: string | null;
+  escala: string | null;
 }
 
 const OPERACAO_OPCOES = [
@@ -107,6 +116,11 @@ export default function FechamentoPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showAddOperador, setShowAddOperador] = useState(false);
+  const [operadoresDisponiveis, setOperadoresDisponiveis] = useState<OperadorDisponivel[]>([]);
+  const [buscaOperador, setBuscaOperador] = useState('');
+  const [addingOperadorId, setAddingOperadorId] = useState<number | null>(null);
+  const [removingRowKey, setRemovingRowKey] = useState<string | null>(null);
   const { showToast } = useToast();
 
   const describeRequestError = (error: unknown, fallback: string) => {
@@ -218,6 +232,78 @@ export default function FechamentoPage() {
     }
   };
 
+  const toggleAddOperador = async () => {
+    const opening = !showAddOperador;
+    setShowAddOperador(opening);
+    if (opening && operadoresDisponiveis.length === 0) {
+      try {
+        const data = await apiFetchJson<OperadorDisponivel[]>('/api/operadores/');
+        setOperadoresDisponiveis(Array.isArray(data) ? data : []);
+      } catch (error) {
+        showToast({
+          title: 'Erro ao carregar colaboradores',
+          description: describeRequestError(error, 'Tente novamente em alguns instantes.'),
+          variant: 'error',
+        });
+      }
+    }
+  };
+
+  const handleAddOperador = async (colaboradorId: number) => {
+    setAddingOperadorId(colaboradorId);
+    try {
+      await apiFetchJson('/api/fechamento/layout/operadores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colaborador_id: colaboradorId }),
+      });
+      showToast({ title: 'Operador adicionado ao fechamento!', variant: 'success' });
+      setShowAddOperador(false);
+      setBuscaOperador('');
+      fetchDados();
+    } catch (error) {
+      showToast({
+        title: 'Erro ao adicionar operador',
+        description: describeRequestError(error, 'Tente novamente em alguns instantes.'),
+        variant: 'error',
+      });
+    } finally {
+      setAddingOperadorId(null);
+    }
+  };
+
+  const handleRemoveRow = async (row: FechamentoRow, idx: number) => {
+    if (!row.layout_id && !row.colab_id) {
+      showToast({ title: 'Linha sem vínculo — não é possível remover.', variant: 'error' });
+      return;
+    }
+    if (!window.confirm(`Remover "${row.nome}" do fechamento? A remoção vale para todos os meses e pode ser desfeita adicionando o operador de novo.`)) {
+      return;
+    }
+    const rowKey = `${row.layout_id ?? 'c'}-${row.colab_id}-${idx}`;
+    setRemovingRowKey(rowKey);
+    try {
+      await apiFetchJson('/api/fechamento/layout/operadores/remover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          layout_id: row.layout_id ?? null,
+          colaborador_id: row.colab_id || null,
+        }),
+      });
+      showToast({ title: 'Operador removido do fechamento.', variant: 'success' });
+      fetchDados();
+    } catch (error) {
+      showToast({
+        title: 'Erro ao remover operador',
+        description: describeRequestError(error, 'Tente novamente em alguns instantes.'),
+        variant: 'error',
+      });
+    } finally {
+      setRemovingRowKey(null);
+    }
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     try {
@@ -260,6 +346,18 @@ export default function FechamentoPage() {
     });
     return Array.from(options).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [rows, supervisores]);
+
+  const colabIdsNaPlanilha = useMemo(
+    () => new Set(rows.map(row => row.colab_id).filter(Boolean)),
+    [rows],
+  );
+  const operadoresFiltrados = useMemo(() => {
+    const busca = stripAccents(buscaOperador.trim());
+    return operadoresDisponiveis
+      .filter(op => !colabIdsNaPlanilha.has(op.id))
+      .filter(op => !busca || stripAccents(`${op.nome} ${op.matricula ?? ''} ${op.setor ?? ''} ${op.escala ?? ''} ${op.supervisor ?? ''}`).includes(busca))
+      .slice(0, 30);
+  }, [operadoresDisponiveis, colabIdsNaPlanilha, buscaOperador]);
 
   return (
     <div className="max-w-screen-2xl mx-auto space-y-6 animate-fade-in pb-12 px-4">
@@ -317,15 +415,64 @@ export default function FechamentoPage() {
       <div className="glass-panel p-4 rounded-2xl border border-white/5 shadow-xl flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
         <div className="flex justify-between items-center mb-4 shrink-0">
           <h2 className="text-lg font-semibold text-slate-200">Visão Geral ({rows.length} registros)</h2>
-          <button 
-            onClick={handleSave}
-            disabled={isSaving || rows.length === 0}
-            className="btn-primary flex items-center gap-2 px-4 py-2"
-          >
-            <Save size={18} />
-            {isSaving ? 'Gravando...' : 'Gravar Cálculo'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleAddOperador}
+              className="btn-secondary flex items-center gap-2 px-4 py-2"
+            >
+              <UserPlus size={18} />
+              {showAddOperador ? 'Fechar' : 'Adicionar Operador'}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || rows.length === 0}
+              className="btn-primary flex items-center gap-2 px-4 py-2"
+            >
+              <Save size={18} />
+              {isSaving ? 'Gravando...' : 'Gravar Cálculo'}
+            </button>
+          </div>
         </div>
+
+        {showAddOperador && (
+          <div className="shrink-0 mb-4 p-3 rounded-xl border border-white/10 bg-slate-800/40">
+            <div className="flex items-center gap-3 mb-2">
+              <input
+                type="text"
+                value={buscaOperador}
+                onChange={e => setBuscaOperador(e.target.value)}
+                placeholder="Buscar colaborador por nome, matrícula, setor ou supervisor..."
+                className="input-field flex-1 bg-slate-900/60 border-slate-700 text-sm"
+                autoFocus
+              />
+              <span className="text-xs text-slate-500 whitespace-nowrap">
+                {operadoresFiltrados.length} disponíveis
+              </span>
+            </div>
+            <div className="max-h-48 overflow-y-auto custom-scrollbar divide-y divide-white/5">
+              {operadoresFiltrados.length === 0 ? (
+                <p className="text-xs text-slate-500 py-2">Nenhum colaborador disponível fora da planilha.</p>
+              ) : (
+                operadoresFiltrados.map(op => (
+                  <button
+                    key={op.id}
+                    onClick={() => handleAddOperador(op.id)}
+                    disabled={addingOperadorId !== null}
+                    className="w-full flex items-center justify-between gap-3 py-1.5 px-2 text-left text-xs text-slate-300 hover:bg-primary-500/10 rounded transition-colors disabled:opacity-50"
+                  >
+                    <span className="font-medium">{op.nome}</span>
+                    <span className="text-slate-500 whitespace-nowrap">
+                      {[op.matricula, op.escala || op.setor, op.supervisor].filter(Boolean).join(' · ')}
+                    </span>
+                    <span className="text-primary-400 whitespace-nowrap">
+                      {addingOperadorId === op.id ? 'Adicionando...' : '+ Adicionar'}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         {rows.length > 0 && (
           <div className="shrink-0 mb-4 py-3 border-y border-white/10">
@@ -421,13 +568,26 @@ export default function FechamentoPage() {
                   <th className="py-2 px-3 border-r border-white/5 whitespace-nowrap min-w-[100px]">PROCESSO</th>
                   <th className="py-2 px-3 border-r border-white/5 whitespace-nowrap min-w-[80px]">FINAL</th>
                   <th className="py-2 px-3 border-r border-white/5 whitespace-nowrap min-w-[90px]">HUAWEI</th>
-                  <th className="py-2 px-3 whitespace-nowrap min-w-[90px]">WEON</th>
+                  <th className="py-2 px-3 border-r border-white/5 whitespace-nowrap min-w-[90px]">WEON</th>
+                  <th className="py-2 px-3 whitespace-nowrap w-10" title="Remover operador do fechamento"></th>
                 </tr>
               </thead>
               <tbody className="text-xs">
                 {rows.map((row, idx) => (
                   <tr key={`${row.layout_id ?? row.colab_id}-${idx}`} className="border-b border-white/5 hover:bg-primary-500/10 transition-colors">
-                    <td className="py-1.5 px-3 border-r border-white/5 text-slate-500 text-center">{row.id}</td>
+                    <td className="py-1 px-1 border-r border-white/5">
+                      {row.layout_id ? (
+                        <input
+                          type="number"
+                          value={row.id}
+                          onChange={e => handleCellChange(idx, 'id', parseInt(e.target.value) || 0)}
+                          className="w-14 text-center bg-transparent border-none focus:ring-1 focus:ring-primary-500 px-1 py-1 rounded text-slate-400"
+                          title="ID da planilha (persistido ao Gravar Cálculo)"
+                        />
+                      ) : (
+                        <span className="block text-center text-slate-500 px-2 py-1">{row.id}</span>
+                      )}
+                    </td>
                     <td className="py-1.5 px-3 border-r border-white/5 text-slate-500">{row.mes_str}</td>
                     <td className="py-1 px-1 border-r border-white/5">
                       <input 
@@ -532,11 +692,21 @@ export default function FechamentoPage() {
                         className="w-full bg-transparent border-none focus:ring-1 focus:ring-primary-500 px-2 py-1 rounded text-slate-400"
                       />
                     </td>
-                    <td className="py-1 px-1">
+                    <td className="py-1 px-1 border-r border-white/5">
                       <input
                         type="text" value={row.weon || ''} onChange={e => handleCellChange(idx, 'weon', e.target.value)}
                         className="w-full bg-transparent border-none focus:ring-1 focus:ring-primary-500 px-2 py-1 rounded text-slate-400"
                       />
+                    </td>
+                    <td className="py-1 px-1 text-center">
+                      <button
+                        onClick={() => handleRemoveRow(row, idx)}
+                        disabled={removingRowKey !== null}
+                        className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                        title={`Remover ${row.nome} do fechamento`}
+                      >
+                        <Trash2 size={14} className={removingRowKey === `${row.layout_id ?? 'c'}-${row.colab_id}-${idx}` ? 'animate-pulse' : ''} />
+                      </button>
                     </td>
                   </tr>
                 ))}

@@ -11,7 +11,6 @@ interface HuaweiConfig {
   huawei_sk: string;
   huawei_horas_retroativas: string;
   huawei_cota_max_por_operador_mes: string;
-  telefonia_cron_sync_ativa: string;
 }
 
 export function AutomationSettings() {
@@ -24,7 +23,6 @@ export function AutomationSettings() {
     huawei_sk: '',
     huawei_horas_retroativas: '2',
     huawei_cota_max_por_operador_mes: '2',
-    telefonia_cron_sync_ativa: 'true',
   });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +43,6 @@ export function AutomationSettings() {
           huawei_sk: data.huawei_sk?.valor || '',
           huawei_horas_retroativas: data.huawei_horas_retroativas?.valor || '2',
           huawei_cota_max_por_operador_mes: data.huawei_cota_max_por_operador_mes?.valor || '2',
-          telefonia_cron_sync_ativa: data.telefonia_cron_sync_ativa?.valor || 'true',
         });
       } catch {
         showToast({ variant: 'error', title: 'Erro', description: 'Falha ao carregar configurações da Huawei.' });
@@ -262,19 +259,10 @@ export function AutomationSettings() {
               </select>
             </label>
 
-            <label className="block pt-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase flex justify-between">
-                Sincronização Contínua em Segundo Plano
-                <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-500/20">Cron</span>
-              </span>
-              <select value={config.telefonia_cron_sync_ativa} onChange={e => setConfig({...config, telefonia_cron_sync_ativa: e.target.value})} className="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-white/10 text-white outline-none focus:border-primary-500/50 text-sm theme-light:bg-slate-100 theme-light:text-slate-900 theme-light:border-slate-300">
-                <option value="true">Ligada (Baixar áudios para triagem)</option>
-                <option value="false">Desligada</option>
-              </select>
-              <p className="text-xs text-slate-500 mt-2">
-                Define se o sistema deve ficar buscando ligações periodicamente para preencher a aba "Ligações" (Triagem) quando o Motor de Automação Híbrida estiver pausado.
-              </p>
-            </label>
+            {/* O seletor "Sincronização Contínua em Segundo Plano" foi removido
+                em 2026-06-12: a busca contínua não existe mais — a coleta roda
+                no máximo 1x/dia via Cloud Scheduler e respeita o toggle geral
+                da automação. */}
           </div>
 
           <div className="mt-6 flex justify-end">

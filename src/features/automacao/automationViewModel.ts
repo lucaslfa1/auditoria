@@ -13,7 +13,8 @@ export interface AutomationGateStatus {
   allEnabled: boolean;
   disabledLabels: string[];
   items: Array<{
-    id: 'pipeline' | 'engine' | 'telefonia';
+    // 'telefonia' saiu em 2026-06-12 junto com o gate telefonia_cron_sync_ativa.
+    id: 'pipeline' | 'engine';
     label: string;
     enabled: boolean;
   }>;

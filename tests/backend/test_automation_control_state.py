@@ -163,11 +163,9 @@ class TestAutomationControlState(unittest.TestCase):
         self.assertTrue(status["latest_run_is_stale"])
         self.assertEqual(status["current_stage"], "stale")
 
-    def test_engine_status_does_not_report_cycle_running_while_resident_loop_sleeps(self):
-        class ResidentTask:
-            def done(self):
-                return False
-
+    def test_engine_status_reports_external_cron_mode(self):
+        # O loop residente foi removido em 2026-06-12 (revisao item 4): o
+        # status do motor deve sempre reportar modo de gatilho externo.
         idle_status = {
             "is_running": False,
             "is_cycle_running": False,
@@ -188,10 +186,6 @@ class TestAutomationControlState(unittest.TestCase):
 
         with patch.object(automation_engine, "_current_status", idle_status), patch.object(
             automation_engine,
-            "_engine_task",
-            ResidentTask(),
-        ), patch.object(
-            automation_engine,
             "_latest_cycle_run",
             return_value=None,
         ), patch.object(
@@ -209,7 +203,8 @@ class TestAutomationControlState(unittest.TestCase):
         ):
             status = automation_engine.get_engine_status()
 
-        self.assertTrue(status["is_resident_loop_running"])
+        self.assertEqual(status["mode"], "external_cron")
+        self.assertNotIn("is_resident_loop_running", status)
         self.assertFalse(status["is_cycle_running"])
         self.assertFalse(status["is_running"])
 
@@ -315,14 +310,6 @@ class TestAutomationControlState(unittest.TestCase):
         self.assertEqual(result["status"], "cancelled")
         audit_all.assert_not_awaited()
         self.assertTrue(any(call.kwargs.get("status") == "cancelled" for call in persist_update.call_args_list))
-
-    def test_invalid_automation_interval_falls_back_to_default(self):
-        with patch.object(
-            automation_engine.database,
-            "get_config_value",
-            return_value="not-a-number",
-        ):
-            self.assertEqual(automation_engine._get_automation_interval_seconds(), 600)
 
     def test_health_report_marks_stale_cycle_as_critical(self):
         status = {

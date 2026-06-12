@@ -120,35 +120,10 @@ export function AutomationConfigPanel({
           </select>
         </ConfigField>
 
-        <ConfigField
-          label="Cron Telefonia (Fila de Triagem)"
-          hint="Busca contínua de áudios em segundo plano"
-          saving={pending.savingConfig === 'telefonia_cron_sync_ativa'}
-        >
-          <select
-            value={String(draft.telefonia_cron_sync_ativa)}
-            onChange={(event) => onUpdateField('telefonia_cron_sync_ativa', event.target.value === 'true')}
-            onBlur={() => onSaveField('telefonia_cron_sync_ativa')}
-            className="glass-input w-full rounded-xl px-3 py-2.5 text-sm outline-none"
-          >
-            <option value="true">Ligado (Baixar áudios continuamente)</option>
-            <option value="false">Desligado</option>
-          </select>
-        </ConfigField>
-
-        <ConfigField
-          label="Intervalo Busca Telefonia (seg)"
-          hint="Intervalo do Cron (padrão: 600)"
-          saving={pending.savingConfig === 'automacao_intervalo_segundos'}
-        >
-          <NumberInput
-            value={draft.automacao_intervalo_segundos}
-            min={60}
-            max={86400}
-            onChange={(value) => onUpdateField('automacao_intervalo_segundos', value)}
-            onBlur={() => onSaveField('automacao_intervalo_segundos')}
-          />
-        </ConfigField>
+        {/* Os controles "Cron Telefonia (Fila de Triagem)" e "Intervalo Busca
+            Telefonia (seg)" foram removidos em 2026-06-12: a busca contínua em
+            segundo plano não existe mais — a coleta roda no máximo 1x/dia via
+            Cloud Scheduler e respeita o toggle geral da automação. */}
       </div>
     </section>
   );

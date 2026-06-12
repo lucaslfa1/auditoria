@@ -1,9 +1,10 @@
 """Garantias de integridade para chaves bool em `configuracoes`.
 
 Cobre a defesa adicionada em 2026-05-24 após o bug em que a UI gravou "1"
-no lugar de "true" para `telefonia_cron_sync_ativa`. O teste evita que essa
-divergência volte tanto na função pura `_normalize_boolean_value` quanto na
-integração com `update_config`, que é o ponto de entrada real do router.
+no lugar de "true" para uma flag de cron (a chave do incidente,
+`telefonia_cron_sync_ativa`, foi removida em 2026-06-12). O teste evita que
+essa divergência volte tanto na função pura `_normalize_boolean_value`
+quanto na integração com `update_config`, o ponto de entrada real do router.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ class TestNormalizeBooleanValue(unittest.TestCase):
         for token in ("true", "True", "TRUE", "1", " 1 ", "yes", "on", "sim", "t"):
             with self.subTest(token=token):
                 self.assertEqual(
-                    _normalize_boolean_value("telefonia_cron_sync_ativa", token),
+                    _normalize_boolean_value("automacao_hibrida_ativa", token),
                     "true",
                 )
 
@@ -61,7 +62,6 @@ class TestNormalizeBooleanValue(unittest.TestCase):
         for chave in (
             "automacao_hibrida_ativa",
             "huawei_d1_enabled",
-            "telefonia_cron_sync_ativa",
         ):
             self.assertIn(chave, _BOOLEAN_KEYS)
 
@@ -87,7 +87,7 @@ class TestUpdateConfigPersistsNormalizedBoolean(unittest.TestCase):
 
         ok = update_config(
             factory,
-            "telefonia_cron_sync_ativa",
+            "automacao_hibrida_ativa",
             "1",
             alterado_por="ui-user",
             motivo="teste",
@@ -98,7 +98,7 @@ class TestUpdateConfigPersistsNormalizedBoolean(unittest.TestCase):
         # O 2º execute é o UPSERT — confere que o valor persistido foi 'true', não '1'.
         upsert_call = cursor.execute.call_args_list[1]
         params = upsert_call.args[1]
-        self.assertEqual(params, ("telefonia_cron_sync_ativa", "true"))
+        self.assertEqual(params, ("automacao_hibrida_ativa", "true"))
 
     def test_ui_sends_zero_persists_false(self):
         conn, cursor = self._build_connection(valor_anterior="true")

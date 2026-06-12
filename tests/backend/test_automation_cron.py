@@ -254,8 +254,9 @@ class TestAtomicAutomationToggle(unittest.TestCase):
     """Regression coverage for the atomic toggle (C2 from the code review).
 
     Prior to the fix the frontend issued separate writes and a partial failure
-    left the engine, D-1, and collector flags out of sync. The new
+    left the engine and D-1 flags out of sync. The new
     `set_automation_enabled_atomic` writes all gates in one transaction.
+    (O terceiro gate, telefonia_cron_sync_ativa, foi removido em 2026-06-12.)
     """
 
     def test_atomic_toggle_writes_both_keys_in_single_transaction(self):
@@ -270,16 +271,15 @@ class TestAtomicAutomationToggle(unittest.TestCase):
             if "INSERT INTO configuracoes " in query
         ]
 
-        self.assertEqual(len(config_inserts), 3, "expected exactly three upserts into configuracoes")
+        self.assertEqual(len(config_inserts), 2, "expected exactly two upserts into configuracoes")
         keys_written = [params[0] for params in config_inserts]
         self.assertEqual(
             keys_written,
-            ["automacao_hibrida_ativa", "huawei_d1_enabled", "telefonia_cron_sync_ativa"],
+            ["automacao_hibrida_ativa", "huawei_d1_enabled"],
         )
         values_written = {params[0]: params[1] for params in config_inserts}
         self.assertEqual(values_written["automacao_hibrida_ativa"], "true")
         self.assertEqual(values_written["huawei_d1_enabled"], "true")
-        self.assertEqual(values_written["telefonia_cron_sync_ativa"], "true")
         self.assertEqual(conn.commits, 1, "single transaction => single commit")
         self.assertTrue(conn.closed)
 
@@ -297,7 +297,6 @@ class TestAtomicAutomationToggle(unittest.TestCase):
         values = {params[0]: params[1] for params in config_inserts}
         self.assertEqual(values["automacao_hibrida_ativa"], "false")
         self.assertEqual(values["huawei_d1_enabled"], "false")
-        self.assertEqual(values["telefonia_cron_sync_ativa"], "false")
 
     def test_atomic_toggle_rolls_back_on_failure(self):
         class _BoomCursor(_FakeCursor):

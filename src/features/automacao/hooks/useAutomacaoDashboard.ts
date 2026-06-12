@@ -104,8 +104,6 @@ const CONFIG_KEY_BY_FIELD: Partial<Record<ConfigField, string>> = {
   cota_max_por_operador_mes: 'huawei_cota_max_por_operador_mes',
   limite_ligacoes: 'huawei_d1_limite_ligacoes',
   limite_auditorias: 'automacao_audit_target_count',
-  telefonia_cron_sync_ativa: 'telefonia_cron_sync_ativa',
-  automacao_intervalo_segundos: 'automacao_intervalo_segundos',
 };
 
 // Clamps de UI por campo numérico (o backend só garante o mínimo).
@@ -117,7 +115,6 @@ const FIELD_LIMITS: Partial<Record<ConfigField, { min: number; max?: number }>> 
   // sem teto de UI: o valor passa a ser 100% definido pela config (o backend só garante mínimo 1).
   limite_ligacoes: { min: 1 },
   limite_auditorias: { min: 1 },
-  automacao_intervalo_segundos: { min: 60, max: 86400 },
 };
 
 const CONFIG_FIELDS: ConfigField[] = [
@@ -129,18 +126,15 @@ const CONFIG_FIELDS: ConfigField[] = [
   'cota_max_por_operador_mes',
   'limite_ligacoes',
   'limite_auditorias',
-  'telefonia_cron_sync_ativa',
-  'automacao_intervalo_segundos',
 ];
 
 const DEFAULT_PIPELINE_CONFIG = PipelineSummarySchema.parse({}).config;
 
-/** Consolida os 3 gates (D-1, motor, telefonia) p/ o banner "tudo ligado?". */
+/** Consolida os 2 gates (D-1, motor) p/ o banner "tudo ligado?". */
 function buildAutomationGateStatus(summary: PipelineSummary, engineStatus: EngineStatus): AutomationGateStatus {
   const items: AutomationGateStatus['items'] = [
     { id: 'pipeline', label: 'D-1', enabled: summary.config.enabled },
     { id: 'engine', label: 'Motor', enabled: engineStatus.is_enabled },
-    { id: 'telefonia', label: 'Telefonia', enabled: summary.config.telefonia_cron_sync_ativa },
   ];
   const disabledLabels = items.filter((item) => !item.enabled).map((item) => item.label);
   return {
@@ -245,7 +239,6 @@ function resolveNextExecution(summary: PipelineSummary, engineStatus: EngineStat
   if (
     !summary.config.enabled ||
     !engineStatus.is_enabled ||
-    !summary.config.telefonia_cron_sync_ativa ||
     engineStatus.is_running ||
     engineStatus.is_cycle_running
   ) {
@@ -465,7 +458,7 @@ export function useAutomacaoDashboard() {
   // Padrão canônico de update otimista do React Query: onMutate tira snapshot
   // do cache e aplica o novo valor na hora; onError restaura o snapshot.
   // O toggle do backend é uma chamada atômica que atualiza os gates do
-  // auditor, do D-1 e do coletor de Telefonia de uma vez.
+  // auditor e do D-1 de uma vez (o coletor respeita o gate do D-1).
   const toggleMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
       await apiFetchJson('/api/automation/engine/toggle', {
@@ -482,14 +475,13 @@ export function useAutomacaoDashboard() {
         AUTOMACAO_QUERY_KEY,
         (oldData) => patchDashboardConfig(
           oldData,
-          { enabled, telefonia_cron_sync_ativa: enabled },
+          { enabled },
           { is_enabled: enabled },
         ),
       );
       setDraft((previousDraft) => {
         const base = previousDraft ?? previous?.summary.config ?? DEFAULT_PIPELINE_CONFIG;
-        const withEnabled = withConfigValue(base, 'enabled', enabled);
-        const next = withConfigValue(withEnabled, 'telefonia_cron_sync_ativa', enabled);
+        const next = withConfigValue(base, 'enabled', enabled);
         draftRef.current = next;
         return next;
       });
@@ -510,17 +502,8 @@ export function useAutomacaoDashboard() {
       }
       setDraft((previousDraft) => {
         const restoredValue = previous?.summary.config.enabled ?? serverConfig?.enabled ?? DEFAULT_PIPELINE_CONFIG.enabled;
-        const restoredCronValue =
-          previous?.summary.config.telefonia_cron_sync_ativa ??
-          serverConfig?.telefonia_cron_sync_ativa ??
-          DEFAULT_PIPELINE_CONFIG.telefonia_cron_sync_ativa;
         const base = previousDraft ?? previous?.summary.config ?? serverConfig ?? DEFAULT_PIPELINE_CONFIG;
-        const withEnabled = withConfigValue(base, 'enabled', restoredValue);
-        const next = withConfigValue(
-          withEnabled,
-          'telefonia_cron_sync_ativa',
-          restoredCronValue,
-        );
+        const next = withConfigValue(base, 'enabled', restoredValue);
         draftRef.current = next;
         return next;
       });

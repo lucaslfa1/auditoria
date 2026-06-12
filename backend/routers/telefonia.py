@@ -21,8 +21,7 @@ Grupos de endpoints (prefixo /api/telefonia):
                         GET /recordings/{hash}/audit-status,
                         DELETE /recordings/{hash}/audit
   - Operação:           GET /sync/diagnostics (inclui custo_diario do
-                        cost_guard), POST /sync/reset-lock,
-                        POST /automacao/toggle, POST /sync/cron-toggle
+                        cost_guard), POST /sync/reset-lock
   - Debug OBS:          GET /debug/obs, GET /debug/obs/search
 
 CUSTO DE API: POST /recordings/{hash}/classify e POST /recordings/{hash}/audit
@@ -106,9 +105,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/telefonia", tags=["telefonia"])
 
 # ── Constantes do módulo ─────────────────────────────────────────────────────
-# Chaves da tabela `configuracoes` que controlam o cron de coleta da Telefonia.
-TELEFONIA_CRON_SYNC_CONFIG_KEY = "telefonia_cron_sync_ativa"
-TELEFONIA_SYNC_INTERVAL_CONFIG_KEY = "telefonia_sync_intervalo_segundos"
 # Status de run D-1 que ainda admitem retry automático no mesmo dia
 # (consultados por _calcular_proxima_execucao_d1_sp).
 D1_RETRY_PENDING_STATUSES = {
@@ -157,22 +153,6 @@ _LAST_SYNC_RUN_ID: int | None = None
 def _utc_now_iso() -> str:
     """Timestamp atual em UTC no formato ISO-8601 (padrão de persistência do módulo)."""
     return datetime.now(timezone.utc).isoformat()
-
-
-def _is_telefonia_cron_sync_enabled() -> bool:
-    """Lê em `configuracoes` se o cron de coleta da Telefonia está ligado (default: sim)."""
-    raw = configuration.get_config_value(database.get_connection, TELEFONIA_CRON_SYNC_CONFIG_KEY, "true")
-    return str(raw or "").strip().lower() == "true"
-
-
-def _get_telefonia_sync_interval_seconds() -> int:
-    """Intervalo (s) entre coletas do cron; usa a chave legada `automacao_intervalo_segundos` como fallback e, por fim, 600s."""
-    legacy_default = configuration.get_config_value(database.get_connection, "automacao_intervalo_segundos", "600")
-    raw = configuration.get_config_value(database.get_connection, TELEFONIA_SYNC_INTERVAL_CONFIG_KEY, legacy_default or "600")
-    try:
-        return max(1, int(str(raw or "600")))
-    except ValueError:
-        return 600
 
 
 def _calcular_proxima_execucao_d1_sp(
@@ -1161,7 +1141,6 @@ router.include_router(_audit_actions_routes.router)
 # Reexports de compatibilidade: testes e shims legados (ex.: routers/automation.py)
 # importam endpoints e modelos diretamente de routers.telefonia.
 from routers.telefonia_routes.sync import (  # noqa: E402,F401
-    automacao_toggle,
     cancel_sync,
     clear_sync_report,
     pause_sync,
@@ -1171,7 +1150,6 @@ from routers.telefonia_routes.sync import (  # noqa: E402,F401
     sync_manual,
     sync_reset_lock,
     sync_status,
-    telefonia_cron_toggle,
 )
 from routers.telefonia_routes.cron_d1 import (  # noqa: E402,F401
     cron_sync_d_minus_1,

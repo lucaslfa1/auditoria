@@ -4,16 +4,16 @@ Aplicável ao motor de automação híbrida que baixa as gravações do dia ante
 
 ## Modelo mental
 
-1. O **Google Cloud Scheduler** dispara `POST /api/automation/cron/run` e `POST /api/telefonia/cron/sync` em intervalos curtos.
-2. O motor (`backend/automation_engine.py`) checa **três flags** no Postgres antes de rodar: `automacao_hibrida_ativa`, `huawei_d1_enabled`, `telefonia_cron_sync_ativa`.
-3. Se todas estiverem `true`, o motor chama `executar_d_minus_1_pipeline()`, que itera sobre os últimos `lookback_dias` e tenta baixar do OBS.
+1. O **Google Cloud Scheduler** dispara `POST /api/automation/cron/run` e `POST /api/telefonia/cron/sync` (ambos **1x/dia** desde junho/2026 — intervalos curtos foram a causa do estouro de orçamento).
+2. O motor (`backend/core/automation_engine.py`) checa **duas flags** no Postgres antes de rodar: `automacao_hibrida_ativa` e `huawei_d1_enabled` (a terceira, `telefonia_cron_sync_ativa`, foi removida em 2026-06-12).
+3. Se ambas estiverem `true`, o motor chama `executar_d_minus_1_pipeline()`, que itera sobre os últimos `lookback_dias` e tenta baixar do OBS.
 4. Para cada data, o tracker `huawei_d_minus_1_runs` guarda `status`, `attempts`, `last_attempt_at`. Após `max_retries` tentativas com OBS vazio, a data é abandonada permanentemente.
 
 ## Parâmetros (tabela `configuracoes`)
 
 | Chave | Default código | Recomendado | Por quê |
 |---|---|---|---|
-| `huawei_d1_enabled` | `true` | `true` | Liga o pipeline. Toggle de UI altera as 3 flags atomicamente. |
+| `huawei_d1_enabled` | `true` | `true` | Liga o pipeline. Toggle de UI altera as 2 flags atomicamente. |
 | `huawei_d1_horario_execucao` | `06:00` | `06:00`–`08:00` | Huawei costuma terminar upload do dia D entre madrugada e início da manhã. Rodar antes das 06:00 quase sempre acha bucket vazio. |
 | `huawei_d1_max_retries` | `8` | `6`–`10` | Tolera atrasos. Cada tentativa fracassada fica registrada e respeita o `retry_intervalo`. Valor 1 é uma cilada — uma só tentativa vazia perde o dia inteiro. |
 | `huawei_d1_retry_intervalo_minutos` | `60` | `30`–`60` | Tempo mínimo entre re-tentativas para a mesma data. Frequente demais polui logs; raro demais perde dia. |
@@ -54,7 +54,7 @@ Sequência de queries para tirar dúvidas em ~30s no Neon SQL Editor:
 ```sql
 -- Estado das flags
 SELECT chave, valor FROM configuracoes
- WHERE chave IN ('automacao_hibrida_ativa','huawei_d1_enabled','telefonia_cron_sync_ativa')
+ WHERE chave IN ('automacao_hibrida_ativa','huawei_d1_enabled')
     OR chave LIKE 'huawei_d1_%';
 
 -- Histórico recente do tracker

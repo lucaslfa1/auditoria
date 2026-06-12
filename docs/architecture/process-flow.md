@@ -265,16 +265,14 @@ Rotas reais conforme `src/App.tsx`. View default (vazia) = `automacao` (não mai
 | POST | `/sync/d-minus-1/manual` | Versão manual com data específica |
 | GET | `/sync/d-minus-1/status` | Status D-1 |
 | GET | `/sync/d-minus-1/summary` | Resumo agregado |
-| POST | `/cron/sync` | Gatilho do Cloud Scheduler pra sync periódico |
-| POST | `/automacao/toggle` | Liga/desliga automação Huawei (atalho legado) |
-| POST | `/sync/cron-toggle` | Liga/desliga cron de sync |
+| POST | `/cron/sync` | Gatilho do Cloud Scheduler pro coletor D-1 (1x/dia) |
 | POST | `/sync/reset-lock` | Quebra `sync_lock` travado |
 | GET | `/debug/obs` + `/debug/obs/search` | Diagnóstico OBS |
 
 ### `/api/automation` — Motor de Automação
 | Método | Rota | Função |
 |---|---|---|
-| POST | `/engine/toggle` | Liga/desliga atomicamente (`automacao_hibrida_ativa`, `huawei_d1_enabled`, `telefonia_cron_sync_ativa`) |
+| POST | `/engine/toggle` | Liga/desliga atomicamente (`automacao_hibrida_ativa`, `huawei_d1_enabled`) |
 | GET | `/engine/status` | Estado completo + health report + indicadores |
 | POST | `/run-now` | Dispara ciclo completo no request (admin) |
 | POST | `/cron/run` | Gatilho do Cloud Scheduler (Bearer token) |

@@ -199,12 +199,9 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Bootstrap: falha ao reconciliar runs orfaos de sync da Telefonia.")
     logger.info("Servidor iniciado")
-    from core.automation_engine import is_in_process_engine_enabled, start_engine, stop_engine
-
-    if is_in_process_engine_enabled():
-        start_engine()
-    else:
-        logger.info("Motor residente de automacao desabilitado; use /api/automation/cron/run.")
+    # Nao existe loop residente de automacao: o ciclo so acorda por gatilho
+    # externo (Cloud Scheduler -> /api/automation/cron/run, 1x/dia) ou pela UI.
+    logger.info("Automacao por gatilho externo; use /api/automation/cron/run.")
     yield
     # Shutdown
     try:
@@ -213,8 +210,6 @@ async def lifespan(app: FastAPI):
         await asyncio.to_thread(flush_saved_files_sync_queue, 15.0)
     except Exception:
         logger.exception("Falha ao aguardar flush da fila saved-files no shutdown.")
-    if is_in_process_engine_enabled():
-        stop_engine()
     logger.info("Servidor encerrado")
 
 app = FastAPI(title="nstech Audit API", lifespan=lifespan)

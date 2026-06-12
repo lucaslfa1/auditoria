@@ -4,7 +4,7 @@ import unicodedata
 from typing import List, Dict, Any
 
 from core.operator_filters import is_excluded_operation_values, is_technical_telephony_values
-from db.domain_constants import AUDIT_PASS_THRESHOLD, AUDIT_STATUS_APPROVED
+from db.domain_constants import AUDIT_PASS_THRESHOLD, FECHAMENTO_NOTA_STATUSES
 
 MESES_PT = {
     1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
@@ -191,6 +191,20 @@ def _ensure_fechamento_layout_seeded(conn) -> bool:
                  WHERE l.colaborador_id IS NULL
                    AND COALESCE(NULLIF(TRIM(l.matricula), ''), '') <> ''
                    AND TRIM(c.matricula) = TRIM(l.matricula)
+                """
+            )
+            # Fallback por nome para linhas do layout sem matricula: sem ele,
+            # um colaborador recriado/importado sem matricula nunca seria
+            # re-vinculado e sumiria do fechamento (linhas orfas sao ocultas).
+            cursor.execute(
+                """
+                UPDATE fechamento_layout_operadores l
+                   SET colaborador_id = c.id,
+                       atualizado_em = CURRENT_TIMESTAMP
+                  FROM colaboradores c
+                 WHERE l.colaborador_id IS NULL
+                   AND COALESCE(NULLIF(TRIM(l.matricula), ''), '') = ''
+                   AND LOWER(TRIM(c.nome)) = LOWER(TRIM(l.nome))
                 """
             )
             conn.commit()
@@ -426,7 +440,7 @@ def _append_extra_uti_rows_for_layout(
             colaborador_id,
             ROUND(CAST(AVG(CASE WHEN max_score > 0 THEN (score * 1.0 / max_score) * 10 ELSE 0 END) AS NUMERIC), 2) as media_auditoria
         FROM audits
-        WHERE status = %s
+        WHERE status = ANY(%s)
           AND COALESCE(audit_date, timestamp)::TIMESTAMP >= %s
           AND COALESCE(audit_date, timestamp)::TIMESTAMP < %s
         GROUP BY colaborador_id
@@ -482,9 +496,16 @@ def _append_extra_uti_rows_for_layout(
         UPPER(COALESCE(c.setor, '')) LIKE '%%UTI%%'
         OR UPPER(COALESCE(c.escala, '')) LIKE '%%UTI%%'
       )
+      -- Quem ja tem linha no layout (ativa OU removida pelo auditor) nao
+      -- entra como "extra": linha ativa ja aparece pelo caminho do layout e
+      -- linha desativada e uma remocao explicita que nao pode reviver aqui.
+      AND NOT EXISTS (
+        SELECT 1 FROM fechamento_layout_operadores lx
+        WHERE lx.colaborador_id = c.id
+      )
     ORDER BY COALESCE(NULLIF(c.supervisor, ''), '') ASC, c.nome ASC
     """
-    cursor.execute(sql, (AUDIT_STATUS_APPROVED, date_start, date_end, month, year))
+    cursor.execute(sql, (list(FECHAMENTO_NOTA_STATUSES), date_start, date_end, month, year))
 
     seen_colab_ids = {int(row['colab_id']) for row in results if row.get('colab_id')}
     seen_matriculas = {_layout_match_key(row.get('matricula')) for row in results if _layout_match_key(row.get('matricula'))}
@@ -531,7 +552,7 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
             colaborador_id,
             ROUND(CAST(AVG(CASE WHEN max_score > 0 THEN (score * 1.0 / max_score) * 10 ELSE 0 END) AS NUMERIC), 2) as media_auditoria
         FROM audits
-        WHERE status = %s
+        WHERE status = ANY(%s)
           AND COALESCE(audit_date, timestamp)::TIMESTAMP >= %s
           AND COALESCE(audit_date, timestamp)::TIMESTAMP < %s
         GROUP BY colaborador_id
@@ -606,9 +627,16 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
     LEFT JOIN media_mensal m
       ON c.id = m.colaborador_id
     WHERE l.ativo = TRUE
+      AND c.id IS NOT NULL
     ORDER BY l.sequencia_bloco ASC, l.posicao ASC
     """
-    cursor.execute(sql, (AUDIT_STATUS_APPROVED, date_start, date_end, month, year, month, year))
+    # `c.id IS NOT NULL`: colaborador apagado (FK ON DELETE SET NULL) deixava
+    # a linha do layout viva com o nome congelado da planilha — fechamento
+    # exibia gente que ja saiu (revisao 2026-06-12, item 2). O re-vinculo por
+    # matricula/nome roda a cada carga, entao recriar o colaborador revive a
+    # linha automaticamente.
+    # ANY(%s) exige list (tuple vira "record" no psycopg2, nao array).
+    cursor.execute(sql, (list(FECHAMENTO_NOTA_STATUSES), date_start, date_end, month, year, month, year))
     db_rows = cursor.fetchall()
     mes_str = MESES_PT.get(month, '')
     results = []
@@ -616,7 +644,11 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
     for raw_row in db_rows:
         row = dict(raw_row) if not isinstance(raw_row, dict) else raw_row
 
-        status_base = _resolve_fechamento_status(row, row.get('status_base') or 'ATIVO')
+        # Base de nome/matricula/status vem de `colaboradores` (dado vivo);
+        # a copia do layout (planilha de fevereiro) e so fallback. Sem isso,
+        # renomes e inativacoes nao apareciam no fechamento. Overrides do
+        # auditor continuam tendo precedencia sobre tudo.
+        status_base = _resolve_fechamento_status(row, row.get('db_status') or row.get('status_base') or 'ATIVO')
         status = row.get('layout_status_override') if apply_overrides and row.get('layout_status_override') is not None else None
         if status is None:
             status = row.get('status_override') if apply_overrides and row.get('status_override') is not None else status_base
@@ -624,11 +656,19 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
 
         matricula = row.get('layout_matricula_override') if apply_overrides and row.get('layout_matricula_override') is not None else None
         if matricula is None:
-            matricula = row.get('matricula_override') if apply_overrides and row.get('matricula_override') is not None else row.get('layout_matricula')
+            matricula = (
+                row.get('matricula_override')
+                if apply_overrides and row.get('matricula_override') is not None
+                else (row.get('db_matricula') or row.get('layout_matricula'))
+            )
 
         nome = row.get('layout_nome_override') if apply_overrides and row.get('layout_nome_override') is not None else None
         if nome is None:
-            nome = row.get('nome_override') if apply_overrides and row.get('nome_override') is not None else row.get('layout_nome')
+            nome = (
+                row.get('nome_override')
+                if apply_overrides and row.get('nome_override') is not None
+                else (row.get('db_nome') or row.get('layout_nome'))
+            )
 
         turno = row.get('layout_turno_override') if apply_overrides and row.get('layout_turno_override') is not None else None
         if turno is None:
@@ -762,7 +802,7 @@ def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides:
             colaborador_id,
             ROUND(CAST(AVG(CASE WHEN max_score > 0 THEN (score * 1.0 / max_score) * 10 ELSE 0 END) AS NUMERIC), 2) as media_auditoria
         FROM audits
-        WHERE status = %s
+        WHERE status = ANY(%s)
           AND COALESCE(audit_date, timestamp)::TIMESTAMP >= %s
           AND COALESCE(audit_date, timestamp)::TIMESTAMP < %s
         GROUP BY colaborador_id
@@ -809,7 +849,7 @@ def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides:
       AND TRIM(c.nome) != ''
     ORDER BY COALESCE(f.supervisor_override, c.supervisor) ASC, COALESCE(f.nome_override, c.nome) ASC
     """
-    cursor.execute(sql, (AUDIT_STATUS_APPROVED, date_start, date_end, month, year))
+    cursor.execute(sql, (list(FECHAMENTO_NOTA_STATUSES), date_start, date_end, month, year))
     db_rows = cursor.fetchall()
     
     results = []
@@ -913,6 +953,158 @@ def get_fechamento_rows(conn, month: int, year: int, *, apply_overrides: bool = 
     return _get_fechamento_rows_legacy(conn, month, year, apply_overrides=apply_overrides)
 
 
+def add_fechamento_layout_operador(conn, colaborador_id: int) -> Dict[str, Any]:
+    """Inclui (ou reativa) um colaborador no layout do fechamento.
+
+    Se ja existir linha no layout para o colaborador, ela e reativada
+    (preserva posicao/overrides historicos). Caso contrario, cria uma linha
+    nova no fim da planilha (bloco proprio, ID visual 1 — editavel depois
+    pela propria tela). Levanta ValueError se o colaborador nao existe.
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, nome, matricula, supervisor, setor, escala, status, id_huawei, id_weon
+        FROM colaboradores WHERE id = %s
+        """,
+        (colaborador_id,),
+    )
+    colab_row = cursor.fetchone()
+    if not colab_row:
+        raise ValueError(f"Colaborador {colaborador_id} nao encontrado")
+    colab = dict(colab_row) if not isinstance(colab_row, dict) else colab_row
+
+    cursor.execute(
+        "SELECT id FROM fechamento_layout_operadores WHERE colaborador_id = %s ORDER BY id LIMIT 1",
+        (colaborador_id,),
+    )
+    existing = cursor.fetchone()
+    if existing:
+        layout_id = int(_row_value(existing, "id"))
+        cursor.execute(
+            """
+            UPDATE fechamento_layout_operadores
+               SET ativo = TRUE, atualizado_em = CURRENT_TIMESTAMP
+             WHERE id = %s
+            """,
+            (layout_id,),
+        )
+        conn.commit()
+        return {"layout_id": layout_id, "reativado": True}
+
+    nota_coluna = (
+        LAYOUT_NOTE_TELEFONICA
+        if _is_receptive(colab.get("setor") or "", colab.get("escala") or "")
+        else "OPERACIONAL"
+    )
+    cursor.execute("SELECT COALESCE(MAX(sequencia_bloco), 0) AS max_seq FROM fechamento_layout_operadores")
+    max_seq = int(_row_value(cursor.fetchone(), "max_seq", 0) or 0)
+    cursor.execute(
+        """
+        INSERT INTO fechamento_layout_operadores (
+            sequencia_bloco, posicao, id_visual, matricula, nome,
+            turno_operacao, supervisor, setor, nota_coluna, status_base,
+            huawei, weon, colaborador_id, ativo
+        ) VALUES (%s, 1, 1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+        RETURNING id
+        """,
+        (
+            max_seq + 1,
+            colab.get("matricula") or "",
+            colab.get("nome") or "",
+            colab.get("escala") or "",
+            colab.get("supervisor") or "",
+            colab.get("setor") or "",
+            nota_coluna,
+            str(colab.get("status") or "ATIVO").strip().upper() or "ATIVO",
+            colab.get("id_huawei") or "",
+            colab.get("id_weon") or "",
+            colaborador_id,
+        ),
+    )
+    layout_id = int(_row_value(cursor.fetchone(), "id"))
+    conn.commit()
+    return {"layout_id": layout_id, "reativado": False}
+
+
+def remove_fechamento_layout_operador(conn, *, layout_id: int | None = None, colaborador_id: int | None = None) -> None:
+    """Remove um operador do fechamento (desativa a linha; nada e apagado).
+
+    - Linha do layout fixo: desativa por `layout_id`.
+    - Linha dinamica (extra-UTI, sem layout_id): materializa uma linha
+      desativada para o colaborador — o NOT EXISTS do appender extra-UTI
+      passa a suprimi-lo nos proximos carregamentos.
+    Reverter = adicionar de novo pela tela (reativa a mesma linha).
+    """
+    cursor = conn.cursor()
+    if layout_id:
+        cursor.execute(
+            """
+            UPDATE fechamento_layout_operadores
+               SET ativo = FALSE, atualizado_em = CURRENT_TIMESTAMP
+             WHERE id = %s
+            """,
+            (layout_id,),
+        )
+        conn.commit()
+        return
+
+    if not colaborador_id:
+        raise ValueError("Informe layout_id ou colaborador_id")
+
+    cursor.execute(
+        "SELECT id FROM fechamento_layout_operadores WHERE colaborador_id = %s ORDER BY id LIMIT 1",
+        (colaborador_id,),
+    )
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute(
+            """
+            UPDATE fechamento_layout_operadores
+               SET ativo = FALSE, atualizado_em = CURRENT_TIMESTAMP
+             WHERE id = %s
+            """,
+            (int(_row_value(existing, "id")),),
+        )
+        conn.commit()
+        return
+
+    cursor.execute(
+        """
+        SELECT id, nome, matricula, supervisor, setor, escala, status
+        FROM colaboradores WHERE id = %s
+        """,
+        (colaborador_id,),
+    )
+    colab_row = cursor.fetchone()
+    if not colab_row:
+        raise ValueError(f"Colaborador {colaborador_id} nao encontrado")
+    colab = dict(colab_row) if not isinstance(colab_row, dict) else colab_row
+
+    cursor.execute("SELECT COALESCE(MAX(sequencia_bloco), 0) AS max_seq FROM fechamento_layout_operadores")
+    max_seq = int(_row_value(cursor.fetchone(), "max_seq", 0) or 0)
+    cursor.execute(
+        """
+        INSERT INTO fechamento_layout_operadores (
+            sequencia_bloco, posicao, id_visual, matricula, nome,
+            turno_operacao, supervisor, setor, nota_coluna, status_base,
+            huawei, weon, colaborador_id, ativo
+        ) VALUES (%s, 1, 1, %s, %s, %s, %s, %s, 'OPERACIONAL', %s, '', '', %s, FALSE)
+        """,
+        (
+            max_seq + 1,
+            colab.get("matricula") or "",
+            colab.get("nome") or "",
+            colab.get("escala") or "",
+            colab.get("supervisor") or "",
+            colab.get("setor") or "",
+            str(colab.get("status") or "ATIVO").strip().upper() or "ATIVO",
+            colaborador_id,
+        ),
+    )
+    conn.commit()
+
+
 def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, Any]]):
     cursor = conn.cursor()
     base_rows = {}
@@ -984,6 +1176,27 @@ def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, 
                 'weon': _override_or_none(row.get('weon'), base_row.get('weon')),
             }
             cursor.execute(sql, data)
+
+            # Coluna ID e estrutural (vale para todos os meses), nao um
+            # override mensal: edicao na tela persiste direto no layout.
+            try:
+                new_id_visual = int(row.get('id'))
+            except (TypeError, ValueError):
+                new_id_visual = None
+            base_id_visual = base_row.get('id')
+            if (
+                new_id_visual is not None
+                and base_id_visual is not None
+                and int(base_id_visual) != new_id_visual
+            ):
+                cursor.execute(
+                    """
+                    UPDATE fechamento_layout_operadores
+                       SET id_visual = %s, atualizado_em = CURRENT_TIMESTAMP
+                     WHERE id = %s
+                    """,
+                    (new_id_visual, layout_id),
+                )
             continue
 
         if not colab_id:

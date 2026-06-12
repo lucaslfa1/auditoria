@@ -62,7 +62,7 @@ Tabela é um KV puro (`chave TEXT PK, valor TEXT, descricao TEXT, atualizado_em 
   `huawei_d1_lookback_dias`, `huawei_d1_limite_ligacoes`, `huawei_d1_max_retries`,
   `huawei_d1_retry_intervalo_minutos`, `huawei_cota_max_por_operador_mes`).
 - **Locks/flags** (`automation_engine_lock`, `automacao_is_paused/cancelled`, `sync_lock`,
-  `huawei_d1_run_lock`, `telefonia_cron_sync_ativa`, `robo_habilitado`).
+  `huawei_d1_run_lock`, `robo_habilitado`).
 - **RPA legado** (`rpa_url_login`, `rpa_usuario`, `rpa_senha`).
 - **Prompt global** (`ia_prompt_global`) — **ESTE É O ÚNICO PROMPT JÁ EM DB**.
 - **Tema visual** (`tema_visual`).

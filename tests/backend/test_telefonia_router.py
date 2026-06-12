@@ -125,39 +125,25 @@ class _FakeCleanupConnection:
 
 
 class TestTelefoniaRouter(unittest.TestCase):
-    def test_telefonia_cron_flag_is_independent_from_automation_engine(self):
-        def fake_get_config(conn, chave, default=""):
-            values = {
-                "telefonia_cron_sync_ativa": "true",
-                "automacao_hibrida_ativa": "false",
-            }
-            return values.get(chave, default)
+    # O gate `telefonia_cron_sync_ativa` e o intervalo `automacao_intervalo_segundos`
+    # foram removidos em 2026-06-12 (revisao item 4): o /cron/sync agora depende
+    # apenas do CRON_SECRET_TOKEN + autogovernanca do pipeline D-1
+    # (huawei_d1_enabled, horario, um lote por dia).
 
-        with patch.object(telefonia.configuration, "get_config_value", side_effect=fake_get_config):
-            self.assertTrue(telefonia._is_telefonia_cron_sync_enabled())
-
-    def test_telefonia_interval_uses_own_config_before_legacy_automation_value(self):
-        def fake_get_config(conn, chave, default=""):
-            values = {
-                "telefonia_sync_intervalo_segundos": "120",
-                "automacao_intervalo_segundos": "600",
-            }
-            return values.get(chave, default)
-
-        with patch.object(telefonia.configuration, "get_config_value", side_effect=fake_get_config):
-            self.assertEqual(telefonia._get_telefonia_sync_interval_seconds(), 120)
-
-    def test_cron_sync_d_minus_1_respects_telefonia_cron_flag(self):
+    def test_cron_sync_d_minus_1_dispara_pipeline_sem_gate_proprio(self):
+        # Pipeline desligado deve ser decidido DENTRO do executar_d_minus_1_pipeline
+        # (gate huawei_d1_enabled), nao por flag propria do endpoint.
         request = SimpleNamespace(headers={"Authorization": "Bearer secret"})
+        run_pipeline = AsyncMock(return_value={"status": "disabled", "message": "Pipeline D-1 desligado nas configurações."})
 
-        with patch.dict(os.environ, {"CRON_SECRET_TOKEN": "secret"}, clear=False), patch.object(
-            telefonia,
-            "_is_telefonia_cron_sync_enabled",
-            return_value=False,
+        with patch.dict(os.environ, {"CRON_SECRET_TOKEN": "secret"}, clear=False), patch(
+            "core.huawei_d_minus_1.executar_d_minus_1_pipeline",
+            run_pipeline,
         ):
             result = asyncio.run(telefonia.cron_sync_d_minus_1(request))
 
         self.assertEqual(result["status"], "disabled")
+        run_pipeline.assert_awaited_once()
 
     def test_cron_sync_d_minus_1_does_not_force_huawei_classification(self):
         request = SimpleNamespace(headers={"Authorization": "Bearer secret"})
@@ -167,10 +153,6 @@ class TestTelefoniaRouter(unittest.TestCase):
             os.environ,
             {"CRON_SECRET_TOKEN": "secret", "HUAWEI_SYNC_ENABLE_CLASSIFY": "false"},
             clear=False,
-        ), patch.object(
-            telefonia,
-            "_is_telefonia_cron_sync_enabled",
-            return_value=True,
         ), patch(
             "core.huawei_d_minus_1.executar_d_minus_1_pipeline",
             run_pipeline,

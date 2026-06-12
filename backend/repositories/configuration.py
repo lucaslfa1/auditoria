@@ -12,11 +12,11 @@ _SECRET_MASK = "***"
 # Chaves cujo valor representa um booleano lógico. A UI/scripts ocasionalmente
 # enviam variações ("1", "yes", checkboxes serializados como número), e o backend
 # espera consistentemente "true"/"false". Normalizar aqui evita divergência
-# que já causou bug em produção (telefonia_cron_sync_ativa gravado como "1").
+# que já causou bug em produção (flag de cron gravada como "1" em vez de "true";
+# a chave do incidente, telefonia_cron_sync_ativa, foi removida em 2026-06-12).
 _BOOLEAN_KEYS = frozenset({
     "automacao_hibrida_ativa",
     "huawei_d1_enabled",
-    "telefonia_cron_sync_ativa",
     "automacao_is_paused",
     "automacao_is_cancelled",
 })

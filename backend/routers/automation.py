@@ -59,9 +59,9 @@ def toggle_automation_engine(
 ):
     """Liga ou desliga o motor de automação híbrida.
 
-    Atualiza atomicamente `automacao_hibrida_ativa`, `huawei_d1_enabled` e
-    `telefonia_cron_sync_ativa` na mesma transação. O frontend não precisa
-    emitir chamadas separadas para sincronizar os gates do ciclo automático.
+    Atualiza atomicamente `automacao_hibrida_ativa` e `huawei_d1_enabled` na
+    mesma transação. O frontend não precisa emitir chamadas separadas para
+    sincronizar os gates do ciclo automático.
     """
     from core.automation_engine import set_automation_enabled_atomic
     try:

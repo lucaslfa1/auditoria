@@ -35,8 +35,6 @@ export const PipelineConfigSchema = z
     cota_max_por_operador_mes: numberValue(5),
     limite_ligacoes: numberValue(20),
     limite_auditorias: numberValue(10),
-    telefonia_cron_sync_ativa: booleanValue(true),
-    automacao_intervalo_segundos: numberValue(600),
   })
   .catch({
     enabled: false,
@@ -47,8 +45,6 @@ export const PipelineConfigSchema = z
     cota_max_por_operador_mes: 5,
     limite_ligacoes: 20,
     limite_auditorias: 10,
-    telefonia_cron_sync_ativa: true,
-    automacao_intervalo_segundos: 600,
   });
 
 const PipelineLastRunSchema = z
