@@ -1,7 +1,6 @@
 # Relatório de Progresso: Refatoração Arquitetural do Módulo Huawei AICC
 
 **Data:** 06 de Maio de 2026
-**Autor:** Gemini CLI (com revisões arquiteturais de Deep Think, ChatGPT e Claude)
 **Status:** Concluído com Sucesso
 
 ## 1. Visão Geral
@@ -12,7 +11,7 @@ O plano foi executado em **5 etapas incrementais** (Padrão Strangler), garantin
 ## 2. Fases Executadas
 
 ### Fase 0: O Bloqueador Absoluto (Bug de Polaridade)
-*   **Problema:** Identificado (via revisão do Claude) que a aplicação estava enviando o parâmetro `isCallIn` com a polaridade invertida (`false` para INBOUND e `true` para OUTBOUND), mascarando o filtro direcional nas áreas de risco.
+*   **Problema:** Identificado em revisão técnica que a aplicação estava enviando o parâmetro `isCallIn` com a polaridade invertida (`false` para INBOUND e `true` para OUTBOUND), mascarando o filtro direcional nas áreas de risco.
 *   **Solução:** Correção imediata no `HuaweiAICCClient`.
 *   **Validação:** Adicionadas duas novas camadas de testes (Testes de Contrato unitários e de integração com Mock Round-Trip). A suíte foi expandida para **42 testes**.
 

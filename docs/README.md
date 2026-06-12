@@ -45,5 +45,5 @@ quando conflitarem com a suíte 01–12, **a suíte vence**.
 | `reviews/`, `reports/`, `relatorio_*.md` | Relatórios de revisão e migração pontuais, já absorvidos |
 | `GUIA_DE_SOBREVIVENCIA_AUTOMACAO.md` | Manual de bolso informal da automação (mesmo espírito do doc 05) |
 | `SYSTEM_DOCUMENTATION.md`, `MIT_BEST_PRACTICES_REPORT.md` | Documentação geral e relatório de boas práticas de fases anteriores |
-| `backlog/`, `superpowers/`, `prompt_gemini_deep_think_projeto_completo.txt` | Planejamento, specs e prompts de trabalho dos agentes |
+| `backlog/` | Planejamento e specs de fases anteriores |
 | `branding/`, `integracoes/`, planilhas `.xlsx` | Referência visual e anexos operacionais |

@@ -2,7 +2,6 @@
 
 **Data**: 2026-04-09
 **Escopo**: Backend (services, classification, quality, evaluation, DB, exports) + Frontend (Dashboard, Classifier, SupervisorPortal) + Testes e Dados
-**Autor**: Claude Opus 4.6
 
 ---
 

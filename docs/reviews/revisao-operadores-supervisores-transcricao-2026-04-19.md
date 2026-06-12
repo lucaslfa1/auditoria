@@ -6,7 +6,7 @@ Data local: 2026-04-19
 
 Registrar a revisao feita no projeto Auditoria apos a retomada da sessao, cobrindo tres pontos:
 
-- Incorporacao e endurecimento das alteracoes propostas pelo Claude para triagem Huawei.
+- Incorporacao e endurecimento das alteracoes propostas na revisao anterior para triagem Huawei.
 - Ajuste da gestao de operadores e supervisores em Configuracoes.
 - Investigacao da diferenca de qualidade entre as transcricoes do Auditoria e do Sentinel.
 
@@ -16,7 +16,7 @@ O projeto estava com alteracoes locais relacionadas a automacao Huawei e selecao
 
 Durante a conversa, a decisao de produto foi alterar o nome visivel de "Colaboradores" para "Operadores" e manter o cadastro/remocao de supervisores somente em Configuracoes. Depois disso, foi investigada a diferenca de qualidade de transcricao entre o Sentinel e o Auditoria.
 
-## Alteracoes revisadas do Claude
+## Alteracoes revisadas
 
 Foram revisadas as alteracoes de automacao Huawei, especialmente:
 

@@ -1,7 +1,6 @@
 # Plano de Migração — GCP/Neon → Azure Corporativo
 
 **Status:** rascunho técnico v1 — 2026-05-28
-**Autor:** Claude (assistido)
 **Validação:** baseada na stack documentada em `process-flow.md` (versão 1.3.99)
 **Decisão de hosting:** Azure Container Apps (ACA) — alinhada com o modelo serverless do Cloud Run atual
 
@@ -687,4 +686,4 @@ Se algo der errado em qualquer ponto após T0:
 
 ---
 
-> **Notas para outros agentes (Gemini, Codex):** este plano foi escrito assumindo a versão 1.3.99. Se mudanças subsequentes alterarem o schema de `media_files`, `audit_media_files` ou o pipeline em `core/audit.py:process_audit_with_ai`, revisar §4.3-§4.5. Não rodar `pg_dump` em produção sem coordenar via canal Lucas (lock no Neon pode afetar leituras concorrentes).
+> **Nota de manutenção:** este plano foi escrito assumindo a versão 1.3.99. Se mudanças subsequentes alterarem o schema de `media_files`, `audit_media_files` ou o pipeline de auditoria, revisar §4.3-§4.5. Não rodar `pg_dump` em produção sem coordenar com o Lucas (lock no Neon pode afetar leituras concorrentes). A versão atualizada e agnóstica deste plano está em `docs/10-migracao-banco.md` e `docs/11-deploy.md` — em caso de conflito, a suíte canônica vence.

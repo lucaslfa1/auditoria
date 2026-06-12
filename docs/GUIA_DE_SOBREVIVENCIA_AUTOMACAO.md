@@ -55,7 +55,7 @@ npm run up
 
 ## 4. O Sistema em Produção (Nuvem) está desatualizado
 
-Se você fez alguma mudança ou eu (Gemini) fiz um reparo e você precisa jogar isso para a URL oficial da nuvem imediatamente:
+Se houve alguma mudança ou reparo local e você precisa jogar isso para a URL oficial da nuvem imediatamente:
 
 1. Salve o código no GitHub:
 ```bash

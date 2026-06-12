@@ -205,7 +205,7 @@ Leitura prática:
 
 ## Conclusão
 
-O trabalho executado por Gemini e Claude resolveu uma parte grande da sincronização:
+O trabalho executado resolveu uma parte grande da sincronização:
 
 - enxugou a base legada;
 - sincronizou corretamente os supervisores em `users`;

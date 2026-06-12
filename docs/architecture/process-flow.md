@@ -383,4 +383,4 @@ Atualize sempre que mexer em:
 
 Validação rápida: rode `Grep "@router\.(get|post|put|delete)"` nos routers e compare com a Seção 8.
 
-> Esta doc é fonte de verdade compartilhada entre Claude, Codex e Gemini. Se você for um agente atualizando o sistema, **atualize esta doc no mesmo PR** que muda o comportamento.
+> Quem alterar o comportamento do sistema deve **atualizar esta doc no mesmo PR** que muda o código.

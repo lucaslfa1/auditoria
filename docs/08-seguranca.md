@@ -37,7 +37,7 @@ Arquivos `.env` e `backend/.env` **com chaves reais** entraram no histórico do 
 
 Hoje os arquivos não são mais rastreados (`git ls-files` retorna apenas `.env.example` e `backend/.env.example`), mas **continuam recuperáveis no histórico** de qualquer clone. Como o repositório foi migrado para o GitHub (`lucaslfa1/auditoria`), as chaves expostas devem ser consideradas **comprometidas**.
 
-**Ação obrigatória — rotação de TODAS as chaves do inventário (responsável: Lucas/Gemini, no portal Azure e no console Neon), antes/na migração para o ambiente da empresa:**
+**Ação obrigatória — rotação de TODAS as chaves do inventário (responsável: Lucas, no portal Azure e no console Neon), antes/na migração para o ambiente da empresa:**
 
 1. Regenerar as keys dos 4 recursos Azure (OpenAI, Speech, eastus2 diarize/whisper, Text Analytics).
 2. Resetar a senha do role no Neon (gera novo `DATABASE_URL`).

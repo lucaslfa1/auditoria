@@ -19,4 +19,4 @@
 - O código foi versionado, e o pipeline de CI/CD para o Google Cloud Run foi disparado e finalizado na branch `main`.
 
 ---
-*Relatório gerado automaticamente após a manutenção e melhorias efetuadas pelo agente IA.*
+*Relatório gerado após a manutenção e melhorias descritas acima.*

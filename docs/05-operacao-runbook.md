@@ -88,4 +88,4 @@ guard no conftest bloqueia o host de prod (`docs/09-testes.md`).
   da empresa).
 - Sentry opcional (`SENTRY_*`): erros e traces com sample rate baixo.
 - Histórico de mudanças do sistema: `logs/versions/x.y.z.md` (changelog
-  técnico por versão, compartilhado entre os agentes IA do projeto).
+  técnico, uma entrada por versão).

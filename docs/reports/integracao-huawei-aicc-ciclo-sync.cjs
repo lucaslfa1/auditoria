@@ -192,7 +192,7 @@ const doc = new Document({
         spacing: { after: 120 },
         children: [
           new TextRun({ text: "Autor: ", bold: true }),
-          new TextRun({ text: "Lucas Afonso (com assistência Claude Code)" }),
+          new TextRun({ text: "Lucas Afonso" }),
         ],
       }),
       new Paragraph({

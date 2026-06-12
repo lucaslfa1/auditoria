@@ -156,7 +156,7 @@ O exportador gera 14 colunas:
 
 O arquivo aplica preenchimento laranja e bordas no cabecalho. Operacional e Telefonica sao convertidos para numero quando possivel.
 
-## Verificacao do relatorio do Claude
+## Verificacao do relatorio anterior
 
 ### Pontos corretos
 
@@ -172,7 +172,7 @@ O arquivo aplica preenchimento laranja e bordas no cabecalho. Operacional e Tele
 - A separacao de setores receptivos esta fragil: `celula_atendimento` nao cobre todas as variacoes como `celula`, `celula`, `célula` ou `RECEPTIVO`.
 - O Excel poderia melhorar freeze panes, larguras e formatos percentuais.
 
-### Pontos que precisam de ajuste no relatorio do Claude
+### Pontos que precisam de ajuste no relatorio anterior
 
 1. Checklist como exclusao obrigatoria nao foi confirmado no texto extraido do DOCX.
    - O DOCX menciona Checklist como receptivo e tambem na lista de Turno/Operacao.
@@ -184,7 +184,7 @@ O arquivo aplica preenchimento laranja e bordas no cabecalho. Operacional e Tele
    - O export atual segue o DOCX, nao a coluna extra da planilha.
    - Se Planejamento espera `WEON`, isso precisa ser confirmado separadamente.
 
-3. O item F4 do Claude e valido apenas para edicoes nao salvas.
+3. O item F4 do relatorio anterior e valido apenas para edicoes nao salvas.
    - Hoje o export sempre le o estado persistido no banco.
    - Se o usuario editar e baixar sem salvar, o Excel sai desatualizado.
    - Se o usuario salvar antes, o fluxo esta coerente.

@@ -2,7 +2,7 @@
 
 > Lista executável, em ordem. Cada item aponta o documento com o detalhe.
 > Pré-requisito de leitura: `docs/01-visao-geral.md` e o índice
-> `docs/README.md`. Responsáveis: [LUCAS] = Lucas/Gemini (lado atual);
+> `docs/README.md`. Responsáveis: [LUCAS] = Lucas (lado atual);
 > [ENG] = time de engenharia da empresa.
 
 ## Fase A — Segurança (antes de qualquer deploy)

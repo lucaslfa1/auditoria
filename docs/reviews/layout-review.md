@@ -130,7 +130,7 @@ Notes:
 | 10 | LR-010 | Medium | M | Done (pending QA) |
 
 ## Session Metadata
-- Reviewer: Codex (code-first pass)
+- Revisao: passada code-first
 - Date: 2026-02-18
 - Build/commit:
 - Browser(s):

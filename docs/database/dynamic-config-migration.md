@@ -1,12 +1,16 @@
 # Migração para Configuração DB-First (Auditoria NSTECH)
 
-> **Para a próxima IA que abrir este documento:** Leia esta seção *inteira* antes de tocar
-> em qualquer ponto do plano. O arquivo serve como mapa de "onde mora cada coisa hoje" +
+> **Para quem for implementar este plano:** leia esta seção *inteira* antes de tocar
+> em qualquer ponto. O arquivo serve como mapa de "onde mora cada coisa hoje" +
 > ordem segura de migração para tornar o sistema editável em runtime sem deploy.
-> Atualize-o quando concluir uma etapa (mudando o status no checklist).
+> Atualize-o ao concluir uma etapa (mudando o status no checklist).
+>
+> **Status:** plano parcialmente executado (Fases 0–2 concluídas; ver §6). O documento
+> foi escrito na época da v1.3.66 — para o estado atual do schema, a referência é
+> `docs/03-banco-de-dados.md`. Trate as fases pendentes como proposta a validar
+> contra o código antes de executar.
 
 - **Documento criado:** 2026-05-15
-- **Autor:** Claude Opus 4.7 (sessão pós-1.3.66)
 - **Projeto Neon:** `auditoria-nstech-2` (id `quiet-term-98076087`, região `aws-sa-east-1`, PG 17)
 - **App version base:** 1.3.66
 - **Branch alvo:** `main`
@@ -289,9 +293,10 @@ agilidade — é segurança.
 4. **Versionamento para o que é crítico** (prompts, critérios). Para o resto (correções
    fonéticas, sector aliases) basta audit_log.
 5. **Testes de integração antes de migrar.** Cada fase precisa de teste que rode triagem em
-   ligação real e compare resultado antes/depois. Já temos `backend/tests/` —
+   ligação real e compare resultado antes/depois. A suíte vive em `tests/backend/` —
    adicionar `test_dynamic_config_*` por fase.
-6. **Documentar no `MEMORY.md` de toda IA cada fase concluída** — formato:
+6. **Registrar cada fase concluída** no log de versões (`logs/versions/x.y.z.md`) e no
+   checklist da §6 — formato sugerido:
    `Fase N (DD/MM/AAAA): <tabela X> agora dinâmica, hardcoded removido em <arquivo:linha>.`
 
 ---
@@ -317,9 +322,9 @@ agilidade — é segurança.
 
 ---
 
-## 7. Notas para a próxima IA
+## 7. Notas para quem for implementar
 
-- **Antes de implementar qualquer fase**, rode a query abaixo no Neon para confirmar que o
+- **Antes de implementar qualquer fase**, rode a query abaixo no banco para confirmar que o
   schema descrito ainda bate com a realidade — refactors podem ter mudado nomes:
   ```sql
   SELECT table_name FROM information_schema.tables
@@ -331,9 +336,8 @@ agilidade — é segurança.
 - **`scoring_rules.yaml` tem 3 variantes** (`scoring_rules.yaml`, `scoring_rules_final.yaml`,
   `scoring_rules_updated.yaml`). Só o primeiro é lido pelo código. Os outros dois podem ser
   removidos ao concluir a Fase 1, mas confirme com `grep` antes.
-- **Há `worktrees` em `.claude/worktrees/`** com cópias de `auth_users.py` etc. — são
-  experimentos de outras sessões, NÃO leia para entender o estado real. Sempre use os
-  arquivos em `backend/repositories/`.
+- **A fonte de verdade do código de repositórios é `backend/repositories/`** — cópias de
+  trabalho em diretórios temporários não refletem o estado real.
 - **`configuracoes.atualizado_em` é `text`, não `timestamptz`** — herança da migração SQLite.
   A Fase 0 é uma boa hora para consertar (ALTER COLUMN com USING).
 - **Login de teste:** `Lucas` / `admin123` (`role=admin`) — use para testar UIs admin.

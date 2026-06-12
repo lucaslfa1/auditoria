@@ -169,5 +169,5 @@ endpoints (v1.3.126).
 - **Regras de elegibilidade têm fonte única** (`AutomationGatekeeper`):
   sync e automação usam a mesma função — não duplicar filtro em outro lugar.
 - **Histórico de mudanças** vive em `logs/versions/x.y.z.md` (changelog
-  técnico compartilhado entre os agentes IA do projeto). Consultar antes de
+  técnico do projeto, uma entrada por versão). Consultar antes de
   alterar comportamento.

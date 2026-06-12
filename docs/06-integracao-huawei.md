@@ -137,4 +137,5 @@ preso — todo item termina auditado ou descartado com motivo consultável.
 - Capacidades da API: `backend/config/huawei_capabilities.md`
 - Histórico: `logs/versions/1.3.93` (timezone CSV), `1.3.115` (direção via
   VDN), `1.3.116` (gates antes do GPT)
-- Material de planejamento antigo (Playwright/scraping): `.claude/commands/huawei.md` — nunca implementado; a integração real é 100% API
+- Nota: houve um plano antigo de integração via scraping (Playwright) que
+  nunca foi implementado — a integração real é 100% API REST

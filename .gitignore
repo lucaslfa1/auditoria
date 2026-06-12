@@ -142,6 +142,16 @@ vertex-ai/
 tmp/local-secrets/
 INSTRUCOES_PARA_IA.md
 gha-creds-*.json
+claude_agent/
+GEMINI.md
+CLAUDE.md
+AGENTS.md
+docs/superpowers/
+docs/prompt_gemini_deep_think_projeto_completo.txt
+docs/reports/verificacao-updates-claude-2026-05-04.md
+planejamento/05-revisoes/CONTINUACAO_REVISAO_CLAUDE_2026-03-12.md
+relatorios_atividades/avaliacao_revisao_claude.md
+relatorios_atividades/telefonia_huawei/*Claude*.docx
 
 # Process/PID files
 *.pid
@@ -164,7 +174,7 @@ env.json
 images/
 
 
-# Documenta��o local e apresenta��es (n�o versionar)
+# Documentacao local e apresentacoes (nao versionar)
 documentos_oficiais/
 docs/apresentacao_2026-04-24/
 
