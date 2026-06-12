@@ -52,6 +52,91 @@ class TestAuditZeroingRules(unittest.TestCase):
         self.assertEqual(result.score, 2.0)
         self.assertNotIn("Nota zerada", result.summary)
 
+    def test_password_fail_does_not_zero_when_driver_denies_password_before_cpf(self):
+        result = result_from_raw(
+            {
+                "summary": "Condutor sem senha validado por CPF.",
+                "details": [
+                    {
+                        "criterionId": "senha",
+                        "status": "fail",
+                        "comment": "A senha nao foi confirmada porque o condutor informou que nao tinha senha.",
+                    },
+                    {
+                        "criterionId": "saudacao",
+                        "status": "pass",
+                        "comment": "Saudacao realizada.",
+                    },
+                ],
+                "fatal_flags": [],
+            },
+            [
+                AuditCriterion(id="senha", label="Confirmou a senha de segurança?", weight=2.0),
+                AuditCriterion(id="saudacao", label="Realizou saudação?", weight=1.0),
+            ],
+            transcription_data=[
+                {"start": "00:00", "end": "00:02", "text": "Operador: O senhor confirma a senha de seguranca?"},
+                {"start": "00:02", "end": "00:04", "text": "Motorista: Eu nao tenho senha, nao recebi."},
+                {"start": "00:04", "end": "00:06", "text": "Operador: Entao confirma seu CPF, por favor."},
+                {"start": "00:06", "end": "00:09", "text": "Motorista: 12345678901."},
+            ],
+            sector_id="bas",
+        )
+
+        self.assertEqual(result.score, 1.0)
+        self.assertNotIn("Nota zerada", result.summary)
+
+    def test_false_cpf_fatal_flag_is_ignored_when_password_fallback_is_legitimate(self):
+        result = result_from_raw(
+            {
+                "summary": "Condutor sem senha validado por CPF.",
+                "details": [
+                    {
+                        "criterionId": "senha",
+                        "status": "pass",
+                        "comment": "Condutor informou que nao tinha senha; CPF foi usado como fallback.",
+                    }
+                ],
+                "fatal_flags": ["solicitar_senha_ou_cpf"],
+            },
+            [AuditCriterion(id="senha", label="Confirmou a senha de segurança?", weight=2.0)],
+            transcription_data=[
+                {"start": "00:00", "end": "00:02", "text": "Operador: Pode confirmar a senha de seguranca?"},
+                {"start": "00:02", "end": "00:04", "text": "Motorista: Nao tenho a senha."},
+                {"start": "00:04", "end": "00:06", "text": "Operador: Tudo bem, confirma o CPF."},
+            ],
+            sector_id="bas",
+        )
+
+        self.assertEqual(result.score, 2.0)
+        self.assertNotIn("Nota zerada", result.summary)
+        self.assertNotIn("solicitar_senha_ou_cpf", result.fatal_flags)
+
+    def test_direct_cpf_request_without_password_denial_still_zeroes(self):
+        result = result_from_raw(
+            {
+                "summary": "Operador pediu CPF direto.",
+                "details": [
+                    {
+                        "criterionId": "senha",
+                        "status": "pass",
+                        "comment": "Operador validou CPF.",
+                    }
+                ],
+                "fatal_flags": ["solicitar_senha_ou_cpf"],
+            },
+            [AuditCriterion(id="senha", label="Confirmou a senha de segurança?", weight=2.0)],
+            transcription_data=[
+                {"start": "00:00", "end": "00:02", "text": "Operador: Confirma seu CPF, por favor."},
+                {"start": "00:02", "end": "00:05", "text": "Motorista: 12345678901."},
+            ],
+            sector_id="bas",
+        )
+
+        self.assertEqual(result.score, 0.0)
+        self.assertIn("Nota zerada", result.summary)
+        self.assertIn("solicitar_senha_ou_cpf", result.fatal_flags)
+
 
 if __name__ == "__main__":
     unittest.main()

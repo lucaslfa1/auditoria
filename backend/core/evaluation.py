@@ -90,6 +90,131 @@ def _resolve_audit_detail_scores(weight: float, status: str, deflator: Optional[
     return -d, weight # Default fail fallback
 
 
+_CPF_FALLBACK_COMPATIBLE_FATAL_FLAGS = {
+    "senha_nao_solicitada",
+    "solicitar_senha_ou_cpf",
+    "senha_incorreta_aceita",
+}
+
+
+def _normalize_password_flow_text(value: Any) -> str:
+    text = remove_emojis(str(value or "")).lower()
+    replacements = {
+        "á": "a",
+        "à": "a",
+        "ã": "a",
+        "â": "a",
+        "é": "e",
+        "ê": "e",
+        "í": "i",
+        "ó": "o",
+        "ô": "o",
+        "õ": "o",
+        "ú": "u",
+        "ç": "c",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _segment_password_flow_text(segment: Any) -> str:
+    if isinstance(segment, dict):
+        return _normalize_password_flow_text(segment.get("text") or segment.get("content") or "")
+    return _normalize_password_flow_text(getattr(segment, "text", segment))
+
+
+def _is_password_request_text(text: str) -> bool:
+    return "senha" in text and any(
+        cue in text
+        for cue in (
+            "confirma",
+            "confirmar",
+            "informa",
+            "informar",
+            "me passa",
+            "pode passar",
+            "qual",
+            "solicito",
+            "senha de seguranca",
+        )
+    )
+
+
+def _is_password_unavailable_text(text: str, password_was_requested: bool) -> bool:
+    explicit_password_denial = "senha" in text and any(
+        cue in text
+        for cue in (
+            "nao tenho",
+            "nao tem",
+            "nao recebi",
+            "nao chegou",
+            "sem senha",
+            "nao sei",
+            "nao lembro",
+            "esqueci",
+            "nao consigo",
+            "nao estou com",
+            "nao to com",
+            "nao tenho acesso",
+        )
+    )
+    if explicit_password_denial:
+        return True
+
+    # Depois que a senha foi solicitada, a negativa pode vir curta ("nao tenho",
+    # "estou dirigindo") sem repetir a palavra senha na transcricao.
+    return password_was_requested and any(
+        cue in text
+        for cue in (
+            "nao tenho",
+            "nao recebi",
+            "nao sei",
+            "nao lembro",
+            "esqueci",
+            "estou dirigindo",
+            "to dirigindo",
+            "estou em movimento",
+            "to em movimento",
+            "nao consigo ver",
+            "nao consigo pegar",
+            "sem acesso",
+        )
+    )
+
+
+def _has_cpf_signal(text: str) -> bool:
+    digits = re.sub(r"\D+", "", text)
+    return "cpf" in text or len(digits) >= 11
+
+
+def _has_legitimate_cpf_password_fallback(transcription_data: Any) -> bool:
+    """True quando a conversa mostra senha solicitada/negada antes do CPF.
+
+    Essa guarda corrige falso positivo de zeragem: motorista diz que nao tem
+    ou nao recebeu a senha, entao o operador pode validar por CPF. Sem uma
+    negativa antes do CPF, a regra segue zerando por senha/CPF direto.
+    """
+    if not isinstance(transcription_data, list):
+        return False
+
+    password_requested = False
+    password_unavailable = False
+
+    for segment in transcription_data:
+        text = _segment_password_flow_text(segment)
+        if not text:
+            continue
+        if _is_password_request_text(text):
+            password_requested = True
+        if _is_password_unavailable_text(text, password_requested):
+            password_unavailable = True
+        if password_unavailable and _has_cpf_signal(text):
+            return True
+
+    return False
+
+
 def _pick_stricter_audit_detail(existing: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
     existing_rank = AUDIT_DETAIL_SEVERITY[existing["status"]]
     candidate_rank = AUDIT_DETAIL_SEVERITY[candidate["status"]]
@@ -526,6 +651,7 @@ def result_from_raw(raw: dict, criteria_list: list[AuditCriterion], transcriptio
     sec = (sector_id or "").lower().strip()
     zeroed = False
     zero_reason = ""
+    has_legitimate_cpf_fallback = _has_legitimate_cpf_password_fallback(transcription_data)
 
     # === CAMADA 1: Deteccao deterministica por criterionId ===
     RASTREAMENTO_SECTORS = get_rastreamento_sectors()
@@ -547,7 +673,7 @@ def result_from_raw(raw: dict, criteria_list: list[AuditCriterion], transcriptio
                 or "senha" in criterion_key
                 or "senha" in label
             )
-            if is_password_criterion and item.status == "fail":
+            if is_password_criterion and item.status == "fail" and not has_legitimate_cpf_fallback:
                 zeroed = True
                 zero_reason = f"falha no critério de senha ('{item.label}')"
                 break
@@ -557,6 +683,12 @@ def result_from_raw(raw: dict, criteria_list: list[AuditCriterion], transcriptio
         fatal_flags = raw.get("fatal_flags", []) if isinstance(raw, dict) else []
 
         for flag in fatal_flags:
+            normalized_flag = str(flag or "").strip()
+            if (
+                has_legitimate_cpf_fallback
+                and normalized_flag in _CPF_FALLBACK_COMPATIBLE_FATAL_FLAGS
+            ):
+                continue
             if isinstance(flag, str) and sec in get_fatal_flag_sectors(flag):
                 zeroed = True
                 zero_reason = f"flag não-negociável '{flag}'"
@@ -570,6 +702,10 @@ def result_from_raw(raw: dict, criteria_list: list[AuditCriterion], transcriptio
             for item in details:
                 if item.status == "fail":
                     item_text = f"{item.label} {item.comment}".lower()
+                    if has_legitimate_cpf_fallback and (
+                        "senha" in item_text or "cpf" in item_text
+                    ):
+                        continue
                     if any(fk in item_text for fk in fatal_keywords):
                         zeroed = True
                         zero_reason = f"criterio '{item.label}'"
@@ -603,6 +739,18 @@ def result_from_raw(raw: dict, criteria_list: list[AuditCriterion], transcriptio
 
 
 
+    result_fatal_flags = [
+        str(flag).strip()
+        for flag in (raw.get("fatal_flags", []) if isinstance(raw, dict) else [])
+        if str(flag).strip()
+    ]
+    if has_legitimate_cpf_fallback:
+        result_fatal_flags = [
+            flag
+            for flag in result_fatal_flags
+            if flag not in _CPF_FALLBACK_COMPATIBLE_FATAL_FLAGS
+        ]
+
     return AuditResult(
         score=round(total_score, 2),
         maxPossibleScore=round(max_score, 2),
@@ -616,9 +764,5 @@ def result_from_raw(raw: dict, criteria_list: list[AuditCriterion], transcriptio
         source_type=source_type,
         audit_scope=audit_scope,
         audio_quality=audio_quality,
-        fatal_flags=[
-            str(flag).strip()
-            for flag in (raw.get("fatal_flags", []) if isinstance(raw, dict) else [])
-            if str(flag).strip()
-        ],
+        fatal_flags=result_fatal_flags,
     )
