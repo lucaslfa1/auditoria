@@ -1183,4 +1183,3 @@ SELECT pg_catalog.setval('public.audit_criteria_id_seq', 317246, true);
 --
 
 \unrestrict BUcxsEL7C4pgshsOE3XVODuYTfI5k5HRccIkHFYSGEfBAaBopHAlNHbOEl2zQRJ
-

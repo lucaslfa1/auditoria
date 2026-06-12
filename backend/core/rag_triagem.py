@@ -9,6 +9,7 @@ import logging
 import os
 from typing import Optional
 
+from core import cost_guard
 from repositories.common import json_loads
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,10 @@ def gerar_embedding(texto: str) -> Optional[list[float]]:
 
         # Truncar a 8000 tokens (~32000 chars) para segurança
         texto_truncado = texto[:32000]
+
+        # Telemetria de custo: embedding é chamada paga ao Azure OpenAI e
+        # conta no teto diário de chamadas LLM (COST_MAX_LLM_CALLS_PER_DAY).
+        cost_guard.record_call(cost_guard.PROVIDER_AZURE_OPENAI, "embedding")
 
         response = client.embeddings.create(
             input=texto_truncado,

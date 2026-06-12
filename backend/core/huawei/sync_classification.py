@@ -200,7 +200,7 @@ async def _classificar_pdf_huawei(
             hs.ClassificationResult(
                 filename=filename,
                 sector_id="desconhecido",
-                sector_label="NÃ£o Identificado",
+                sector_label="Não Identificado",
                 alert_id="desconhecido",
                 alert_label="PDF sem texto suficiente",
                 confidence=0.0,
@@ -259,9 +259,9 @@ async def _classificar_pdf_huawei(
         hs.ClassificationResult(
             filename=filename,
             sector_id=classification.get("sector_id", "desconhecido"),
-            sector_label=classification.get("sector_label", "NÃ£o Identificado"),
+            sector_label=classification.get("sector_label", "Não Identificado"),
             alert_id=classification.get("alert_id", "desconhecido"),
-            alert_label=classification.get("alert_label", "NÃ£o Identificado"),
+            alert_label=classification.get("alert_label", "Não Identificado"),
             confidence=confidence,
             operator_name=classification.get("operator_name") or operator_name or None,
             direction=classification.get("direction"),

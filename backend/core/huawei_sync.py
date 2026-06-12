@@ -1094,9 +1094,9 @@ async def _buscar_chamadas_por_regra(
     operador: dict,
     regra: dict,
 ) -> list[dict]:
-    """Busca chamadas respeitando a semÃ¢ntica de `call_direction=None => qualquer`.
+    """Busca chamadas respeitando a semântica de `call_direction=None => qualquer`.
 
-    A API da Huawei exige `isCallIn`, entÃ£o quando a regra nÃ£o fixa direÃ§Ã£o
+    A API da Huawei exige `isCallIn`, então quando a regra não fixa direção
     consultamos ambos os sentidos e deduplicamos por `callId`.
     """
     raw_direction = str(regra.get("call_direction") or "").strip().upper()

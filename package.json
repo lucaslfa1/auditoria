@@ -23,7 +23,7 @@
     "rag:sync-procedimentos": "backend\\.venv\\Scripts\\python.exe backend/scripts/sync_procedimento_chunks.py",
     "test": "npm run test:frontend && npm run test:backend",
     "test:frontend": "node tests/frontend/frontend-regressions.test.mjs",
-    "test:backend": "backend\\.venv\\Scripts\\python.exe -m unittest discover -s tests/backend -t . -p \"test_*.py\"",
+    "test:backend": "backend\\.venv\\Scripts\\python.exe -m pytest tests/backend -q",
     "log:new": "node scripts/new-log-version.mjs"
   },
   "dependencies": {

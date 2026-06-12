@@ -11,11 +11,11 @@ from services import AuditAlert, AuditCriterion, process_audit_with_ai
 
 
 MOCK_TRANSCRIPTION = [
-    {"start": "00:00", "end": "00:05", "text": "Operador: Bom dia, aqui Ã© o operador JoÃ£o da Opentech."},
+    {"start": "00:00", "end": "00:05", "text": "Operador: Bom dia, aqui é o operador João da Opentech."},
     {"start": "00:05", "end": "00:10", "text": "Motorista: Bom dia, sou o motorista Carlos."},
     {"start": "00:10", "end": "00:15", "text": "Operador: Por favor, me informe a sua senha de atendimento."},
-    {"start": "00:15", "end": "00:20", "text": "Motorista: A senha Ã© a contra-senha do dia."},
-    {"start": "00:20", "end": "00:25", "text": "Operador: Obrigado, confirmado. Estou vendo que o senhor parou em local nÃ£o autorizado."},
+    {"start": "00:15", "end": "00:20", "text": "Motorista: A senha é a contra-senha do dia."},
+    {"start": "00:20", "end": "00:25", "text": "Operador: Obrigado, confirmado. Estou vendo que o senhor parou em local não autorizado."},
 ]
 
 
@@ -33,7 +33,7 @@ async def run_mock_test():
             context="Motorista parou em local de risco.",
             criteria=[
                 AuditCriterion(id="1", label="Solicitar Senha", weight=50.0, description="Pedir senha no inicio"),
-                AuditCriterion(id="2", label="Verificar Local", weight=50.0, description="Confirmar se o local Ã© seguro"),
+                AuditCriterion(id="2", label="Verificar Local", weight=50.0, description="Confirmar se o local é seguro"),
             ],
         )
 
@@ -54,7 +54,7 @@ async def run_mock_test():
                 audio_file=b"dummy",
                 mime_type="audio/wav",
                 alert=alert,
-                operator_name="JoÃ£o",
+                operator_name="João",
                 operator_id="123",
                 sector_id="test_sector",
             )

@@ -26,7 +26,11 @@ const automacaoConfigPanelSource = read('src/features/automacao/components/Autom
 const automacaoHookSource = read('src/features/automacao/hooks/useAutomacaoDashboard.ts');
 const automacaoSchemasSource = read('src/features/automacao/schemas.ts');
 const automacaoViewModelSource = read('src/features/automacao/automationViewModel.ts');
-const mojibakePattern = /Ã\S|Â\S|\uFFFD/;
+// Mojibake real (UTF-8 lido como Latin-1) gera C3/C2 seguidos de simbolo ou minuscula.
+// Portugues legitimo usa essas letras apenas antes de outra maiuscula ou espaco
+// (ex.: APROVACAO com cedilha/til, CAMARA com circunflexo) - o lookahead negativo
+// evita esses falsos positivos sem deixar de pegar mojibake verdadeiro.
+const mojibakePattern = /Ã(?![A-ZÀ-Ü\s])|Â(?![A-ZÀ-Ü\s])|\uFFFD/;
 
 assert.match(appSource, /document\.body\.classList\.add\('theme-switching'\)/);
 assert.match(appSource, /window\.setTimeout\(\(\) => \{\s*document\.body\.classList\.remove\('theme-switching'\);\s*\}, 70\)/);

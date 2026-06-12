@@ -23,22 +23,22 @@ if response.status_code != 200:
     print(f"Erro no login: {response.status_code} - {response.text}")
     raise SystemExit(1)
 
-audio_path = r"C:\Users\lucas.afonso\projetos\auditoria\LigaÃ§Ãµes\CADASTRO\ANTECEDENTES-agent-11214-5_11_2025_17_13_3-node01-1762373580-26728.wav"
+audio_path = r"C:\Users\lucas.afonso\projetos\auditoria\Ligações\CADASTRO\ANTECEDENTES-agent-11214-5_11_2025_17_13_3-node01-1762373580-26728.wav"
 
 if not os.path.exists(audio_path):
-    files = glob.glob(r"C:\Users\lucas.afonso\projetos\auditoria\LigaÃ§Ãµes\**\*.wav", recursive=True)
+    files = glob.glob(r"C:\Users\lucas.afonso\projetos\auditoria\Ligações\**\*.wav", recursive=True)
     if files:
         audio_path = files[0]
-        print(f"Usando arquivo de Ã¡udio: {audio_path}")
+        print(f"Usando arquivo de áudio: {audio_path}")
     else:
-        print("Nenhum arquivo de Ã¡udio (.wav) encontrado para o teste.")
+        print("Nenhum arquivo de áudio (.wav) encontrado para o teste.")
         raise SystemExit(1)
 
 alert_config = {
     "id": "4.2.1",
     "label": "CADASTRO",
     "description": "Verificar procedimento de antecedentes",
-    "promptText": "VocÃª Ã© um auditor de qualidade. O operador deve se identificar, ser cordial e resolver o problema de antecedentes criminais do motorista.",
+    "promptText": "Você é um auditor de qualidade. O operador deve se identificar, ser cordial e resolver o problema de antecedentes criminais do motorista.",
     "criteria": [
         {"id": "c1", "text": "Operador se identificou?", "type": "boolean", "weight": 1.0, "deflator": -0.5},
         {"id": "c2", "text": "Tratou o problema de antecedentes?", "type": "boolean", "weight": 2.0, "deflator": -1.0},
