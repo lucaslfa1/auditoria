@@ -331,9 +331,10 @@ def _calculate_process_and_final(
     return processo_val, final_val
 
 
-def _format_extra_uti_layout_row(
+def _format_registered_layout_row(
     row: dict[str, Any],
     *,
+    layout_id: int | None = None,
     row_id: int,
     mes_str: str,
     apply_overrides: bool,
@@ -399,7 +400,7 @@ def _format_extra_uti_layout_row(
     weon_val = '-' if 'mondelez' in escala_lower else (weon or '')
 
     return {
-        'layout_id': None,
+        'layout_id': layout_id,
         'colab_id': row.get('colab_id'),
         'id': row_id,
         'mes_str': mes_str,
@@ -423,7 +424,7 @@ def _format_extra_uti_layout_row(
     }
 
 
-def _append_extra_uti_rows_for_layout(
+def _append_and_link_registered_rows_for_layout(
     conn,
     results: list[Dict[str, Any]],
     month: int,
@@ -431,7 +432,15 @@ def _append_extra_uti_rows_for_layout(
     *,
     apply_overrides: bool,
 ) -> None:
-    """Layout fixo nao cobre necessariamente todos os colaboradores UTI atuais."""
+    """Vincula ao layout os colaboradores cadastrados ainda ausentes.
+
+    O layout oficial preserva a ordem/estrutura da planilha de fechamento,
+    mas a fonte de verdade sobre quem esta cadastrado e `colaboradores`.
+    Assim, qualquer colaborador elegivel que nao tenha linha no layout ganha
+    uma linha vinculada por `colaborador_id`. Se o auditor removeu alguem do
+    fechamento, a linha desativada no layout continua bloqueando o retorno
+    automatico.
+    """
     cursor = conn.cursor()
     date_start, date_end = _month_bounds(month, year)
     sql = """
@@ -492,13 +501,9 @@ def _append_extra_uti_rows_for_layout(
     )
       AND c.nome IS NOT NULL
       AND TRIM(c.nome) != ''
-      AND (
-        UPPER(COALESCE(c.setor, '')) LIKE '%%UTI%%'
-        OR UPPER(COALESCE(c.escala, '')) LIKE '%%UTI%%'
-      )
       -- Quem ja tem linha no layout (ativa OU removida pelo auditor) nao
-      -- entra como "extra": linha ativa ja aparece pelo caminho do layout e
-      -- linha desativada e uma remocao explicita que nao pode reviver aqui.
+      -- entra pelo complemento: linha ativa ja aparece pelo layout, e linha
+      -- desativada e uma remocao explicita que nao pode reviver aqui.
       AND NOT EXISTS (
         SELECT 1 FROM fechamento_layout_operadores lx
         WHERE lx.colaborador_id = c.id
@@ -511,11 +516,10 @@ def _append_extra_uti_rows_for_layout(
     seen_matriculas = {_layout_match_key(row.get('matricula')) for row in results if _layout_match_key(row.get('matricula'))}
     next_id = max([int(row.get('id') or 0) for row in results] or [0]) + 1
     mes_str = MESES_PT.get(month, '')
+    candidate_rows: list[dict[str, Any]] = []
 
     for raw_row in cursor.fetchall():
         row = dict(raw_row) if not isinstance(raw_row, dict) else raw_row
-        if not _is_uti(row.get('setor', ''), row.get('escala', '')):
-            continue
         if _is_removed_operator_row(row):
             continue
 
@@ -526,20 +530,68 @@ def _append_extra_uti_rows_for_layout(
             or (matricula_key and matricula_key in seen_matriculas)
         ):
             continue
+        candidate_rows.append(row)
+        if colab_id:
+            seen_colab_ids.add(int(colab_id))
+        if matricula_key:
+            seen_matriculas.add(matricula_key)
+
+    if not candidate_rows:
+        return
+
+    cursor.execute("SELECT COALESCE(MAX(sequencia_bloco), 0) AS max_seq FROM fechamento_layout_operadores")
+    next_sequence = int(_row_value(cursor.fetchone(), "max_seq", 0) or 0) + 1
+
+    for row in candidate_rows:
+        colab_id = row.get('colab_id')
+        nota_coluna = (
+            LAYOUT_NOTE_TELEFONICA
+            if _is_receptive(row.get("setor") or "", row.get("escala") or "")
+            else "OPERACIONAL"
+        )
+        cursor.execute(
+            """
+            INSERT INTO fechamento_layout_operadores (
+                sequencia_bloco, posicao, id_visual, matricula, nome,
+                turno_operacao, supervisor, setor, nota_coluna, status_base,
+                huawei, weon, colaborador_id, ativo
+            ) VALUES (
+                %(sequencia_bloco)s, 1, %(id_visual)s, %(matricula)s, %(nome)s,
+                %(turno)s, %(supervisor)s, %(setor)s, %(nota_coluna)s, %(status_base)s,
+                %(huawei)s, %(weon)s, %(colaborador_id)s, TRUE
+            )
+            RETURNING id
+            """,
+            {
+                "sequencia_bloco": next_sequence,
+                "id_visual": next_id,
+                "matricula": row.get("matricula") or "",
+                "nome": row.get("nome") or "",
+                "turno": row.get("escala") or "",
+                "supervisor": row.get("supervisor") or "",
+                "setor": row.get("setor") or "",
+                "nota_coluna": nota_coluna,
+                "status_base": str(row.get("status") or "ATIVO").strip().upper() or "ATIVO",
+                "huawei": row.get("id_huawei") or "",
+                "weon": row.get("id_weon") or "",
+                "colaborador_id": colab_id,
+            },
+        )
+        inserted = cursor.fetchone()
+        layout_id = _row_value(inserted, "id")
 
         results.append(
-            _format_extra_uti_layout_row(
+            _format_registered_layout_row(
                 row,
+                layout_id=int(layout_id) if layout_id else None,
                 row_id=next_id,
                 mes_str=mes_str,
                 apply_overrides=apply_overrides,
             )
         )
-        if colab_id:
-            seen_colab_ids.add(int(colab_id))
-        if matricula_key:
-            seen_matriculas.add(matricula_key)
         next_id += 1
+        next_sequence += 1
+    conn.commit()
 
 
 def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overrides: bool = True) -> List[Dict[str, Any]]:
@@ -762,7 +814,7 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
             'weon': weon or '',
         })
 
-    _append_extra_uti_rows_for_layout(conn, results, month, year, apply_overrides=apply_overrides)
+    _append_and_link_registered_rows_for_layout(conn, results, month, year, apply_overrides=apply_overrides)
     return results
 
 
@@ -1031,8 +1083,8 @@ def remove_fechamento_layout_operador(conn, *, layout_id: int | None = None, col
     """Remove um operador do fechamento (desativa a linha; nada e apagado).
 
     - Linha do layout fixo: desativa por `layout_id`.
-    - Linha dinamica (extra-UTI, sem layout_id): materializa uma linha
-      desativada para o colaborador — o NOT EXISTS do appender extra-UTI
+    - Linha dinamica de complemento do cadastro (sem layout_id): materializa
+      uma linha desativada para o colaborador — o NOT EXISTS do complemento
       passa a suprimi-lo nos proximos carregamentos.
     Reverter = adicionar de novo pela tela (reativa a mesma linha).
     """

@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from repositories.operators import (  # noqa: E402
     buscar_colaborador_por_id_huawei,
+    delete_colaborador,
     ensure_colaborador_exists,
     get_colaboradores_lookup,
     list_colaboradores,
@@ -67,6 +68,9 @@ class FakeConnection:
 
     def commit(self):
         self.committed = True
+
+    def rollback(self):
+        pass
 
     def close(self):
         self.closed = True
@@ -173,6 +177,26 @@ class TestOperatorAuditability(unittest.TestCase):
         self.assertIn("id_huawei", query)
         self.assertNotIn("OR id_telefonia", query)
         self.assertEqual(params, ("999",))
+
+    def test_delete_colaborador_desvincula_layout_do_fechamento(self):
+        class DeleteCursor(FakeCursor):
+            rowcount = 1
+
+        cursor = DeleteCursor(fetchone_rows=[_row(id=70)])
+        conn = FakeConnection(cursor)
+
+        deleted = delete_colaborador(lambda: conn, 70, alterado_por="test")
+
+        self.assertTrue(deleted)
+        self.assertTrue(conn.committed)
+        executed_sql = "\n".join(query for query, _ in cursor.executions)
+        self.assertIn("UPDATE fechamento_layout_operadores", executed_sql)
+        self.assertIn("SET colaborador_id = NULL", executed_sql)
+        update_params = [
+            params for query, params in cursor.executions
+            if "UPDATE fechamento_layout_operadores" in query
+        ][0]
+        self.assertEqual(update_params, (70,))
 
     def test_telefonia_import_skips_removed_operations_and_nameless_services(self):
         excluded_cursor = FakeCursor(rows=[])

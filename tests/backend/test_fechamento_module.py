@@ -318,11 +318,14 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertIn("TRIM(c.matricula) = TRIM(l.matricula)", relink_sqls[0])
         self.assertIn("LOWER(TRIM(c.nome)) = LOWER(TRIM(l.nome))", relink_sqls[1])
 
-    def test_layout_mode_appends_uti_collaborators_outside_fixed_layout(self):
+    def test_layout_mode_appends_registered_collaborators_outside_fixed_layout(self):
+        # O fechamento deve conter o cadastro atual de operadores elegiveis.
+        # O layout fixo preserva a ordem oficial, mas nao pode limitar a
+        # inclusao apenas a setores historicamente previstos na planilha.
         conn = _FakeConnection([
             _LayoutModeCountCursor(),
             _FakeCursor(rows=[]),
-            _FakeCursor(rows=[
+            _ScriptedCursor(fetchones=[{"max_seq": 9}, {"id": 90}, {"id": 91}], rows=[
                 _db_row(
                     colab_id=40,
                     nome="Operadora UTI",
@@ -345,11 +348,14 @@ class TestFechamentoModule(unittest.TestCase):
         rows = get_fechamento_rows(conn, 4, 2026)
 
         self.assertTrue(conn.committed)
-        self.assertEqual([row["nome"] for row in rows], ["Operadora UTI"])
-        self.assertIsNone(rows[0]["layout_id"])
+        self.assertEqual([row["nome"] for row in rows], ["Operadora UTI", "Operadora BAS"])
+        self.assertEqual(rows[0]["layout_id"], 90)
         self.assertEqual(rows[0]["colab_id"], 40)
         self.assertEqual(rows[0]["setor"], "UTI")
         self.assertEqual(rows[0]["processo"], "70%")
+        self.assertEqual(rows[1]["layout_id"], 91)
+        self.assertEqual(rows[1]["colab_id"], 41)
+        self.assertEqual(rows[1]["setor"], "BAS")
 
     def test_add_operador_cria_linha_nova_no_layout(self):
         # Revisao 2026-06-12 (item 3): admin/auditor pode incluir operador na
@@ -400,8 +406,9 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertIn("SET ativo = FALSE", cursor.executions[-1][0])
 
     def test_remove_operador_dinamico_materializa_linha_desativada(self):
-        # Linha extra-UTI (sem layout_id): remover cria linha desativada no
-        # layout, e o NOT EXISTS do appender impede que ela volte.
+        # Linha dinamica de complemento do cadastro (sem layout_id): remover
+        # cria linha desativada no layout, e o NOT EXISTS do complemento
+        # impede que ela volte automaticamente.
         colab = {"id": 60, "nome": "Operadora UTI", "matricula": "600",
                  "supervisor": "Sup C", "setor": "UTI", "escala": "Verde",
                  "status": "ATIVO"}
@@ -415,7 +422,7 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertIn("INSERT INTO fechamento_layout_operadores", insert_sql)
         self.assertIn("FALSE", insert_sql)
 
-    def test_extra_uti_appender_suprime_colaborador_com_linha_no_layout(self):
+    def test_registered_appender_suprime_colaborador_com_linha_no_layout(self):
         extra_cursor = _FakeCursor(rows=[])
         conn = _FakeConnection([
             _LayoutModeCountCursor(),

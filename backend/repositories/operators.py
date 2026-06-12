@@ -1232,6 +1232,21 @@ def delete_colaborador(
 
         cursor.execute("DELETE FROM fechamento_cadeia_contatos WHERE colaborador_id = %s", (operador_id,))
 
+        # O fechamento deve refletir apenas colaboradores cadastrados. A FK do
+        # schema atual ja faz ON DELETE SET NULL, mas este UPDATE mantem o
+        # comportamento correto tambem em bancos que tenham sido criados antes
+        # da constraint atual: a linha historica fica no layout, porem some da
+        # consulta porque nao aponta mais para um colaborador existente.
+        cursor.execute(
+            """
+            UPDATE fechamento_layout_operadores
+               SET colaborador_id = NULL,
+                   atualizado_em = CURRENT_TIMESTAMP
+             WHERE colaborador_id = %s
+            """,
+            (operador_id,),
+        )
+
         cursor.execute("DELETE FROM colaboradores WHERE id = %s", (operador_id,))
         deleted = cursor.rowcount > 0
         if deleted and snapshot_before is not None:
