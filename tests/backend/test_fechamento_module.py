@@ -119,7 +119,8 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertEqual(rows[0]["operacional"], "8.0")
         self.assertIn("COALESCE(audit_date, timestamp)::TIMESTAMP >= %s", cursor.sql)
         self.assertIn("COALESCE(audit_date, timestamp)::TIMESTAMP < %s", cursor.sql)
-        self.assertIn("NULLIF(c.supervisor, '')", cursor.sql)
+        self.assertIn("c.supervisor as supervisor", cursor.sql)
+        self.assertNotIn("f.supervisor_override, c.supervisor", cursor.sql)
         self.assertNotIn("EXTRACT(MONTH", cursor.sql)
         self.assertEqual(cursor.params, (list(FECHAMENTO_NOTA_STATUSES), "2026-04-01", "2026-05-01", 4, 2026))
 
@@ -230,7 +231,7 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertIsNone(saved["matricula"])
         self.assertIsNone(saved["nome"])
         self.assertIsNone(saved["operacional"])
-        self.assertEqual(saved["supervisor"], "Sup B")
+        self.assertIsNone(saved["supervisor"])
 
     def test_runtime_schema_creates_colaboradores_before_fechamento_fk(self):
         source = inspect.getsource(ensure_runtime_schema)
@@ -276,6 +277,7 @@ class TestFechamentoModule(unittest.TestCase):
             "colab_id": 10,
             "db_nome": "Nome Atual",
             "db_matricula": "456",
+            "db_supervisor": "Sup Atual",
             "db_status": "INATIVO",
             "db_huawei": "HW-1",
             "db_weon": "W-1",
@@ -286,6 +288,7 @@ class TestFechamentoModule(unittest.TestCase):
             "nota_pa": 0,
             "nota_cli": 0,
             "nota_policia": 0,
+            "layout_supervisor_override": "Sup Override Antigo",
             "media_auditoria": None,
         }])
         conn = _FakeConnection([
@@ -299,6 +302,7 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertIn("c.id IS NOT NULL", layout_cursor.sql)
         self.assertEqual(rows[0]["nome"], "Nome Atual")
         self.assertEqual(rows[0]["matricula"], "456")
+        self.assertEqual(rows[0]["supervisor"], "Sup Atual")
         self.assertEqual(rows[0]["status"], "INATIVO")
 
     def test_layout_relink_recovers_rows_without_matricula_by_nome(self):

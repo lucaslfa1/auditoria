@@ -341,11 +341,8 @@ export default function FechamentoPage() {
     supervisores.forEach(supervisor => {
       if (supervisor.trim()) options.add(supervisor.trim());
     });
-    rows.forEach(row => {
-      if (row.supervisor.trim()) options.add(row.supervisor.trim());
-    });
     return Array.from(options).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [rows, supervisores]);
+  }, [supervisores]);
 
   const colabIdsNaPlanilha = useMemo(
     () => new Set(rows.map(row => row.colab_id).filter(Boolean)),
@@ -647,12 +644,11 @@ export default function FechamentoPage() {
                     <td className="py-1 px-1 border-r border-white/5">
                       <select
                         value={row.supervisor}
+                        disabled
+                        title="Supervisor vem do cadastro do colaborador"
                         onChange={e => handleCellChange(idx, 'supervisor', e.target.value)}
-                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-primary-500 px-2 py-1 rounded text-slate-300"
+                        className="w-full bg-transparent border-none px-2 py-1 rounded text-slate-400 disabled:cursor-not-allowed disabled:opacity-80"
                       >
-                        {row.supervisor && !supervisorOptions.includes(row.supervisor) && (
-                          <option value={row.supervisor}>{row.supervisor}</option>
-                        )}
                         <option value="">-</option>
                         {supervisorOptions.map(supervisor => (
                           <option key={supervisor} value={supervisor}>{supervisor}</option>
