@@ -980,6 +980,19 @@ def get_latest_audit_id_by_input_hash(input_hash: str) -> Optional[int]:
     return repository_get_latest_audit_id_by_input_hash(get_connection, input_hash)
 
 
+def get_audit_by_id(audit_id: int) -> Optional[dict]:
+    """Fachada: delega para `repositories.audits.get_audit_by_id` (implementação e docstring lá).
+
+    Era a única leitura de audits SEM fachada — `finalize_contestation_review`
+    e `db.audit_media.recover_audit_audio_from_classified_queue` a chamavam e
+    quebrariam com NameError/AttributeError se o branch executasse (BUG latente
+    pré-v1.3.134).
+    """
+    from repositories.audits import get_audit_by_id as repository_get_audit_by_id
+
+    return repository_get_audit_by_id(get_connection, audit_id)
+
+
 def update_audit_result_by_id(
     audit_id: int,
     result: AuditResult,

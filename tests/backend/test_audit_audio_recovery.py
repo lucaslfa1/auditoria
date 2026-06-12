@@ -56,6 +56,33 @@ class TestAuditAudioRecovery(unittest.TestCase):
             audio_quality={"transcription_provider": {"selected_strategy": "fast"}},
         )
 
+    def test_recovery_without_audit_param_resolves_audit_via_facade(self):
+        # Regressao do BUG latente pre-v1.3.134: com audit=None a funcao chamava
+        # get_audit_by_id inexistente na fachada (AttributeError). Agora a fachada
+        # existe e o branch defensivo funciona.
+        (self.classified_root / "queue.wav").write_bytes(b"RIFFrecovered")
+        queue_item = {
+            "nome_arquivo": "ligacao.wav",
+            "metadata": {"classified_audio_path": "queue.wav"},
+        }
+
+        with patch(
+            "routers.audit.database.get_audit_by_id",
+            return_value={"input_hash": "audit-hash"},
+        ) as get_audit:
+            with patch(
+                "routers.audit.database.obter_fila_revisao_classificacao_por_auditoria",
+                return_value=queue_item,
+            ):
+                with patch(
+                    "routers.audit.database.attach_audio_to_audit_record",
+                    return_value={"audio_storage_path": "2026/04/audit_31_hash.wav"},
+                ):
+                    recovered = _recover_audit_audio_from_classified_queue(31, None, None)
+
+        get_audit.assert_called_once_with(31)
+        self.assertEqual(recovered["audio_storage_path"], "2026/04/audit_31_hash.wav")
+
     def test_route_recovery_attaches_classified_audio_when_audit_file_is_missing(self):
         (self.classified_root / "queue.wav").write_bytes(b"RIFFrecovered")
         queue_item = {
