@@ -47,6 +47,14 @@ Parâmetros recomendados no Container Apps: porta 8080; probe de liveness
 `/api/health`; `minReplicas: 0`, `maxReplicas: 1`; CPU 1 / memória 2 GiB
 (transcrição usa ffmpeg + pydub em memória); timeout de ingress >= 600s.
 
+## 3.1 Prova de portabilidade da imagem
+
+A imagem é buildada e executada em produção pelo CI a cada push na `main`
+(`deploy-cloudrun.yml`) — essa é a prova contínua de que o `Dockerfile`
+funciona. Builds locais no Windows podem falhar com `cannot allocate memory`
+se a VM do Docker Desktop estiver com pouca RAM (ajustar em Settings →
+Resources); não é problema do Dockerfile.
+
 ## 4. CI/CD
 
 `.github/workflows/deploy-azure.yml.example` espelha o pipeline atual

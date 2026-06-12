@@ -1,8 +1,26 @@
-"""
-Audio Classification Module
+"""Classificação de ligações (triagem): setor + alerta + operador + direção.
 
-This module provides functionality to classify audio files by sector and alert type.
-Uses the configured AI provider with Azure fallback rules.
+Papel no fluxo: sync Huawei D-1 → **este módulo** (transcrição leve + GPT
+classifica cada ligação) → fila de triagem (`fila_revisao_classificacao`) →
+automação audita os itens prontos → Arquivos Salvos → aprovação → fechamento.
+
+Pipeline de `classify_audio` (entrada principal):
+1. transcrição LEVE (áudio truncado a ~90s — só o tópico importa na triagem);
+2. classificação via GPT-4o com prompt dinâmico (catálogo + pistas do nome do
+   arquivo + lista de operadores + feedback RAG);
+3. alinhamento com o catálogo oficial (`align_classification_with_catalog`)
+   — valores não reconhecidos viram 'desconhecido', nunca chute silencioso;
+4. guardrails determinísticos (temperatura, hierarquia de alertas,
+   parada×desvio, manutenção-como-contexto, setor oficial do operador no RH,
+   direção efetivada×receptiva).
+
+CUSTO DE API: cada ligação classificada gasta 1 transcrição (Whisper →
+GPT-4o-diarize → Azure Fast, em fallback) + 1 chamada GPT-4o (registrada no
+`cost_guard`). O catálogo é cacheado (TTL 5 min) para não bater no banco a
+cada item.
+
+Fonte de verdade do catálogo: tabelas `audit_sectors`/`audit_alerts` no Neon
+(fallback de emergência p/ YAML via env `CRITERIA_CATALOG_SOURCE=yaml`).
 """
 
 import asyncio
@@ -54,7 +72,7 @@ def get_operators_summary_for_prompt() -> str:
     return "OPERADORES CADASTRADOS (use para confirmar o nome reconhecido):\n" + "\n".join(f"- {name}" for name in names)
 
 
-# Classification settings
+# ── Configurações e constantes da classificação ─────────────────────────────
 MAX_AUDIO_DURATION_SECONDS = 60
 MAX_FILES_PER_REQUEST = 50
 LOW_CONFIDENCE_REVIEW_THRESHOLD = float(os.getenv("LOW_CONFIDENCE_REVIEW_THRESHOLD", "0.8"))
@@ -82,7 +100,10 @@ _ALERT_ID_ALIASES = {
     "BBM-PONTO-APOIO": "DISTRIBUICAO-PONTO-APOIO",
 }
 
+# ── Direção da ligação (guardrail EFETUADA × RECEPTIVA) ──────────────────────
+
 def _normalize_direction_value(value: str | None) -> str | None:
+    """Normaliza texto livre de direção para 'receptiva'/'efetivada' (ou None se ambíguo)."""
     normalized = _normalize_operator_identity_text(value)
     if not normalized:
         return None
@@ -144,6 +165,7 @@ def _expected_direction_for_alert(alert_id: str | None) -> str | None:
 
 
 def _append_review_reason(classification: dict, reason: str) -> None:
+    """Acrescenta um motivo de revisão humana ao dict (sem duplicar)."""
     reasons = classification.get("review_reasons", [])
     if not isinstance(reasons, list):
         reasons = []
@@ -155,7 +177,13 @@ def _append_review_reason(classification: dict, reason: str) -> None:
 
 @dataclass
 class ClassificationResult:
-    """Result of audio classification."""
+    """Resultado da classificação de um áudio (contrato com a fila de triagem).
+
+    `sector_id`/`alert_id` em {'desconhecido','erro'} sinalizam falha de
+    identificação; `needs_review`/`review_reasons`/`review_priority` são
+    derivados em `finalize_classification_result` e decidem se o item vai
+    direto para a automação ou para triagem manual.
+    """
     filename: str
     sector_id: str
     sector_label: str
@@ -178,6 +206,13 @@ class ClassificationResult:
 
 
 def finalize_classification_result(result: ClassificationResult) -> ClassificationResult:
+    """Deriva `needs_review`, `review_reasons` e `review_priority` do resultado.
+
+    Regras: erro de classificação, confiança < LOW/VERY_LOW thresholds,
+    setor/alerta não identificados e direction_mismatch geram motivos;
+    motivos "graves" elevam a prioridade para 'high'. SEMPRE passar o
+    resultado por aqui antes de devolver ao caller (muta e retorna o mesmo objeto).
+    """
     review_reasons: list[str] = list(result.review_reasons) if result.review_reasons else []
     try:
         confidence = float(result.confidence)
@@ -222,7 +257,14 @@ def finalize_classification_result(result: ClassificationResult) -> Classificati
 
 import time
 
+# ── Catálogo de setores/alertas (DB-first, cache TTL 5 min) ──────────────────
+
 def ttl_cache(maxsize: int = 1, ttl: int = 300):
+    """Cache simples com expiração por tempo (evita lru_cache eterno p/ dados do banco).
+
+    Ao atingir `maxsize` o cache inteiro é limpo (sem LRU real — suficiente
+    para os poucos getters de catálogo). Expõe `cache_clear()` p/ hot-reload.
+    """
     def decorator(func):
         cache = {}
         def wrapper(*args, **kwargs):
@@ -243,18 +285,19 @@ def ttl_cache(maxsize: int = 1, ttl: int = 300):
 
 @ttl_cache(ttl=300)
 def load_audit_criteria_catalog() -> dict[str, dict[str, object]]:
-    """Load the classification catalog from the database (Fase 1.1 do plano DB-first).
+    """Carrega o catálogo de classificação do banco (Fase 1.1 do plano DB-first).
 
-    Le de `audit_sectors` + `audit_alerts` (com `pop_ref`) e reaplica a replicacao
-    BAS→sibling sectors em memoria, mantendo o mesmo contrato da versao YAML.
+    Lê de `audit_sectors` + `audit_alerts` (com `pop_ref`) e reaplica a
+    replicação BAS→setores irmãos em memória, mantendo o mesmo contrato da
+    versão YAML. Retorno: {sector_id: {"label": ..., "alerts": [{id,label,pop_ref}]}}.
 
-    Fonte da verdade transitiva: o seed em `database._seed_audit_criteria` ainda
-    UPSERTa do YAML em todo deploy, entao na pratica DB ↔ YAML continuam paritarios.
-    Edicao via UI gera trail em `audit_*_audit_log` mas e sobrescrita no proximo
-    deploy ate a Fase 1.2 (parar seed destrutivo).
+    Fonte da verdade transitiva: o seed em `database._seed_audit_criteria`
+    ainda faz UPSERT do YAML em todo deploy, então na prática DB ↔ YAML
+    continuam paritários. Edição via UI gera trail em `audit_*_audit_log` mas
+    é sobrescrita no próximo deploy até a Fase 1.2 (parar seed destrutivo).
 
-    Fallback de seguranca: definir env `CRITERIA_CATALOG_SOURCE=yaml` reverte para
-    a leitura YAML (sem deploy), util em caso de incidente.
+    Fallback de segurança: env `CRITERIA_CATALOG_SOURCE=yaml` reverte para a
+    leitura YAML (sem deploy), útil em caso de incidente. Cache TTL de 5 min.
     """
     source = os.getenv("CRITERIA_CATALOG_SOURCE", "db").strip().lower()
     if source == "yaml":
@@ -339,9 +382,11 @@ def _apply_operational_siblings(
     catalog: dict[str, dict[str, object]],
     sector_labels: dict[str, str],
 ) -> dict[str, dict[str, object]]:
-    """Replicates BAS alerts to sibling operational sectors.
+    """Replica os alertas do setor BAS para os setores operacionais irmãos.
 
-    A logica vive em memoria por enquanto — sera movida para o DB na Fase 1.3.
+    Setores operacionais (transferencia, distribuicao, fenix, uti, ...)
+    compartilham os mesmos alertas 4.1.x do BAS; em vez de duplicar no banco,
+    a réplica vive em memória por enquanto — será movida para o DB na Fase 1.3.
     """
     _OPERATIONAL_SIBLINGS = {"transferencia", "distribuicao", "fenix", "uti", "rastreamento", "grs", "sinistros"}
     bas_alerts = catalog.get("bas", {}).get("alerts", [])
@@ -362,10 +407,11 @@ def _apply_operational_siblings(
 
 @ttl_cache(ttl=300)
 def build_sectors_and_alerts_prompt() -> str:
-    """Build the dynamic prompt listing all sectors and alerts for the AI.
+    """Monta o bloco dinâmico do prompt listando todos os setores e alertas.
 
-    Includes both the YAML id (e.g. UTI-PARADA-MOT) and the POP reference
-    (e.g. 4.1.5) so the AI can return either format.
+    Inclui tanto o id do catálogo (ex.: UTI-PARADA-MOT) quanto a referência de
+    POP (ex.: 4.1.5), para que a IA possa devolver qualquer um dos formatos.
+    Cacheado (TTL 5 min) — é texto grande montado a partir do catálogo.
     """
     lines = ["SETORES E ALERTAS DISPONIVEIS:", ""]
 
@@ -392,10 +438,11 @@ def build_sectors_and_alerts_prompt() -> str:
 
 @ttl_cache(ttl=300)
 def get_alert_lookup_by_id() -> dict[str, tuple[str, str, str]]:
-    """Build lookup: alert_id → (sector_id, sector_label, alert_label).
+    """Lookup: alert_id → (sector_id, sector_label, alert_label).
 
-    Indexes BOTH the YAML id (UTI-PARADA-MOT) and the pop_ref (4.1.5)
-    so classification results using either format can be resolved.
+    Indexa o id do catálogo (UTI-PARADA-MOT), os aliases legados
+    (`_ALERT_ID_ALIASES`, ex.: BBM-*) E o pop_ref (4.1.5), para resolver
+    classificações em qualquer um dos formatos. Cacheado (TTL 5 min).
     """
     lookup: dict[str, tuple[str, str, str]] = {}
     for sector_id, sector_data in load_audit_criteria_catalog().items():
@@ -425,14 +472,12 @@ def canonicalize_alert_id(alert_id: str) -> str:
 
 
 def _legacy_align_classification_with_catalog_unused(classification: dict) -> dict:
-    """Ensure classification sector_id and alert_id exist in the catalog.
+    """LEGADO/NÃO USADO — versão antiga do alinhamento com o catálogo.
 
-    Fallback chain:
-      1. Exact alert_id match inside the classified sector.
-      2. Cross-sector alert_id lookup (alert exists, sector was wrong).
-      3. Filename-based hint resolution (deterministic parser).
-      4. Fuzzy alert_label match inside the sector.
-      5. If nothing works, mark alert as "desconhecido" so UI can warn user.
+    Foi substituída por `align_classification_with_catalog` (mais abaixo)
+    porque o fallback final aqui escolhia o PRIMEIRO setor/alerta do catálogo
+    silenciosamente; a versão ativa marca 'desconhecido' para a triagem
+    revisar. Mantida apenas como referência histórica.
     """
     sector_id = str(classification.get("sector_id", "")).strip().lower()
     alert_id = str(classification.get("alert_id", "")).strip()
@@ -535,7 +580,7 @@ def _legacy_align_classification_with_catalog_unused(classification: dict) -> di
     return classification
 
 
-# ── Operational-sector IDs that share the same 4.1.x alerts ──────────────────
+# ── Equivalência de alertas entre setores operacionais (mesmos POPs 4.1.x) ──
 _OPERATIONAL_SECTORS = {"transferencia", "uti", "bas", "distribuicao", "fenix"}
 _OPERATIONAL_ALERT_PREFIXES = {
     "uti": "UTI",
@@ -555,6 +600,7 @@ _LOGISTICA_KIND_ALERTS = {
 
 
 def _get_catalog_alert(sector_id: str, alert_id: str) -> tuple[str, str, str] | None:
+    """Busca exata do alerta dentro de um setor do catálogo → (sector_id, alert_id, label) ou None."""
     sector_id = str(sector_id or "").strip().lower()
     alert_id = str(alert_id or "").strip()
     for alert in load_audit_criteria_catalog().get(sector_id, {}).get("alerts", []):
@@ -564,6 +610,7 @@ def _get_catalog_alert(sector_id: str, alert_id: str) -> tuple[str, str, str] | 
 
 
 def _apply_alert_match(classification: dict, alert_match: tuple[str, str, str]) -> dict:
+    """Aplica (setor, alerta, label) encontrados no catálogo ao dict de classificação."""
     sector_id, alert_id, alert_label = alert_match
     catalog = load_audit_criteria_catalog()
     classification["sector_id"] = sector_id
@@ -574,6 +621,7 @@ def _apply_alert_match(classification: dict, alert_match: tuple[str, str, str]) 
 
 
 def _normalize_alert_token(value: str | None) -> str:
+    """Normaliza texto p/ comparação de alertas: MAIÚSCULO, sem acento, separado por '-'."""
     normalized = unicodedata.normalize("NFD", str(value or "").strip().upper())
     normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
     normalized = _re.sub(r"[^A-Z0-9]+", "-", normalized)
@@ -581,6 +629,7 @@ def _normalize_alert_token(value: str | None) -> str:
 
 
 def _infer_alert_actor_suffix(*values: str | None) -> str:
+    """Infere quem é o interlocutor do alerta: 'CLI' (cliente/destinatário) ou 'MOT' (motorista, default)."""
     joined = " ".join(_normalize_alert_token(value) for value in values if value)
     if "-CLI" in f"-{joined}-" or "CLIENTE" in joined or "DESTINATARIO" in joined or "EMBARCADOR" in joined:
         return "CLI"
@@ -588,6 +637,8 @@ def _infer_alert_actor_suffix(*values: str | None) -> str:
 
 
 def _extract_operational_alert_kind(value: str | None) -> str | None:
+    """Extrai o "tipo" genérico do alerta (PARADA, DESVIO, POSICAO, PRIORITARIO...)
+    de um id/label qualquer — base para achar o equivalente em outro setor."""
     token = _normalize_alert_token(value)
     if not token:
         return None
@@ -613,6 +664,7 @@ def _extract_operational_alert_kind(value: str | None) -> str | None:
 
 
 def _operational_alert_suffix(kind: str, actor: str = "MOT") -> str:
+    """Monta o sufixo do alert_id setorial a partir do tipo + ator (ex.: PARADA + CLI → PARADA-CLI)."""
     kind = _normalize_alert_token(kind)
     actor = "CLI" if str(actor or "").upper() == "CLI" else "MOT"
     if kind in {"PRIORITARIO-POLICIA", "PONTO-APOIO"}:
@@ -628,6 +680,12 @@ def _get_equivalent_alert_for_sector(
     *,
     actor: str = "MOT",
 ) -> tuple[str, str, str] | None:
+    """Encontra no setor dado o alerta equivalente a um alert_id/tipo de OUTRO setor.
+
+    Ex.: UTI-POSICAO-MOT + sector_id='distribuicao' → DISTRIBUICAO-POSICAO-MOT.
+    Tenta match direto, depois reconstrói pelo tipo (`_extract_operational_alert_kind`)
+    usando o prefixo do setor; logística tem mapa próprio. Retorna None se não houver equivalente.
+    """
     sector_id = str(sector_id or "").strip().lower()
     if not sector_id:
         return None
@@ -668,6 +726,8 @@ def _get_equivalent_alert_from_context(
     alert_hint: str | None = None,
     filename: str | None = None,
 ) -> tuple[str, str, str] | None:
+    """Variante de `_get_equivalent_alert_for_sector` que infere o ator (MOT/CLI)
+    a partir do contexto (alert_id + hint + nome do arquivo)."""
     actor = _infer_alert_actor_suffix(alert_id, alert_hint, filename)
     for candidate in (alert_id, alert_hint):
         match = _get_equivalent_alert_for_sector(sector_id, candidate or "", actor=actor)
@@ -676,17 +736,23 @@ def _get_equivalent_alert_from_context(
     return None
 
 
-# Override the legacy catalog alignment above to avoid silent fallback to the
-# first sector/alert. Unknown values must stay unknown so triagem can review them.
+# ── Alinhamento da classificação com o catálogo oficial ─────────────────────
+# Substitui a versão legada acima: valores não reconhecidos PERMANECEM
+# 'desconhecido' (sem fallback silencioso) para a triagem revisar.
 def align_classification_with_catalog(classification: dict) -> dict:
-    """Ensure classification sector_id and alert_id exist in the catalog.
+    """Garante que sector_id e alert_id da classificação existam no catálogo.
 
-    Fallback chain:
-      1. Exact alert_id match inside the classified sector.
-      2. Cross-sector alert_id lookup (alert exists, sector was wrong).
-      3. Filename-based hint resolution (deterministic parser).
-      4. Fuzzy alert_label match inside the sector.
-      5. If nothing works, mark sector/alert as "desconhecido".
+    Cadeia de fallback, na ordem:
+      1. match exato do alert_id dentro do setor classificado;
+      1b. alerta equivalente do mesmo tipo no setor (ex.: id de outro setor);
+      2. lookup cross-setor do alert_id (alerta existe, setor estava errado);
+      3. pistas determinísticas do nome do arquivo (`parse_filename`);
+      4. fuzzy match do alert_label dentro do setor;
+      5. nada casou → marca setor/alerta como "desconhecido" (revisão manual).
+
+    Muta e retorna o mesmo dict. Usa a chave interna `_filename` (removida
+    pelo caller depois). Invariante: NUNCA inventa um alerta que não existe
+    no catálogo — 'desconhecido' é preferível a chute.
     """
     sector_id = str(classification.get("sector_id", "")).strip().lower()
     alert_id = _canonicalize_alert_id(str(classification.get("alert_id", "")).strip())
@@ -791,7 +857,10 @@ def align_classification_with_catalog(classification: dict) -> dict:
         sector_id, alert_id,
     )
     return classification
-# Active ASCII-safe prompt used by the classifier.
+# ── Prompt de classificação (enviado ao GPT-4o — chamada paga) ──────────────
+# Prompt ativo, mantido ASCII-safe. Placeholders são preenchidos em
+# classify_with_gpt/classify_with_ai: catálogo, transcrição, pistas do nome do
+# arquivo, lista de operadores e feedback de calibração (RAG).
 CLASSIFICATION_PROMPT = """Voce e um classificador de ligacoes telefonicas de uma central de monitoramento logistico e de frotas.
 
 Classifique: SETOR, ALERTA, OPERADOR e DIRECAO.
@@ -855,9 +924,10 @@ JSON (sem emoji, sem texto extra):
 
 import re as _re
 
-# ── Filename pre-parser ──────────────────────────────────────────────────────
-# Deterministic extraction of operator name and sector hint from standardized
-# filenames like: POSIÇÃO-MOTORISTA-20251230112504541_Camila_Florindo_Reinert_Logistica_Voz.wav
+# ── Pré-parser de nome de arquivo (determinístico, sem custo de API) ────────
+# Extrai operador, setor, alerta e data de nomes padronizados como:
+# POSIÇÃO-MOTORISTA-20251230112504541_Camila_Florindo_Reinert_Logistica_Voz.wav
+# Essas pistas alimentam o prompt da IA e os fallbacks do alinhamento.
 
 # Alert keywords that appear at the start of filenames -> sector + alert hints.
 _FILENAME_ALERT_MAP: dict[str, dict[str, str]] = {
@@ -920,7 +990,7 @@ _NON_NAME_TOKENS = {
 
 @dataclass
 class FilenameParsed:
-    """Structured data extracted from a standardized filename."""
+    """Dados estruturados extraídos deterministicamente do nome do arquivo."""
     alert_hint: str = ""          # e.g. "POSIÇÃO-MOTORISTA"
     operator_name: str | None = None
     sector_hint: str | None = None
@@ -931,6 +1001,12 @@ class FilenameParsed:
 
 @dataclass
 class ResolvedOperatorIdentity:
+    """Identidade do operador resolvida contra o cadastro (`colaboradores`).
+
+    `db_sector` é o setor OFICIAL do cadastro (usado pelo guardrail de setor);
+    `source` indica como a identidade foi resolvida: 'matricula', 'id_huawei',
+    'filename' ou 'ai'.
+    """
     operator_name: str | None = None
     id_huawei: str | None = None
     matricula: str | None = None
@@ -939,12 +1015,15 @@ class ResolvedOperatorIdentity:
 
 
 def parse_filename(filename: str) -> FilenameParsed:
-    """Deterministically extract operator name and sector from filename.
+    """Extrai deterministicamente operador/setor/alerta/data do nome do arquivo.
 
-    Handles patterns like:
+    Suporta padrões como:
       POSIÇÃO-MOTORISTA-20251230112504541_Camila_Florindo_Reinert_Logistica_Voz.wav
       ATRASO-MOTORISTA-20251230173926115_Danilo_Alves_Logistica_Voz.wav
       DESVIO-MOTORISTA-agent-11218-19_11_2025_19_57_50-node01-1763593067-198710.wav
+
+    No padrão `agent-XXXXX` extrai o id Huawei (não há nome de operador no
+    arquivo). Campos não reconhecidos ficam None — pista ausente nunca é erro.
     """
     result = FilenameParsed()
 
@@ -1057,7 +1136,10 @@ def parse_filename(filename: str) -> FilenameParsed:
     return result
 
 
+# ── Identidade do operador (resolução contra o cadastro RH) ─────────────────
+
 def _normalize_operator_identity_text(value: str | None) -> str:
+    """Normaliza nome p/ comparação: minúsculo, sem acento, só [a-z0-9 ]."""
     normalized = unicodedata.normalize("NFD", str(value or "").strip().lower())
     normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
     normalized = _re.sub(r"[^a-z0-9\s]", " ", normalized)
@@ -1069,10 +1151,16 @@ def _operator_identity_tokens(value: str | None) -> list[str]:
 
 
 def _is_strong_operator_name(value: str | None) -> bool:
+    """Nome "forte" = pelo menos nome + sobrenome (evita match por 1 token só)."""
     return len(_operator_identity_tokens(value)) >= 2
 
 
 def _operator_name_matches_record(requested_name: str | None, canonical_name: str | None) -> bool:
+    """Confere se o nome pedido bate com o nome canônico do cadastro.
+
+    Exige primeiro nome idêntico e todos os tokens pedidos presentes no
+    canônico — protege contra homônimos parciais (ex.: 'Maria' sozinho não casa).
+    """
     requested_tokens = _operator_identity_tokens(requested_name)
     canonical_tokens = _operator_identity_tokens(canonical_name)
     if not requested_tokens or not canonical_tokens:
@@ -1116,6 +1204,10 @@ def _resolve_db_sector_alias(db_sector: str | None) -> str | None:
 
 
 def _buscar_colaborador_por_nome_confiavel(operator_name: str | None) -> dict | None:
+    """Busca o colaborador no cadastro SÓ quando o nome é forte e o match é estrito.
+
+    Retorna o registro RH ou None (nome fraco, não encontrado ou match ambíguo).
+    """
     if not _is_strong_operator_name(operator_name):
         return None
 
@@ -1142,6 +1234,8 @@ def _buscar_colaborador_por_nome_confiavel(operator_name: str | None) -> dict | 
 
 
 def _get_effective_db_sector(rh: dict | None) -> str | None:
+    """Setor EFETIVO do colaborador: mapeia setor/escala/supervisor do RH para o
+    setor de classificação (ex.: escala FÊNIX → 'fenix'; CENTRAL-* → 'transferencia')."""
     if not rh:
         return None
     try:
@@ -1163,6 +1257,14 @@ def resolve_operator_identity(
     parsed_id_huawei: str | None,
     parsed_matricula: str | None = None,
 ) -> ResolvedOperatorIdentity:
+    """Resolve a identidade do operador combinando IA + nome do arquivo + cadastro.
+
+    Ordem de confiança: matrícula explícita > id_huawei (que pode ser uma
+    matrícula disfarçada) > nome do arquivo > nome dado pela IA. Quando acha o
+    colaborador no cadastro, usa o nome canônico e o setor oficial
+    (`db_sector`); senão devolve só o nome "forte" disponível, sem setor.
+    Só lê o banco — sem efeitos colaterais.
+    """
     resolved = ResolvedOperatorIdentity(id_huawei=parsed_id_huawei, matricula=parsed_matricula)
     
     # Try looking up by matricula first if it's explicitly provided
@@ -1228,9 +1330,11 @@ def resolve_operator_identity(
     return resolved
 
 
+# ── Guardrails pós-classificação (correções determinísticas sobre a IA) ─────
+
 def _strict_rh_sector_enforcement_enabled() -> bool:
-    """Regra rigida de setor (default ON): forca SEMPRE o setor oficial do
-    operador no RH/matricula, removendo a margem 'hora extra' (Guardrail D').
+    """Regra rígida de setor (default ON): força SEMPRE o setor oficial do
+    operador no RH/matrícula, removendo a margem 'hora extra' (Guardrail D').
     Rollback: STRICT_RH_SECTOR_ENFORCEMENT=false volta ao comportamento D'.
     """
     raw = os.getenv("STRICT_RH_SECTOR_ENFORCEMENT")
@@ -1246,7 +1350,19 @@ def enforce_operator_and_direction_guardrails(
     db_sector: str | None = None,
     parsed_filename: Optional[FilenameParsed] = None,
 ) -> dict:
-    """Trust operator sector only when the identity is strong enough."""
+    """Guardrail de setor do operador (RH) + direção da ligação.
+
+    Setor: se o operador identificado tem setor oficial no cadastro diferente
+    do classificado, força o setor do RH (modo rígido, default) e tenta mapear
+    o alerta para o equivalente do setor; sem equivalente, zera o alerta para
+    'desconhecido' preservando `_ai_original_*` como contexto p/ o auditor.
+    No modo D' (STRICT_RH_SECTOR_ENFORCEMENT=false), IA confiante
+    (>= SECTOR_TRUST_CONFIDENCE) vence o cadastro (possível hora extra).
+
+    Direção: compara a direção esperada do alerta (keyword no alert_id) com a
+    classificada; divergência marca `_direction_mismatch` + motivo de revisão
+    (NÃO bloqueia a auditoria). Muta e retorna o mesmo dict.
+    """
     if not db_sector and operator_name:
         rh = _buscar_colaborador_por_nome_confiavel(operator_name)
         if rh:
@@ -1401,6 +1517,7 @@ def enforce_operator_and_direction_guardrails(
     return classification
 
 def get_mime_type(filename: str) -> str:
+    """MIME type pela extensão do arquivo (default 'audio/wav' p/ desconhecidos)."""
     ext = os.path.splitext(filename)[1].lower()
     mime_map = {
         '.wav': 'audio/wav',
@@ -1431,6 +1548,13 @@ def truncate_audio(
     *,
     trim_leading_silence: bool | None = None,
 ) -> bytes:
+    """Trunca o áudio (ffmpeg → WAV mono 16 kHz) para a janela de triagem.
+
+    Limita o custo de transcrição: a triagem só precisa do começo da conversa.
+    Com `trim_leading_silence` (canário, default OFF) remove o silêncio/URA
+    inicial antes de cortar. Em qualquer falha do ffmpeg, devolve os bytes
+    ORIGINAIS (nunca quebra o fluxo por causa do corte).
+    """
     if trim_leading_silence is None:
         trim_leading_silence = _trim_leading_silence_enabled()
     try:
@@ -1452,6 +1576,10 @@ def truncate_audio(
                 return f.read()
     except Exception:
         return audio_bytes
+
+# ── Léxico de sinais (keywords ponderadas dos guardrails determinísticos) ───
+# Pesos maiores = evidência mais forte. Os guardrails somam ocorrências na
+# transcrição (e, com peso menor, no nome do arquivo) para decidir correções.
 
 TEMPERATURE_KEYWORDS = (
     "temperatura",
@@ -1607,6 +1735,7 @@ STADIA_CONTEXT_KEYWORDS = (
 
 
 def normalize_classification_text(text: str) -> str:
+    """Normaliza texto p/ busca de keywords: minúsculo, sem acento, espaços colapsados."""
     if not text:
         return ""
     normalized = unicodedata.normalize("NFKD", text.lower())
@@ -1615,10 +1744,12 @@ def normalize_classification_text(text: str) -> str:
 
 
 def contains_any_keyword(text: str, keywords: tuple[str, ...]) -> bool:
+    """True se o texto (já normalizado) contém qualquer uma das keywords."""
     return any(keyword in text for keyword in keywords)
 
 
 def infer_temperature_alert(normalized_text: str) -> tuple[str, str]:
+    """Escolhe o alerta de temperatura (MOT/CLI × controle/desligamento) pelo contexto da fala."""
     is_temperature_off = contains_any_keyword(normalized_text, TEMPERATURE_OFF_KEYWORDS)
     driver_score = sum(1 for cue in DRIVER_CUES if cue in normalized_text)
     client_score = sum(1 for cue in CLIENT_CUES if cue in normalized_text)
@@ -1634,10 +1765,12 @@ def infer_temperature_alert(normalized_text: str) -> tuple[str, str]:
 
 
 def _score_weighted_signals(text: str, weights: dict[str, int]) -> int:
+    """Score = soma de (ocorrências do termo x peso) — base dos guardrails por keyword."""
     return sum(text.count(term) * weight for term, weight in weights.items())
 
 
 def _classification_has_catalog_alert(classification: dict) -> bool:
+    """True se a classificação aponta para um alerta REAL do catálogo (não desconhecido/erro)."""
     alert_id = _canonicalize_alert_id(str(classification.get("alert_id") or "").strip())
     if not alert_id or alert_id in {"INFORMATIVO", "DESCONHECIDO", "ERRO"}:
         return False
@@ -1648,6 +1781,7 @@ def _classification_has_catalog_alert(classification: dict) -> bool:
 
 
 def _is_non_auditable_like_output(classification: dict) -> bool:
+    """Detecta saídas proibidas da IA tipo 'INFORMATIVO'/'Não Auditável'/'Manutenção'."""
     alert_id = _canonicalize_alert_id(str(classification.get("alert_id") or "").strip())
     alert_label = normalize_classification_text(str(classification.get("alert_label") or ""))
     combined = normalize_classification_text(f"{alert_id} {alert_label}")
@@ -1655,6 +1789,7 @@ def _is_non_auditable_like_output(classification: dict) -> bool:
 
 
 def _get_sector_alert(sector_id: str, alert_id: str) -> tuple[str, str] | None:
+    """Variante de `_get_catalog_alert` que retorna só (alert_id, label)."""
     for alert in load_audit_criteria_catalog().get(sector_id, {}).get("alerts", []):
         if alert["id"] == alert_id:
             return alert_id, str(alert["label"])
@@ -1666,6 +1801,8 @@ def _infer_logistica_specific_alert(
     normalized_filename: str,
     actor: str,
 ) -> tuple[str, str] | None:
+    """Detecta alertas ESPECÍFICOS de logística (espelhamento, perda de posição
+    CLI, parada excessiva) por keywords — eles vencem os genéricos PARADA/DESVIO."""
     combined = f"{normalized_transcription} {normalized_filename}"
     actor = "CLI" if str(actor or "").upper() == "CLI" else "MOT"
 
@@ -1703,6 +1840,12 @@ def _infer_logistica_specific_alert(
 
 
 def enforce_alert_hierarchy_guardrail(classification: dict, transcription: str, filename: str) -> dict:
+    """Guardrail de hierarquia: alertas críticos vencem alertas menores.
+
+    Pontua sinais de POLÍCIA > PRIORITÁRIO (violação/pânico) > POSIÇÃO na
+    transcrição (nome do arquivo só como apoio fraco) e força o alerta
+    equivalente do setor quando o score passa do limiar. Muta e retorna o dict.
+    """
     sector_id = str(classification.get("sector_id", "")).strip().lower()
     current_alert_id = _canonicalize_alert_id(str(classification.get("alert_id", "")).strip())
     normalized_transcription = normalize_classification_text(transcription)
@@ -1762,6 +1905,12 @@ def enforce_alert_hierarchy_guardrail(classification: dict, transcription: str, 
 
 
 def enforce_parada_desvio_guardrail(classification: dict, transcription: str, filename: str) -> dict:
+    """Desempata PARADA × DESVIO pela ênfase da fala (regra 15 do prompt).
+
+    Só age com evidência forte (score >= 4) e diferença clara (gap >= 2);
+    se o alerta atual nem é de parada/desvio, exige score ainda maior (>= 6)
+    para sobrescrever. Muta e retorna o dict.
+    """
     sector_id = str(classification.get("sector_id", "")).strip().lower()
     current_alert_id = str(classification.get("alert_id", "")).strip()
     if sector_id not in {"logistica", *_OPERATIONAL_SECTORS}:
@@ -1818,7 +1967,13 @@ def enforce_parada_desvio_guardrail(classification: dict, transcription: str, fi
 
 
 def enforce_context_not_non_auditable_guardrail(classification: dict, transcription: str, filename: str) -> dict:
-    """Treat maintenance as context, never as a final non-auditable alert."""
+    """Manutenção/oficina é CONTEXTO da ligação, nunca alerta final não-auditável.
+
+    Quando a IA devolve 'INFORMATIVO'/'Manutenção' (saída proibida) ou há
+    contexto de manutenção/estadia sem alerta de catálogo, tenta inferir o
+    alerta real pelos scores de keywords; se nada casa, marca 'desconhecido'
+    com confiança <= 0.49 (vai para triagem manual). Muta e retorna o dict.
+    """
 
     if _classification_has_catalog_alert(classification) and not _is_non_auditable_like_output(classification):
         return classification
@@ -1887,6 +2042,8 @@ def enforce_context_not_non_auditable_guardrail(classification: dict, transcript
 
 
 def enforce_temperature_guardrail(classification: dict, transcription: str, filename: str) -> dict:
+    """Contexto de temperatura (setpoint, baú refrigerado...) força setor
+    logística + alerta de temperatura adequado (MOT/CLI × controle/desligamento)."""
     normalized_text = normalize_classification_text(f"{filename} {transcription}")
     has_temperature_context = contains_any_keyword(normalized_text, TEMPERATURE_KEYWORDS)
     if not has_temperature_context:
@@ -1910,17 +2067,21 @@ def enforce_temperature_guardrail(classification: dict, transcription: str, file
     classification["confidence"] = max(confidence, 0.82)
     return classification
 
+# ── Transcrição leve para triagem (custo reduzido por design) ───────────────
 TRIAGE_MAX_AUDIO_SECONDS = 90
 
 
 async def transcribe_for_classification(audio_bytes: bytes, mime_type: str) -> str:
-    """Transcricao leve dedicada a triagem.
+    """Transcrição leve dedicada à triagem (NÃO é a transcrição da auditoria).
 
-    Why: triagem so precisa de tópico (setor/alerta), nao de diarizacao
-    perfeita. Usar o pipeline completo (hybrid_dual + merge GPT-4o) levava
-    4-5 min por ligacao — alem do timeout do front e disparando 'alert=erro'.
-    Trunca para ~90s para passar a URA inicial e usa um unico motor com
-    fallbacks rapidos.
+    Por quê: triagem só precisa do tópico (setor/alerta), não de diarização
+    perfeita. Usar o pipeline completo (hybrid_dual + merge GPT-4o — legado)
+    levava 4-5 min por ligação, estourava o timeout do front e gerava
+    'alert=erro'. Trunca para ~90s para passar a URA inicial.
+
+    CUSTO: 1 chamada paga por tentativa, em cascata de fallback:
+    Whisper → GPT-4o-diarize → Azure Fast Transcription. Levanta exceção se
+    os três motores falharem.
     """
     from core.transcription import transcribe_audio_azure, transcribe_audio_gpt4o_diarize
     from core.config import _resolve_azure_whisper_config, _resolve_azure_gpt4o_diarize_config
@@ -1987,6 +2148,11 @@ async def transcribe_for_classification(audio_bytes: bytes, mime_type: str) -> s
     raise Exception(f"Todos os motores de triagem falharam: {last_error}")
 
 async def transcribe_for_classification_ai(audio_bytes: bytes, mime_type: str) -> str:
+    """Transcrição de triagem via provedor de IA alternativo (`ai_client`, ex.: Gemini).
+
+    Só usada quando `AI_PROVIDER_PRIORITY` não é 'azure'. CUSTO: 1 chamada paga
+    ao provedor alternativo com o áudio truncado.
+    """
     try:
         truncated_audio = await asyncio.to_thread(truncate_audio, audio_bytes, MAX_AUDIO_DURATION_SECONDS)
         final_mime = mime_type

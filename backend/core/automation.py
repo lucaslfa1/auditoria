@@ -1,8 +1,22 @@
-"""
-Automation module for batch auditing items produced by triage.
+"""Automação: auditoria em lote dos itens produzidos pela triagem/classificação.
 
-The queue contract is public: consumers should only depend on the parsed
-payload returned by the review-queue repository.
+Papel no fluxo: sync Huawei D-1 → triagem → classificação GPT → **este módulo**
+(audita itens `auto_resolved`/`ready_for_audit` da fila `fila_revisao_classificacao`)
+→ resultado vai para "Arquivos Salvos" com status `awaiting_pair` → revisão
+humana → aprovação → fechamento.
+
+Esteira binária (v1.3.103): todo item READY termina em `audited` OU descartado
+(tombstone permanente p/ lixo; recuperável só p/ falha técnica transitória).
+Nada fica preso na fila. As flags `AUTOMATION_DISCARD_*` (default ON) controlam
+cada gate de descarte e permitem rollback via env.
+
+CUSTO DE API: `_audit_single_item` dispara chamadas PAGAS ao Azure —
+transcrição (Azure Speech Fast Transcription, + Whisper/GPT-4o no fallback)
+e avaliação (Azure OpenAI GPT-4o). O `cost_guard` impõe teto diário e
+interrompe o lote graciosamente quando estourado.
+
+Contrato da fila é público: consumidores devem depender apenas do payload
+parseado retornado pelo repositório da fila de revisão.
 """
 
 import asyncio
@@ -60,22 +74,37 @@ DEFAULT_AUTOMATION_EXPECTED_AUDIT_ITEM_SECONDS = 180
 
 
 class ClassifiedAudioUnavailableError(RuntimeError):
-    """Raised when the queue references an audio file that cannot be reopened."""
+    """Fila referencia um áudio classificado que não pôde ser reaberto do storage.
+
+    Tratada como falha TRANSITÓRIA: o item volta para retry e, esgotado o
+    limite, é descartado como recuperável (pode voltar num próximo sync).
+    """
 
 
 class AuditPersistenceError(RuntimeError):
-    """Raised when an analyzed audit could not be persisted consistently."""
+    """A auditoria foi gerada pela IA mas não foi persistida de forma consistente."""
 
 
 class AlertWithoutOfficialCriteriaError(RuntimeError):
-    """Raised when an alert is not configured in the official criteria catalog."""
+    """Alerta sem critérios no catálogo oficial (módulo IA > Critérios no banco).
+
+    Sem critério oficial não se audita: o item é descartado (flag ON) ou volta
+    para triagem manual (flag OFF).
+    """
 
 
 def _automatic_audio_transcription_review_reasons(audio_quality: Any) -> list[str]:
+    """Lista de motivos pelos quais a transcrição deste áudio exigiria revisão humana."""
     return list(get_transcription_review_reasons(audio_quality))
 
 
 def get_classified_audio_storage_root() -> Path:
+    """Raiz local do storage de mídia classificada.
+
+    Usa `CLASSIFIED_AUDIO_STORAGE_DIR` se setada; senão `backend/storage/classified_audio`.
+    Obs.: em produção a mídia vive na tabela `media_files` (banco); o filesystem
+    é fallback/legado.
+    """
     configured = os.getenv("CLASSIFIED_AUDIO_STORAGE_DIR", "").strip()
     if configured:
         return Path(configured).expanduser().resolve()
@@ -83,6 +112,11 @@ def get_classified_audio_storage_root() -> Path:
 
 
 def _normalize_classified_storage_key(relative_path: object) -> Optional[str]:
+    """Sanitiza a chave relativa do storage (anti path-traversal).
+
+    Rejeita caminho absoluto, drive Windows (`C:`) e componentes `.`/`..`.
+    Retorna a chave POSIX normalizada ou None quando inválida.
+    """
     raw = str(relative_path or "").strip().replace("\\", "/")
     if not raw or raw.startswith("/"):
         return None
@@ -95,6 +129,10 @@ def _normalize_classified_storage_key(relative_path: object) -> Optional[str]:
 
 
 def _resolve_classified_local_path(relative_path: object) -> Optional[Path]:
+    """Resolve a chave relativa para um Path absoluto DENTRO da raiz do storage.
+
+    Retorna None (com warning) se a chave for inválida ou escapar da raiz.
+    """
     storage_key = _normalize_classified_storage_key(relative_path)
     if not storage_key:
         logger.warning("Caminho de midia classificada invalido: %r", relative_path)
@@ -111,7 +149,12 @@ def _resolve_classified_local_path(relative_path: object) -> Optional[Path]:
 
 
 def store_classified_audio(input_hash: str, filename: str, audio_bytes: bytes) -> str:
-    """Store classified media bytes so they can be audited later."""
+    """Guarda a mídia classificada para ser auditada depois pela automação.
+
+    Efeito colateral: grava em `media_files` (banco) sob a chave namespaced
+    `classified:{input_hash}`. Retorna a storage_key relativa
+    (`classified_audio/AAAA/MM/{hash16}{ext}`) que vai para o metadata da fila.
+    """
     ext = Path(filename).suffix.lower() or ".wav"
     safe_hash = input_hash[:16] if input_hash else "unknown"
     relative = f"{safe_hash}{ext}"
@@ -134,11 +177,11 @@ def store_classified_audio(input_hash: str, filename: str, audio_bytes: bytes) -
 
 
 def load_classified_audio(relative_path: str, input_hash: Optional[str] = None) -> Optional[bytes]:
-    """Load audio bytes from classified storage.
+    """Carrega os bytes da mídia classificada do storage.
 
-    Tries the namespaced `classified:{input_hash}` key first, falling back to the
-    legacy raw `input_hash` (and finally the relative_path) so rows written before
-    namespacing keep working.
+    Tenta primeiro a chave namespaced `classified:{input_hash}`; cai para o
+    `input_hash` cru (legado) e por fim para o `relative_path`, para que linhas
+    gravadas antes do namespacing continuem funcionando. Retorna None se não achar.
     """
     from core.media_storage import classified_media_hash, load_media_bytes
     ns_key = classified_media_hash(input_hash)
@@ -173,11 +216,12 @@ def open_classified_audio_stream(
 
 
 def cleanup_classified_audio_storage(*, retention_days: int = 30, dry_run: bool = True) -> dict:
-    """Remove orphan classified-audio files that are no longer referenced by the queue.
+    """Remove do filesystem áudios classificados órfãos (sem referência na fila).
 
-    Files still referenced by `fila_revisao_classificacao.metadata.classified_audio_path`
-    are always preserved. Unreferenced files are deleted only when older than the
-    retention window.
+    Arquivos ainda referenciados por `fila_revisao_classificacao.metadata.classified_audio_path`
+    são SEMPRE preservados. Os não referenciados só são apagados quando mais
+    antigos que `retention_days`. Com `dry_run=True` (default) apenas lista os
+    candidatos sem apagar. Retorna dict-relatório (referenced/kept/candidates/deleted).
     """
     root = get_classified_audio_storage_root()
     if retention_days < 0:
@@ -232,7 +276,13 @@ def cleanup_classified_audio_storage(*, retention_days: int = 30, dry_run: bool 
 
 @dataclass
 class AutomationProgress:
-    """Tracks progress of an audit-all run."""
+    """Estado em memória de uma execução de `audit_all_pending` (singleton do processo).
+
+    Exposto via `get_automation_status()` para o painel da UI (polling).
+    Acessos sempre sob `_progress_lock`. `completed`/`discarded`/`failed`/`blocked`
+    são contadores acumulados do lote; `current_step` + `last_heartbeat_at`
+    servem de heartbeat para detectar automação travada ("zumbi").
+    """
 
     total: int = 0
     target_count: int = 0
@@ -259,6 +309,8 @@ class AutomationProgress:
     errors: deque = field(default_factory=lambda: deque(maxlen=100))
 
     def to_dict(self) -> dict:
+        """Serializa o progresso para o JSON consumido pelo front (inclui alias
+        legado `descartados` e só os 10 últimos erros)."""
         return {
             "total": self.total,
             "target_count": self.target_count,
@@ -292,13 +344,13 @@ _progress_lock = threading.Lock()
 
 
 def get_automation_status() -> dict:
-    """Return current automation status."""
+    """Snapshot thread-safe do progresso da automação (consumido pela UI via polling)."""
     with _progress_lock:
         return _progress.to_dict()
 
 
 def _set_progress_step(step: str, *, filename: Optional[str] = None) -> None:
-    """Record a lightweight heartbeat for the current queue item."""
+    """Registra um heartbeat leve da etapa atual do item (p/ UI e diagnóstico de travamento)."""
     now = datetime.now(timezone.utc).isoformat()
     with _progress_lock:
         if filename is not None:
@@ -314,6 +366,11 @@ def _set_progress_step(step: str, *, filename: Optional[str] = None) -> None:
 
 
 def _get_automation_item_timeout_seconds() -> int:
+    """Timeout por item (segundos), clampado em [60, 900].
+
+    Precedência: env `AUTOMATION_ITEM_TIMEOUT_SECONDS` > config no banco
+    `automacao_item_timeout_seconds` > 480.
+    """
     raw = os.getenv("AUTOMATION_ITEM_TIMEOUT_SECONDS")
     if raw in (None, ""):
         raw = database.get_config_value("automacao_item_timeout_seconds", "480")
@@ -325,6 +382,7 @@ def _get_automation_item_timeout_seconds() -> int:
 
 
 def _coerce_positive_int(value: object, default: int) -> int:
+    """Converte para int >= 1; valor inválido vira `default`."""
     try:
         parsed = int(str(value).strip())
     except (TypeError, ValueError):
@@ -333,6 +391,7 @@ def _coerce_positive_int(value: object, default: int) -> int:
 
 
 def _read_config_value_with_fallback(keys: tuple[str, ...], default: str) -> str:
+    """Lê a primeira config não vazia do banco entre `keys` (suporta chaves renomeadas/legadas)."""
     for key in keys:
         try:
             raw = database.get_config_value(key, "")
@@ -345,6 +404,11 @@ def _read_config_value_with_fallback(keys: tuple[str, ...], default: str) -> str
 
 
 def _get_automation_audit_target_count() -> int:
+    """Meta de auditorias por execução (quantos itens o lote tenta processar).
+
+    Precedência: env `AUTOMATION_AUDIT_TARGET_COUNT` > env legada
+    `AUTOMATION_AUDIT_BATCH_SIZE` > configs no banco > default 3.
+    """
     raw = os.getenv("AUTOMATION_AUDIT_TARGET_COUNT")
     if raw in (None, ""):
         raw = os.getenv("AUTOMATION_AUDIT_BATCH_SIZE")
@@ -357,16 +421,17 @@ def _get_automation_audit_target_count() -> int:
 
 
 def _get_automation_audit_batch_size() -> int:
-    """Backward-compatible name for the configured audit target.
+    """Nome retrocompatível para a meta de auditorias configurada.
 
-    The UI now stores a requested audit target. The runtime derives smaller
-    operational batches from the time budget instead of treating this value as
-    the per-query queue size.
+    A UI hoje grava uma META de auditorias; o runtime deriva lotes operacionais
+    menores a partir do orçamento de tempo (`_derive_automation_audit_batch_size`)
+    em vez de tratar este valor como tamanho de página da fila.
     """
     return _get_automation_audit_target_count()
 
 
 def _get_automation_expected_audit_item_seconds() -> int:
+    """Duração ESPERADA de um item (s, clamp [30, 900]) — usada só p/ dimensionar o lote."""
     raw = os.getenv("AUTOMATION_EXPECTED_AUDIT_ITEM_SECONDS")
     if raw in (None, ""):
         raw = database.get_config_value(
@@ -386,6 +451,11 @@ def _derive_automation_audit_batch_size(
     time_budget_seconds: int,
     item_timeout_seconds: int,
 ) -> int:
+    """Tamanho do lote operacional: min(meta, quantos itens cabem no orçamento de tempo).
+
+    Garante que um cron com orçamento curto não pegue mais itens do que
+    consegue terminar (evita item iniciado e abortado no meio).
+    """
     expected_item_seconds = min(
         _get_automation_expected_audit_item_seconds(),
         max(1, item_timeout_seconds),
@@ -395,6 +465,10 @@ def _derive_automation_audit_batch_size(
 
 
 def _get_automation_audit_time_budget_seconds() -> int:
+    """Orçamento de tempo TOTAL do lote (s, clamp [60, 1800]; default 480).
+
+    Env `AUTOMATION_AUDIT_TIME_BUDGET_SECONDS` > config `automacao_audit_time_budget_seconds`.
+    """
     raw = os.getenv("AUTOMATION_AUDIT_TIME_BUDGET_SECONDS")
     if raw in (None, ""):
         raw = database.get_config_value("automacao_audit_time_budget_seconds", "480")
@@ -406,6 +480,8 @@ def _get_automation_audit_time_budget_seconds() -> int:
 
 
 async def _audit_single_item_with_timeout(item: dict, *, timeout_seconds: Optional[float] = None) -> dict:
+    """Envolve `_audit_single_item` em `asyncio.wait_for` e converte estouro em
+    `TimeoutError` legível — evita item infinito segurando a automação ("zumbi")."""
     timeout_seconds = timeout_seconds or _get_automation_item_timeout_seconds()
     try:
         return await asyncio.wait_for(_audit_single_item(item), timeout=timeout_seconds)
@@ -418,10 +494,12 @@ async def _audit_single_item_with_timeout(item: dict, *, timeout_seconds: Option
 
 
 def _config_flag(key: str) -> bool:
+    """Lê uma flag booleana da tabela de config do banco ('true' literal = ligada)."""
     return str(database.get_config_value(key, "false") or "").strip().lower() == "true"
 
 
 def _discard_unknown_alerts_enabled() -> bool:
+    """Flag: item com alerta 'desconhecido' é descartado (tombstone) em vez de ir p/ triagem manual."""
     raw = os.getenv("AUTOMATION_DISCARD_UNKNOWN_ALERTS")
     if raw is None:
         return True  # default ON; rollback via AUTOMATION_DISCARD_UNKNOWN_ALERTS=false
@@ -429,6 +507,7 @@ def _discard_unknown_alerts_enabled() -> bool:
 
 
 def _audit_on_transcription_risk_enabled() -> bool:
+    """Flag: audita mesmo com transcrição de qualidade arriscada (gate humano valida depois)."""
     raw = os.getenv("AUTOMATION_AUDIT_ON_TRANSCRIPTION_RISK")
     if raw is None:
         return True  # default ON; rollback via AUTOMATION_AUDIT_ON_TRANSCRIPTION_RISK=false
@@ -551,6 +630,11 @@ def _handle_transient_failure(
 
 
 def _get_monthly_audit_quota() -> int:
+    """Cota mensal de auditorias por operador (config `huawei_cota_max_por_operador_mes`, default 2).
+
+    Obs.: com `AUTOMATION_AUDIT_IGNORE_MONTHLY_CAP` ON (default), a cota só é
+    aplicada no ENVIO ao supervisor, não na auditoria automática.
+    """
     raw = database.get_config_value("huawei_cota_max_por_operador_mes", "2")
     try:
         return max(1, int(str(raw or "2").strip()))
@@ -560,6 +644,11 @@ def _get_monthly_audit_quota() -> int:
 
 
 def _patch_running_cycle_audit_result(**updates) -> None:
+    """Mescla `updates` no JSON `audit_result` do ciclo ATIVO em `automation_cycle_runs`.
+
+    Efeito colateral: UPDATE no banco (melhor esforço — falha vira warning, não
+    propaga). Usado para refletir pause/cancel no painel de ciclos.
+    """
     payload = {key: value for key, value in updates.items() if value is not None}
     if not payload:
         return
@@ -598,7 +687,12 @@ def _patch_running_cycle_audit_result(**updates) -> None:
 
 
 def cancel_automation() -> dict:
-    """Cancel the running automation."""
+    """Solicita cancelamento da automação em execução (gracioso: termina o item atual).
+
+    Efeitos colaterais: grava as flags `automacao_is_cancelled=true` /
+    `automacao_is_paused=false` na config do banco — assim o sinal alcança o
+    worker mesmo em OUTRA instância do cluster — e atualiza o ciclo ativo.
+    """
     database.update_config(
         "automacao_is_cancelled", "true",
         alterado_por="system:automation", motivo="cancel_automation()", origem="system",
@@ -617,7 +711,11 @@ def cancel_automation() -> dict:
 
 
 def pause_automation() -> dict:
-    """Pause the running automation."""
+    """Pausa a automação (o loop espera em `wait_if_paused_or_cancelled` até retomar).
+
+    Efeito colateral: grava `automacao_is_paused=true` na config do banco
+    (sinal cross-instância) e atualiza o ciclo ativo.
+    """
     database.update_config(
         "automacao_is_paused", "true",
         alterado_por="system:automation", motivo="pause_automation()", origem="system",
@@ -631,7 +729,7 @@ def pause_automation() -> dict:
 
 
 def resume_automation() -> dict:
-    """Resume the running automation."""
+    """Retoma a automação pausada (limpa `automacao_is_paused` na config do banco)."""
     database.update_config(
         "automacao_is_paused", "false",
         alterado_por="system:automation", motivo="resume_automation()", origem="system",
@@ -650,7 +748,26 @@ async def audit_all_pending(
     max_items: Optional[int] = None,
     time_budget_seconds: Optional[int] = None,
 ) -> dict:
-    """Audit queued items up to the requested target, using bounded batches."""
+    """Audita itens da fila (status `ready_for_audit`) até a meta, em lotes limitados.
+
+    Loop principal da esteira: pega itens da fila em páginas (`batch_size`
+    derivado do orçamento de tempo), processa um a um respeitando pause/cancel
+    (flags no banco), timeout por item, orçamento de tempo do lote e o teto
+    diário do `cost_guard` (itens restantes FICAM na fila quando estoura).
+
+    CUSTO: cada item auditado dispara transcrição (Azure Speech) + avaliação
+    (GPT-4o) — chamadas pagas via `_audit_single_item`.
+
+    Parâmetros: `reset_control_flags` limpa pause/cancel ao iniciar (default);
+    `max_items`/`time_budget_seconds` sobrescrevem a config (uso pelo cron).
+    Retorno: dict de progresso + flags de término (queue_exhausted,
+    time_budget_exhausted, budget_blocked_motivo). Levanta RuntimeError se já
+    houver automação rodando neste processo.
+
+    Efeitos colaterais: atualiza status/metadata dos itens na fila, persiste
+    auditorias em `audits` (awaiting_pair) e drena a fila de sincronização de
+    Arquivos Salvos no finally.
+    """
     global _progress
 
     target_count = max(1, int(max_items)) if max_items is not None else _get_automation_audit_batch_size()
@@ -699,6 +816,7 @@ async def audit_all_pending(
         logger.info("Automacao: orçamento de tempo do lote esgotado antes do proximo item.")
 
     async def wait_if_paused_or_cancelled() -> bool:
+        """Bloqueia enquanto pausado (flag no banco); retorna False se cancelado."""
         while True:
             db_paused = _config_flag("automacao_is_paused")
             db_cancelled = _config_flag("automacao_is_cancelled")
@@ -719,6 +837,9 @@ async def audit_all_pending(
             await asyncio.sleep(1)
 
     async def process_ready_item(item: dict) -> None:
+        """Processa UM item: gate de elegibilidade Huawei (setor/direção) →
+        auditoria com timeout → contabiliza completed/discarded/blocked/failed.
+        Falhas transitórias (áudio ausente, timeout) vão p/ retry-ou-descarte."""
         with _progress_lock:
             _progress.current_filename = item.get("nome_arquivo", "?")
             _progress.current_step = "starting_item"
@@ -1037,7 +1158,23 @@ async def audit_all_pending(
 
 
 async def _audit_single_item(item: dict) -> dict:
-    """Audit a single classified item from the review queue."""
+    """Audita um item classificado da fila de revisão (coração da automação).
+
+    Sequência de gates (cada um pode descartar/bloquear ANTES de gastar API):
+    1. operador (OperatorGatekeeper: não auditável → descarte permanente);
+    2. cota mensal (só com `AUTOMATION_AUDIT_IGNORE_MONTHLY_CAP` OFF — legado);
+    3. mídia classificada disponível (ausente → falha transitória/retry);
+    4. alerta válido (`desconhecido` → descarte; o catálogo oficial precisa
+       ter critérios, senão `AlertWithoutOfficialCriteriaError`);
+    5. cache de auditoria por input_hash (hit → reusa SEM custo de API).
+
+    CUSTO: no caminho cheio chama `process_audit_with_ai` (transcrição Azure
+    Speech + avaliação GPT-4o, pagas) ou `process_pdf_audit` (GPT-4o) p/ docs.
+
+    Retorno: {"status": "audited", "audit_id": ...} ou {"status": "discarded_*"/
+    "blocked_*"}. Efeitos colaterais: persiste a auditoria em `audits` com
+    status `awaiting_pair` (criado_por='automacao') e atualiza o item na fila.
+    """
     queue_input_hash = item.get("input_hash", "")
     filename = item.get("nome_arquivo", "")
 
@@ -1409,12 +1546,17 @@ async def _audit_single_item(item: dict) -> dict:
 
 
 def _build_alert_from_classification(sector_id: str, alert_id: str) -> AuditAlert:
-    """Build an AuditAlert object from classification results.
+    """Monta o `AuditAlert` (alerta + critérios oficiais) a partir da classificação.
 
-    Resolve aliases (ex.: BAS-POLICIAL -> BAS-PRIORITARIO-POLICIA) antes de
-    consultar o banco para evitar `criteria=[]` silencioso. Em runtime, os
-    criterios oficiais devem vir exclusivamente do modulo Inteligencia
-    Artificial > Criterios.
+    Resolve aliases via `canonicalize_alert_id` (ex.: BAS-POLICIAL ->
+    BAS-PRIORITARIO-POLICIA) ANTES de consultar o banco, para evitar
+    `criteria=[]` silencioso. Em runtime, os critérios oficiais vêm
+    exclusivamente do módulo Inteligência Artificial > Critérios (tabelas
+    `audit_alerts`/`audit_criteria` no Neon).
+
+    Levanta `AlertWithoutOfficialCriteriaError` se o banco não tiver critérios
+    para o alerta (exceto em ambiente de teste isolado, onde o fallback é
+    permitido por flag). Não tem efeito colateral.
     """
     from core.classification import canonicalize_alert_id, get_alert_lookup_by_id
     from db.database import get_connection
@@ -1478,7 +1620,11 @@ def _mark_item_status(
     motivos_revisao_append: Optional[list[str]] = None,
     metadata_merge: Optional[dict] = None,
 ) -> None:
-    """Backward-compatible wrapper around the review-queue contract."""
+    """Atualiza status/erro/motivos/metadata do item na fila (wrapper retrocompatível).
+
+    Efeito colateral: UPDATE em `fila_revisao_classificacao`; `metadata_merge`
+    faz merge (não substitui) no JSON de metadata existente.
+    """
     database.atualizar_status_fila_revisao_classificacao(
         input_hash,
         status=status,

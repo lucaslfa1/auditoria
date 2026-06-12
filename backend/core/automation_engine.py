@@ -1,10 +1,24 @@
-"""
-Motor de Automação Híbrida.
-Orquestra o fluxo contínuo: Telefonia (Huawei OBS D-1) -> Triagem -> Auditoria (IA) -> Arquivo (awaiting_pair).
+"""Motor de Automação Híbrida — orquestrador do ciclo completo.
+
+Orquestra o fluxo contínuo: Telefonia (Huawei OBS D-1) -> Triagem ->
+Classificação (IA) -> Auditoria (IA) -> Arquivos Salvos (`awaiting_pair`).
 
 A coleta de ligações usa exclusivamente o pipeline OBS D-1 (lote diário do dia
 anterior). O caminho querycalls (executar_sync_huawei) continua disponível
 apenas no módulo Telefonia para coleta manual ad-hoc, fora deste motor.
+
+Conceitos-chave para quem chega agora:
+- O ciclo roda via cron externo (Cloud Scheduler -> endpoint) OU loop
+  residente em processo (`ENABLE_IN_PROCESS_AUTOMATION_ENGINE`, hoje OFF).
+- Concorrência entre instâncias é resolvida por um row-lock com token de dono
+  na tabela `configuracoes` (`_AutomationCycleLock`) + reconciliação de ciclos
+  "zumbis" via heartbeat (`automation_cycle_runs.last_heartbeat_at`).
+- Cada ciclo é registrado em `automation_cycle_runs` (fonte do painel da UI).
+
+CUSTO DE API: o ciclo dispara classificação GPT-4o dos itens pendentes e a
+auditoria em lote (`audit_all_pending` → transcrição Azure Speech + GPT-4o),
+todas chamadas pagas. O `cost_guard` bloqueia o ciclo inteiro quando o teto
+diário foi atingido (nada é descartado; a fila espera o reset).
 """
 import asyncio
 import json
@@ -77,6 +91,7 @@ def _iso_or_none(value) -> str | None:
 
 
 def _parse_iso_datetime(value) -> datetime | None:
+    """Converte ISO-8601 (aceita sufixo 'Z') para datetime UTC; inválido vira None."""
     if value is None:
         return None
     if isinstance(value, datetime):
@@ -102,6 +117,7 @@ def _safe_int(value, default: int = 0) -> int:
 
 
 def _empty_health_snapshot() -> dict:
+    """Snapshot de saúde vazio (`available=False`) usado quando o banco falha."""
     return {
         "available": False,
         "queue_by_status": {},
@@ -126,6 +142,12 @@ def _get_health_snapshot_cache_ttl_seconds() -> int:
 
 
 def _load_health_snapshot() -> dict:
+    """Agrega métricas de saúde do banco: fila por status (origem huawei_sync),
+    syncs das últimas 24h (`huawei_sync_logs`) e ciclos 24h (`automation_cycle_runs`).
+
+    Best-effort: qualquer falha devolve o snapshot vazio com `available=False`.
+    Caro em queries — sempre acessar via `_load_health_snapshot_cached()`.
+    """
     snapshot = _empty_health_snapshot()
     conn = None
     try:
@@ -193,11 +215,12 @@ def _load_health_snapshot() -> dict:
 
 
 def _load_health_snapshot_cached() -> dict:
-    """Throttle DB-heavy health probes used by UI polling.
+    """Cache (TTL ~30s) das sondas de saúde pesadas usadas pelo polling da UI.
 
-    The Telefonia/settings screens ask for engine status periodically. Without
-    caching, every poll re-queries queue, sync, and cycle aggregates even when
-    automation is idle, increasing Neon compute wakeups and network transfer.
+    As telas de Telefonia/configurações pedem o status do motor periodicamente.
+    Sem cache, cada poll re-consultaria os agregados de fila/sync/ciclo mesmo
+    com a automação ociosa — acordando o compute do Neon e gastando rede/custo.
+    TTL configurável por `AUTOMATION_HEALTH_SNAPSHOT_TTL_SECONDS` (0 desliga o cache).
     """
     ttl_seconds = _get_health_snapshot_cache_ttl_seconds()
     if ttl_seconds <= 0:
@@ -239,6 +262,7 @@ def _health_alert(identifier: str, severity: str, title: str, detail: str = "") 
 
 
 def _stage_label(stage: str | None) -> str:
+    """Traduz o stage interno do ciclo para o rótulo PT-BR exibido na UI."""
     labels = {
         "idle": "Aguardando",
         "starting": "Iniciando",
@@ -257,6 +281,13 @@ def _stage_label(stage: str | None) -> str:
 
 
 def _build_automation_health_report(status: dict, snapshot: dict | None = None) -> dict:
+    """Monta o relatório de saúde exibido no painel da automação (UI).
+
+    Combina o status do motor + snapshot agregado do banco em: `status` geral
+    (disabled/critical/warning/running/ok), `headline`, `indicators` (cards) e
+    `alerts` (ex.: ciclo sem heartbeat, falhas de sync 24h, triagem acumulada).
+    Função pura — não toca no banco (o snapshot vem pronto/cacheado).
+    """
     snapshot = snapshot or _empty_health_snapshot()
     queue_by_status = snapshot.get("queue_by_status") or {}
     sync_status = snapshot.get("sync_status_24h") or {}
@@ -430,6 +461,8 @@ def _build_automation_health_report(status: dict, snapshot: dict | None = None) 
 
 
 def _get_heartbeat_stale_seconds() -> int:
+    """Idade máxima do heartbeat (s, clamp [30, 3600], default 300) antes de
+    considerar um ciclo 'running' como travado (stale)."""
     raw = os.getenv("AUTOMATION_HEARTBEAT_STALE_SECONDS", "300")
     try:
         parsed = int(str(raw).strip())
@@ -439,6 +472,10 @@ def _get_heartbeat_stale_seconds() -> int:
 
 
 def _latest_run_is_stale(latest_run: dict | None) -> bool:
+    """True se o ciclo está 'running' mas o heartbeat parou há mais que o limite.
+
+    Detecta instância morta/travada (ex.: Cloud Run encerrado no meio do ciclo).
+    """
     if not isinstance(latest_run, dict) or latest_run.get("status") != "running":
         return False
     heartbeat = _parse_iso_datetime(latest_run.get("last_heartbeat_at"))
@@ -452,7 +489,13 @@ def _latest_run_is_stale(latest_run: dict | None) -> bool:
 
 
 def _reconcile_stale_running_cycles() -> None:
-    """Verifica se há ciclos 'running' estagnados e os marca como 'stale' antes de tentar adquirir o lock."""
+    """Marca ciclos 'running' com heartbeat expirado como 'stale' e solta locks órfãos.
+
+    Roda ANTES da aquisição do lock de ciclo: sem isso, um processo morto
+    deixaria `automation_engine_lock`/`huawei_d1_run_lock`/`sync_lock` presos
+    até o TTL e bloquearia novos ciclos. Efeito colateral: UPDATE em
+    `automation_cycle_runs` e `configuracoes`. Best-effort (erro vira log).
+    """
     conn = database.get_connection()
     try:
         cursor = conn.cursor()
@@ -511,10 +554,12 @@ def _reconcile_stale_running_cycles() -> None:
 
 
 def _config_flag(key: str) -> bool:
+    """Lê uma flag booleana da tabela de config do banco ('true' literal = ligada)."""
     return str(database.get_config_value(key, "false") or "").strip().lower() == "true"
 
 
 def _read_control_flags() -> tuple[bool, bool]:
+    """Lê do banco os sinais de controle cross-instância: (is_paused, is_cancelled)."""
     return _config_flag("automacao_is_paused"), _config_flag("automacao_is_cancelled")
 
 
@@ -525,6 +570,13 @@ def _apply_control_flags_to_progress(
     is_cancelled: bool,
     force_running: bool = False,
 ) -> dict | None:
+    """Sobrepõe as flags pause/cancel (lidas do banco) no dict de progresso da auditoria.
+
+    Necessário porque o progresso pode vir de OUTRA instância (via
+    `automation_cycle_runs.audit_result`) e não refletir um pause/cancel
+    recém-solicitado. `force_running` assume lote ativo quando o ciclo do banco
+    está em estágio de auditoria. Retorna cópia; não muta o original.
+    """
     if not isinstance(progress, dict):
         if force_running:
             progress = {"is_running": True}
@@ -543,12 +595,14 @@ def _apply_control_flags_to_progress(
 
 
 def _is_audit_stage(latest_run: dict | None) -> bool:
+    """True se o ciclo registrado no banco está na fase de auditoria."""
     if not isinstance(latest_run, dict):
         return False
     return latest_run.get("stage") == "auditing"
 
 
 def _db_audit_progress_is_active(latest_run: dict | None) -> bool:
+    """True se, SEGUNDO O BANCO, há um lote de auditoria ativo (running, não stale)."""
     if not isinstance(latest_run, dict) or latest_run.get("status") != "running":
         return False
     if _latest_run_is_stale(latest_run):
@@ -575,6 +629,7 @@ def _apply_control_flags_to_status_progress(
 
 
 def _normalize_local_progress(progress, *, is_paused: bool, is_cancelled: bool):
+    """Aplica pause/cancel ao progresso LOCAL (deste processo), sem forçar running."""
     if not isinstance(progress, dict):
         return progress
 
@@ -605,6 +660,11 @@ class _AutomationCycleLock:
         self._token = f"owner:{secrets.token_hex(16)}"
 
     def acquire(self) -> bool:
+        """Tenta tomar o lock: grava o token do dono na linha `automation_engine_lock`.
+
+        Só vence se o lock estiver 'released'/'false' OU expirado pelo TTL
+        (30 min). Retorna True quando esta instância virou dona do ciclo.
+        """
         conn = database.get_connection()
         try:
             cursor = conn.cursor()
@@ -648,6 +708,11 @@ class _AutomationCycleLock:
                 pass
 
     def refresh(self) -> bool:
+        """Renova o TTL do lock PROVANDO a posse (token confere). False = lock perdido.
+
+        Chamado a cada ~60s durante o ciclo; False faz o caller abortar via
+        `AutomationLockLostError` em vez de continuar concorrendo com outra instância.
+        """
         if not self.acquired:
             return False
         try:
@@ -686,6 +751,7 @@ class _AutomationCycleLock:
                 pass
 
     def _try_release_once(self) -> bool:
+        """Uma tentativa de soltar o lock (só solta se o token ainda for nosso)."""
         conn = database.get_connection()
         try:
             cursor = conn.cursor()
@@ -713,6 +779,7 @@ class _AutomationCycleLock:
                 pass
 
     def release(self) -> None:
+        """Solta o lock (idempotente; no-op se não adquirido)."""
         if not self.acquired:
             return
         # Uma re-tentativa com conexao NOVA antes de desistir: falha aqui
@@ -752,7 +819,10 @@ class _AutomationCycleLock:
 
 
 class AutomationLockLostError(RuntimeError):
-    """Raised when the row lock owner token is no longer held by this cycle."""
+    """O token de dono do row-lock não pertence mais a este ciclo (outra instância assumiu).
+
+    O ciclo deve abortar imediatamente para não processar a fila em duplicidade.
+    """
 
 
 async def _await_with_lock_refresh(
@@ -762,6 +832,12 @@ async def _await_with_lock_refresh(
     interval_seconds: float = 60.0,
     run_id: int | None = None,
 ):
+    """Aguarda `awaitable` renovando o lock a cada `interval_seconds`.
+
+    Se o refresh falhar (lock perdido), CANCELA a task e levanta
+    `AutomationLockLostError`. Também atualiza o heartbeat do ciclo
+    (`run_id`) a cada renovação. Usado nas fases longas (sync D-1, classificação).
+    """
     task = asyncio.create_task(awaitable)
     try:
         while True:
@@ -795,6 +871,11 @@ async def _await_with_lock_refresh(
 
 
 def _create_cycle_run(source: str, started_at: str) -> int | None:
+    """INSERT do registro do ciclo em `automation_cycle_runs` (status='running').
+
+    Retorna o id do ciclo, ou None se o registro falhar (o ciclo segue mesmo
+    assim — o registro é observabilidade, não pré-condição).
+    """
     conn = None
     try:
         conn = database.get_connection()
@@ -837,6 +918,12 @@ def _persist_cycle_update(
     audit_result=_MISSING,
     result=_MISSING,
 ) -> None:
+    """UPDATE parcial do ciclo em `automation_cycle_runs` + bump do heartbeat.
+
+    Só atualiza as colunas passadas (sentinela `_MISSING` distingue "não enviar"
+    de "gravar None/JSON nulo" nos campos jsonb). Best-effort: falha vira warning.
+    Todo update conta como heartbeat (`last_heartbeat_at = now`).
+    """
     if run_id is None:
         return
 
@@ -894,6 +981,11 @@ def _persist_cycle_update(
 
 
 def _latest_cycle_run() -> dict | None:
+    """Carrega o ciclo mais recente de `automation_cycle_runs` (ou None).
+
+    Fonte de verdade cross-instância para `get_engine_status()`: permite à UI
+    enxergar um ciclo rodando em OUTRO container.
+    """
     conn = None
     try:
         conn = database.get_connection()
@@ -947,6 +1039,13 @@ async def _audit_all_pending_with_progress(
     *,
     cycle_lock: _AutomationCycleLock | None = None,
 ) -> dict:
+    """Roda `audit_all_pending` espelhando o progresso no banco a cada ~1s.
+
+    Mantém `automation_cycle_runs.audit_result` atualizado (painel da UI) e
+    renova o lock a cada 60s — lock perdido cancela a auditoria e levanta
+    `AutomationLockLostError`. CUSTO: delega para `audit_all_pending`
+    (transcrição + GPT-4o pagos por item).
+    """
     audit_task = asyncio.create_task(audit_all_pending(reset_control_flags=False))
     last_lock_refresh = time.monotonic()
     try:
@@ -995,6 +1094,13 @@ async def _classify_pending_huawei_items(
     *,
     cycle_lock: _AutomationCycleLock | None = None,
 ) -> dict:
+    """Classifica via IA os itens Huawei ainda 'pending' na fila de triagem.
+
+    Roda DEPOIS do sync D-1 e ANTES da auditoria, para que o ciclo seja 100%
+    autônomo (item classificado vira `auto_resolved`/ready). CUSTO: chamadas
+    pagas ao GPT-4o de classificação (concurrency=3). Respeita cancelamento e
+    renova o lock durante a execução.
+    """
     from core.huawei_sync import _build_operator_indexes, _classificar_pendentes_async
     from repositories.operators import listar_auditaveis_com_id_huawei
 
@@ -1037,13 +1143,18 @@ async def _classify_pending_huawei_items(
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
+    """Lê flag booleana de env var (1/true/yes/on = ligada)."""
     raw = os.getenv(name)
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 def is_in_process_engine_enabled() -> bool:
-    """Return whether the resident FastAPI background loop should be started."""
+    """Indica se o loop residente dentro do FastAPI deve subir.
+
+    Default OFF: em produção o ciclo é disparado por cron externo (Cloud
+    Scheduler → endpoint), não por loop em processo.
+    """
     return _env_flag("ENABLE_IN_PROCESS_AUTOMATION_ENGINE", False)
 
 def is_automation_enabled() -> bool:
@@ -1053,10 +1164,12 @@ def is_automation_enabled() -> bool:
 
 
 def _automation_cancel_requested() -> bool:
+    """Checa no banco se o usuário pediu cancelamento (sinal cross-instância)."""
     return _config_flag("automacao_is_cancelled")
 
 
 def _reset_cycle_control_flags() -> None:
+    """Zera pause/cancel no início do ciclo (sinais antigos não devem vazar p/ o novo)."""
     database.update_config(
         "automacao_is_paused",
         "false",
@@ -1074,6 +1187,11 @@ def _reset_cycle_control_flags() -> None:
 
 
 def _sync_result_contains_status(sync_result: dict, statuses: set[str]) -> bool:
+    """True se o resultado do sync D-1 (topo OU itens de `executados`) contém algum status dado.
+
+    O pipeline D-1 processa várias datas no lookback; um 'cancelled'/'partial'
+    pode estar aninhado no resultado de uma data específica.
+    """
     if not isinstance(sync_result, dict):
         return False
     top_status = str(sync_result.get("status") or "").strip().lower()
@@ -1102,6 +1220,7 @@ _SYNC_FILTER_LABELS = (
 
 
 def _iter_sync_inner_results(sync_result: dict) -> list[dict]:
+    """Extrai os resultados por data (`executados[].result`) do sync D-1; aceita formato achatado legado."""
     if not isinstance(sync_result, dict):
         return []
     inners: list[dict] = []
@@ -1117,6 +1236,11 @@ def _iter_sync_inner_results(sync_result: dict) -> list[dict]:
 
 
 def _summarize_zero_download_filters(sync_result: dict) -> str:
+    """Resumo legível (top 3) dos filtros que explicam um ciclo com 0 downloads.
+
+    Ex.: "operador Huawei nao cadastrado: 12; duracao minima: 5". Responde a
+    pergunta clássica "por que a automação não baixou nada hoje?" direto na UI.
+    """
     totals: dict[str, int] = {}
     for inner in _iter_sync_inner_results(sync_result):
         for key, label in _SYNC_FILTER_LABELS:
@@ -1130,7 +1254,11 @@ def _summarize_zero_download_filters(sync_result: dict) -> str:
 
 
 def set_automation_enabled(enabled: bool) -> None:
-    """Ativa ou desativa a automação híbrida."""
+    """Liga/desliga SÓ o gate do motor (`automacao_hibrida_ativa`) com audit log.
+
+    Prefira `set_automation_enabled_atomic` para o toggle da UI — este aqui não
+    mexe nos gates do D-1 nem do coletor.
+    """
     database.update_config(
         "automacao_hibrida_ativa",
         "true" if enabled else "false",
@@ -1141,14 +1269,14 @@ def set_automation_enabled(enabled: bool) -> None:
 
 
 def set_automation_enabled_atomic(enabled: bool) -> None:
-    """Atomically toggle all gates required by the automatic cycle.
+    """Liga/desliga ATOMICAMENTE todos os gates do ciclo automático.
 
-    The toggle in the UI represents a single user intent: "automation on/off".
-    Historically the frontend issued separate writes, which left the system in
-    inconsistent states such as auditor on, D-1 on, but the Telefonia collector
-    disabled. This helper writes the engine, D-1, and collector gates in a
-    single Postgres transaction so the toggle either fully succeeds or fully
-    fails.
+    O toggle da UI representa uma única intenção ("automação on/off").
+    Historicamente o front fazia writes separados e o sistema ficava em estado
+    inconsistente (motor ligado, D-1 ligado, coletor da Telefonia desligado).
+    Este helper grava os 3 gates (`automacao_hibrida_ativa`, `huawei_d1_enabled`,
+    `telefonia_cron_sync_ativa`) numa única transação Postgres — tudo ou nada —
+    registrando cada mudança em `configuracoes_audit_log`.
     """
     flag = "true" if enabled else "false"
     motivo = "set_automation_enabled_atomic(%s)" % bool(enabled)
@@ -1190,6 +1318,7 @@ def set_automation_enabled_atomic(enabled: bool) -> None:
 
 
 def _get_automation_interval_seconds() -> int:
+    """Intervalo entre ciclos do loop residente (config `automacao_intervalo_segundos`, default 600s)."""
     raw = database.get_config_value("automacao_intervalo_segundos", "600")
     try:
         return max(1, int(str(raw or "600").strip()))
@@ -1198,7 +1327,28 @@ def _get_automation_interval_seconds() -> int:
         return 600
 
 async def run_automation_cycle(*, source: str = "manual") -> dict:
-    """Execute one bounded audit cycle over items already collected into the queue."""
+    """Executa UM ciclo completo da automação (entrada principal do cron e da UI).
+
+    Fases, nesta ordem:
+    0. gates: automação ligada? orçamento de custo OK? lock de ciclo adquirido?
+       (reconciliando antes ciclos stale de instâncias mortas);
+    1. limpeza da fila de triagem (itens obsoletos > 24h);
+    2. sync Huawei OBS D-1 (download + pré-triagem; classificação IA forçada
+       via env `HUAWEI_SYNC_ENABLE_CLASSIFY=true` durante o ciclo);
+    3. classificação IA dos itens ainda pendentes;
+    4. auditoria em lote (`audit_all_pending`) — itens viram `awaiting_pair`.
+
+    `source` identifica o gatilho ('manual', 'manual_ui', 'resident_loop',
+    cron). `manual_ui` ignora o gate de "automação ligada" e força o D-1.
+
+    CUSTO: fases 3 e 4 consomem Azure OpenAI/Speech (pagas). Erro no D-1 pula
+    a auditoria (ciclo 'partial') para não auditar itens inconsistentes.
+
+    Retorno: dict com status (ok/partial/error/cancelled/disabled/skipped/
+    budget_blocked), contadores `baixadas`/`auditadas`/`descartados` e os
+    resultados detalhados de sync/audit. Tudo é persistido em
+    `automation_cycle_runs`; o lock é liberado no finally.
+    """
     global _current_run_id, _current_status
     if not is_automation_enabled() and source != "manual_ui":
         logger.info("Automacao hibrida desligada; ciclo unico ignorado.")
@@ -1601,6 +1751,11 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
         cycle_lock.release()
 
 async def _automation_loop():
+    """Loop residente: roda `run_automation_cycle` a cada intervalo até `stop_engine()`.
+
+    Só existe quando `ENABLE_IN_PROCESS_AUTOMATION_ENGINE=true` (hoje OFF em
+    produção — o gatilho é cron externo). Erros de ciclo não derrubam o loop.
+    """
     global _current_status
     logger.info("Motor de Automacao Hibrida iniciado.")
     
@@ -1633,20 +1788,30 @@ async def _automation_loop():
     logger.info("Motor de Automacao Hibrida parado.")
 
 def start_engine():
+    """Sobe o loop residente como task asyncio (idempotente; chamado no startup do FastAPI)."""
     global _engine_task, _stop_event
     if _engine_task and not _engine_task.done():
         logger.warning("Motor de Automacao ja esta rodando.")
         return
-        
+
     _stop_event = asyncio.Event()
     _engine_task = asyncio.create_task(_automation_loop())
 
 def stop_engine():
+    """Sinaliza o loop residente para parar após o ciclo atual (shutdown do app)."""
     global _stop_event
     if _stop_event:
         _stop_event.set()
 
 def get_engine_status() -> dict:
+    """Status consolidado do motor para a UI (combina memória local + banco).
+
+    Reconcilia o estado deste processo com o último ciclo registrado em
+    `automation_cycle_runs` (pode estar rodando em OUTRA instância), aplica as
+    flags pause/cancel do banco, detecta heartbeat stale, agrega os totais do
+    dia e anexa `audit_progress` + `health_report` (snapshot cacheado).
+    Endpoint de polling — mantenha barato (cache de saúde tem TTL).
+    """
     status = _current_status.copy()
     resident_loop_running = bool(_engine_task and not _engine_task.done())
     latest_run = _latest_cycle_run()
