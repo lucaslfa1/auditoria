@@ -1,3 +1,33 @@
+"""Repository de auditorias: acesso à tabela `audits` no Postgres (Neon).
+
+Papel no fluxo: a avaliação (manual via routers ou automática via
+`core/automation.py`) persiste o resultado aqui com status `awaiting_pair`
+("Arquivos Salvos") → o auditor promove manualmente para `pending_approval`
+(painel do supervisor) → supervisor aprova/contesta → `approved` entra no
+fechamento mensal, que lê deste módulo via `get_audits_for_export`.
+
+Responsabilidades:
+- CRUD de auditorias (save/get/update) + vínculo de áudio persistido;
+- contagem de cota mensal por operador (alimenta o gate de 2/operador/mês —
+  o limite em si é aplicado no router, ver `promote_audit_to_pending_approval`);
+- máquina de estados de status (`_ALLOWED_STATUS_TRANSITIONS`);
+- soft-delete (descarte/restauração) com trilha de auditoria;
+- fluxo de contestação do supervisor (defesa técnica + veredito);
+- export para o fechamento/BI (`get_audits_for_export`) — o formato dos campos
+  retornados é CONTRATO consumido pelo BI; não alterar chaves/semântica;
+- rascunhos de auditoria em andamento (`audit_drafts`).
+
+CUSTO DE API: nenhum — este módulo só conversa com o PostgreSQL. Atenção ao
+`update_audit_by_id`: ele apenas MONTA o `rag_payload` quando o auditor corrige
+critérios; a chamada paga de embedding (Azure) é disparada pelo router em
+background (v1.3.90), nunca daqui.
+
+Convenções:
+- Toda função pública recebe `get_connection` (ConnectionFactory) por injeção
+  de dependência — facilita testes — e abre/fecha a própria conexão.
+- Identidade de operador: `operator_id` tem prioridade; fallback para
+  `operator_name` case-insensitive quando o id está vazio.
+"""
 from datetime import datetime
 from typing import Callable, Optional
 
@@ -36,7 +66,15 @@ ConnectionFactory = Callable[[], Any]
 _REVIEW_DETAIL_STATUSES = {"pass", "fail"}
 
 
+# ── Normalização de entrada (identidade e status de critério) ────────────────
+
 def _normalize_binary_detail_status(raw_status: object) -> str:
+    """Colapsa o status de um critério para o modelo binário pass/fail.
+
+    `na`/`pending_manual` viram "pass" (não penalizam) e `partial` vira "fail"
+    (modelo binário não tem meio-termo). Levanta ValueError para valores fora
+    do vocabulário conhecido.
+    """
     status = str(raw_status or "").strip().lower()
     if status in {"pass", "na", "n/a", "pending_manual"}:
         return "pass"
@@ -45,19 +83,26 @@ def _normalize_binary_detail_status(raw_status: object) -> str:
     raise ValueError("Status de criterio invalido.")
 
 def _normalize_sector_id(sector_id: Optional[str]) -> Optional[str]:
+    """Setor em minúsculas sem espaços nas bordas; vazio vira None."""
     normalized = str(sector_id or "").strip().lower()
     return normalized or None
 
 
 def _normalize_operator_name(operator_name: Optional[str]) -> Optional[str]:
+    """Nome do operador sem espaços nas bordas (preserva caixa); vazio vira None."""
     normalized = str(operator_name or "").strip()
     return normalized or None
 
 
 def _normalize_operator_id(operator_id: Optional[str]) -> Optional[str]:
+    """Id de telefonia do operador sem espaços nas bordas; vazio vira None."""
     normalized = str(operator_id or "").strip()
     return normalized or None
 
+
+# ── Cota mensal por operador (contagens) ─────────────────────────────────────
+# Estas funções só CONTAM; quem aplica o limite (2/operador/mês) são os
+# chamadores: sync Huawei (pré-filtro), automação e o endpoint de promoção.
 
 def get_operator_audit_counts_for_month_bulk(
     get_connection: ConnectionFactory,
@@ -65,7 +110,21 @@ def get_operator_audit_counts_for_month_bulk(
     year: int,
     month: int,
 ) -> dict[tuple[str, str], int]:
-    """Retorna {(name_lower, id_lower): count} para todos os operadores em UMA query."""
+    """Retorna {(name_lower, id_lower): count} para todos os operadores em UMA query.
+
+    Conta auditorias do mês no escopo de qualidade (`call_quality`) que não
+    foram descartadas, deduplicando por uid composto (operador|timestamp|
+    alerta|origem) para não contar re-auditorias do mesmo evento duas vezes.
+
+    Parâmetros:
+        operator_keys: pares (nome, id_telefonia) crus — são normalizados aqui.
+        year/month: mês-calendário de referência (usa audit_date com fallback
+            para timestamp).
+
+    Retorno: dict com TODAS as chaves de entrada (operador sem auditoria
+    aparece com 0, graças ao LEFT JOIN). Usado pelo sync Huawei para aplicar
+    a cota em lote sem N+1 de queries.
+    """
     if not operator_keys:
         return {}
     
@@ -91,7 +150,8 @@ def get_operator_audit_counts_for_month_bulk(
         
         # Note: A query de contagem aqui segue a mesma logica da get_operator_audit_count_for_month
         # mas agrupa por operador.
-        # Refactoring to manual VALUES building to be safer with complex joins
+        # VALUES montado manualmente (via mogrify, que escapa cada par) por ser
+        # mais seguro/previsível que execute_values em joins complexos com CTE.
         values_list = ",".join(cursor.mogrify("(%s, %s)", k).decode('utf-8') for k in normalized_keys)
         
         final_query = f"""
@@ -145,7 +205,11 @@ def get_operator_audit_count_for_month(
     month: int,
     operator_id: Optional[str] = None,
 ) -> int:
-    """Delega para o bulk para manter consistencia."""
+    """Conta auditorias do mês para UM operador (escopo qualidade, sem descartadas).
+
+    Delega para o bulk para manter consistência de critérios entre o caminho
+    unitário (automação/telefonia) e o caminho em lote (sync Huawei).
+    """
     counts = get_operator_audit_counts_for_month_bulk(
         get_connection, 
         [(operator_name, operator_id)], 
@@ -164,7 +228,17 @@ def get_supervisor_audit_count_for_month(
     month: int,
     operator_id: Optional[str] = None,
 ) -> int:
-    """Counts audits in the supervisor panel (excludes awaiting_pair and discarded)."""
+    """Conta auditorias do operador visíveis no painel do supervisor no mês.
+
+    Exclui `awaiting_pair` (ainda não enviadas) e `discarded` (soft-delete) —
+    ou seja, conta o que já OCUPA vaga no painel. É esta contagem que o
+    endpoint de promoção usa para aplicar o gate de cota 2/operador/mês
+    (commit 77299af5): atingiu a cota, o auditor precisa deletar uma auditoria
+    do painel para liberar espaço.
+
+    Difere da contagem de `get_operator_audit_count_for_month` (cota de
+    PRODUÇÃO de auditorias, inclui awaiting_pair): aqui a régua é o painel.
+    """
     import calendar
     from datetime import date
     from db.domain_constants import AUDIT_STATUS_AWAITING_PAIR, AUDIT_STATUS_DISCARDED
@@ -198,13 +272,20 @@ def get_supervisor_audit_count_for_month(
 
 
 
+# ── Fila de revisão do supervisor (awaiting_pair → pending_approval) ─────────
+
 def _resolve_open_review_queue(
     cursor: Any,
     *,
     operator_name: Optional[str],
     operator_id: Optional[str],
 ) -> list[dict]:
-    """Find all open (awaiting_pair or pending_approval) audits for an operator."""
+    """Lista as auditorias ABERTAS (awaiting_pair ou pending_approval) do operador.
+
+    Matching de identidade: id quando disponível; auditorias antigas sem
+    operator_id casam pelo nome (case-insensitive). Retorna [{"id", "status"}]
+    em ordem crescente de id (FIFO). Sem identidade nenhuma, retorna [].
+    """
     import logging
     logger = logging.getLogger(__name__)
 
@@ -283,17 +364,18 @@ def rebalance_operator_review_queue(
     operator_name: Optional[str],
     operator_id: Optional[str],
 ) -> dict:
-    """Return a read-only snapshot of the operator's open review queue.
+    """Retorna um snapshot SOMENTE-LEITURA da fila de revisão aberta do operador.
 
-    Historically this function automatically promoted ``awaiting_pair`` items
-    to ``pending_approval`` to keep the supervisor queue at two items per
-    operator. That behaviour was removed: promotion is now a manual action
-    performed by the auditor through the dedicated endpoint
-    ``POST /api/audits/{audit_id}/promote-to-pending-approval``.
+    Historicamente esta função promovia automaticamente itens ``awaiting_pair``
+    para ``pending_approval`` para manter a fila do supervisor em dois itens
+    por operador. Esse comportamento foi removido: a promoção agora é ação
+    manual do auditor pelo endpoint dedicado
+    ``POST /api/audit/{audit_id}/promote-to-pending-approval``.
 
-    The function is kept (and still called from existing call sites) because
-    callers rely on the snapshot of ``pending_ids`` / ``awaiting_ids``. It no
-    longer mutates audit statuses.
+    A função foi mantida (e ainda é chamada pelos call sites existentes)
+    porque os chamadores dependem do snapshot de ``pending_ids`` /
+    ``awaiting_ids``. Ela NÃO altera mais status de auditoria — apesar do nome
+    "rebalance", hoje é apenas consulta.
     """
     conn = get_connection()
     try:
@@ -320,11 +402,21 @@ def promote_audit_to_pending_approval(
     get_connection: ConnectionFactory,
     audit_id: int,
 ) -> dict:
-    """Promote a single ``awaiting_pair`` audit to ``pending_approval``.
+    """Promove UMA auditoria de ``awaiting_pair`` para ``pending_approval``.
 
-    Manual replacement for the auto-promotion logic previously baked into
-    :func:`rebalance_operator_review_queue`. Returns the updated audit row's
-    id and status, or raises ``ValueError`` if the audit is not eligible.
+    Substituto manual da lógica de auto-promoção que antes vivia em
+    :func:`rebalance_operator_review_queue`. Retorna {"audit_id", "status"}
+    da auditoria atualizada, ou levanta ``ValueError`` se ela não existe ou
+    não está em ``awaiting_pair``.
+
+    IMPORTANTE — gate de cota: o limite de 2 auditorias/operador/mês no painel
+    do supervisor (commit 77299af5) NÃO é validado aqui; ele é aplicado pelo
+    endpoint chamador (`routers/audit.py::promote_audit_endpoint`) usando
+    `get_supervisor_audit_count_for_month` antes de invocar esta função.
+    Chamadas diretas a este repository pulam a cota.
+
+    O UPDATE repete `status = awaiting_pair` no WHERE como proteção contra
+    corrida (promoção dupla concorrente vira no-op).
     """
     conn = get_connection()
     try:
@@ -361,6 +453,22 @@ def enqueue_audit_for_supervisor_review(
     ai_feedback: Optional[str] = None,
     rebalance: bool = False,
 ) -> dict:
+    """Salva a auditoria já com status ``awaiting_pair`` (entrada da fila de revisão).
+
+    Porta de entrada usada pelos fluxos manual e automático: persiste via
+    `save_audit` e, se houver `input_hash`, tenta reaproveitar o áudio já
+    persistido por outra auditoria do mesmo hash (vínculo best-effort: falha
+    só gera warning, nunca derruba o salvamento).
+
+    Parâmetros relevantes:
+        rebalance: quando True, consulta o snapshot da fila para informar o
+            status efetivo no retorno (mantido por compatibilidade — a fila
+            não é mais rebalanceada automaticamente; ver
+            `rebalance_operator_review_queue`).
+
+    Retorno: {"audit_id", "status", "pending_count", "open_count"}.
+    Efeitos colaterais: INSERT em `audits` (+ UPDATE de áudio quando aplicável).
+    """
     audit_id = save_audit(
         get_connection,
         result,
@@ -418,6 +526,8 @@ def enqueue_audit_for_supervisor_review(
     }
 
 
+# ── Persistência (INSERT / UPDATE de resultados) ─────────────────────────────
+
 def save_audit(
     get_connection: ConnectionFactory,
     result: AuditResult,
@@ -431,6 +541,22 @@ def save_audit(
     status: str = DEFAULT_AUDIT_STATUS,
     colaborador_id: Optional[int] = None,
 ):
+    """Insere uma auditoria nova em `audits` e retorna o id gerado.
+
+    Serializa details/transcription/audio_quality como JSON e normaliza
+    source_type, status e sector_id antes de gravar. O `audit_scope` é
+    DERIVADO de source_type + audio_quality (ex.: documento vs ligação) —
+    é ele que decide se a auditoria conta na cota e aparece no export.
+
+    Parâmetros relevantes:
+        input_hash: hash do insumo (áudio/documento) — chave de deduplicação
+            e de reaproveitamento de áudio entre auditorias.
+        status: default `DEFAULT_AUDIT_STATUS`; fluxo de revisão usa
+            `awaiting_pair` via `enqueue_audit_for_supervisor_review`.
+        colaborador_id: FK para `colaboradores` quando resolvida pelo chamador.
+
+    Efeito colateral: INSERT + commit. Não dispara chamadas de API.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -488,6 +614,7 @@ def get_latest_audit_id_by_input_hash(
     get_connection: ConnectionFactory,
     input_hash: str,
 ) -> Optional[int]:
+    """Retorna o id da auditoria MAIS RECENTE com este input_hash (inclui descartadas)."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -501,6 +628,7 @@ def get_latest_audit_id_by_input_hash(
 
 
 def _write_audit_result_fields(cursor, audit_id: int, result: AuditResult, ai_feedback: Optional[str] = None) -> None:
+    """UPDATE dos campos de resultado (score/summary/JSONs) — commit fica a cargo do chamador."""
     details_json = json_dumps([d.model_dump() for d in result.details])
     transcription_json = json_dumps([s.model_dump() for s in result.transcription])
     audio_quality_json = json_dumps(result.audio_quality)
@@ -536,7 +664,11 @@ def update_audit_result(
     result: AuditResult,
     ai_feedback: Optional[str] = None,
 ) -> Optional[int]:
-    """Update an existing audit's evaluation results by input_hash."""
+    """Atualiza os resultados de avaliação da auditoria mais recente com este input_hash.
+
+    Usado em re-avaliações do mesmo insumo (não cria linha nova). Retorna o id
+    atualizado ou None se nenhuma auditoria tem esse hash.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -559,7 +691,11 @@ def update_audit_result_by_id(
     result: AuditResult,
     ai_feedback: Optional[str] = None,
 ) -> Optional[int]:
-    """Update an existing audit's evaluation results by id."""
+    """Atualiza os resultados de avaliação de uma auditoria existente pelo id.
+
+    Variante de `update_audit_result` para quando o chamador já conhece o id.
+    Retorna o id atualizado ou None se a auditoria não existe.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -582,9 +718,14 @@ def update_audit_by_id(
     result: AuditResult,
     ai_feedback: Optional[str] = None,
 ) -> Optional[dict]:
-    """Update a saved audit by id after manual auditor corrections.
+    """Atualiza uma auditoria salva pelo id após correções manuais do auditor.
 
-    Returns:
+    Antes de gravar, compara o status de cada critério com o que estava salvo:
+    diferenças viram texto de correção e alimentam o `rag_payload` (feedback
+    para o RAG aprender com o auditor), incluindo um trecho da transcrição
+    (até 2000 chars) como exemplo.
+
+    Retorna:
       - None se a auditoria nao foi encontrada (chamador deve retornar 404).
       - dict com chaves {"updated": bool, "rag_payload": Optional[dict]}.
         rag_payload != None significa que o auditor mudou criterios e o caller
@@ -675,7 +816,14 @@ def update_audit_by_id(
         conn.close()
 
 
+# ── Consulta por hash/id e metadados de áudio ────────────────────────────────
+
 def get_audit_by_hash(get_connection: ConnectionFactory, input_hash: str) -> Optional[AuditResult]:
+    """Retorna a auditoria mais recente (não descartada) deste input_hash como AuditResult.
+
+    É o lookup do cache de deduplicação: mesmo insumo já auditado → reaproveita
+    o resultado em vez de pagar nova transcrição/avaliação.
+    """
     conn = get_connection()
     try:
         
@@ -699,6 +847,11 @@ def get_audit_by_hash(get_connection: ConnectionFactory, input_hash: str) -> Opt
 
 
 def get_audit_media_record_by_hash(get_connection: ConnectionFactory, input_hash: str) -> Optional[dict]:
+    """Metadados de áudio (storage path, filename, mime, tamanho) da auditoria mais recente do hash.
+
+    Somente leitura; ignora descartadas. Usado para reaproveitar o áudio já
+    persistido ao enfileirar nova auditoria do mesmo insumo.
+    """
     conn = get_connection()
     try:
         
@@ -731,6 +884,14 @@ def get_audit_media_record_by_hash(get_connection: ConnectionFactory, input_hash
 
 
 def get_audit_media_record_by_id(get_connection: ConnectionFactory, audit_id: int) -> Optional[dict]:
+    """Metadados de áudio de uma auditoria pelo id, com backfill via input_hash.
+
+    NÃO é somente leitura: se a auditoria não tem `audio_storage_path` mas
+    outra auditoria com o mesmo `input_hash` tem, copia os campos de áudio
+    para esta linha (UPDATE + commit) antes de retornar — é aqui que o
+    fallback detectado em `_resolve_audio_hash_fallback` vira persistência,
+    no momento em que o áudio é efetivamente servido.
+    """
     conn = get_connection()
     try:
         
@@ -802,6 +963,7 @@ def update_audit_audio_storage(
     audio_mime_type: str,
     audio_size_bytes: int,
 ) -> bool:
+    """Grava os metadados de áudio persistido na auditoria; True se alguma linha mudou."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -826,6 +988,14 @@ def update_audit_audio_storage(
 
 
 def get_audit_by_id(get_connection: ConnectionFactory, audit_id: int) -> Optional[dict]:
+    """Carrega uma auditoria completa pelo id, enriquecida para exibição.
+
+    Faz LEFT JOIN com `colaboradores` (por operator_id, fallback nome) para
+    trazer supervisor/escala, resolve disponibilidade de áudio (caminho próprio
+    ou fallback por input_hash, sem persistir) e desserializa os campos JSON.
+    Inclui descartadas — o filtro de status é responsabilidade do chamador.
+    Retorna dict no formato consumido pelos routers, ou None se não existe.
+    """
     conn = get_connection()
     try:
         
@@ -913,6 +1083,11 @@ def get_audit_by_id(get_connection: ConnectionFactory, audit_id: int) -> Optiona
         conn.close()
 
 
+# ── Máquina de estados de status ─────────────────────────────────────────────
+# Transições permitidas em update_audit_status: {status_atual: {alvos válidos}}.
+# Status AUSENTE do mapa (ex.: contested, discarded, legados) não é restringido
+# (get retorna None → transição liberada); status presente com set vazio é
+# terminal. Descarte/restauração não passam por aqui (têm funções próprias).
 _ALLOWED_STATUS_TRANSITIONS = {
     AUDIT_STATUS_PENDING_APPROVAL: {
         AUDIT_STATUS_APPROVED,
@@ -925,7 +1100,7 @@ _ALLOWED_STATUS_TRANSITIONS = {
     AUDIT_STATUS_AWAITING_PAIR: {
         AUDIT_STATUS_PENDING_APPROVAL,
     },
-    # Terminal states — no further transitions allowed via update_audit_status
+    # Estados terminais — nenhuma transição adicional via update_audit_status
     AUDIT_STATUS_APPROVED: set(),
     AUDIT_STATUS_CONTESTATION_ACCEPTED: set(),
 }
@@ -938,6 +1113,18 @@ def update_audit_status(
     reason: Optional[str] = None,
     contested_criteria: Optional[str] = None,
 ):
+    """Muda o status de uma auditoria validando a transição na máquina de estados.
+
+    Regras de validação (todas levantam ValueError):
+    - status desconhecido após normalização;
+    - contestação (`contested`) exige `reason`; filas abertas (awaiting_pair/
+      pending_approval) NÃO aceitam reason; demais status descartam o reason;
+    - transição precisa estar em `_ALLOWED_STATUS_TRANSITIONS`.
+
+    Efeito colateral: UPDATE + commit. Para status FORA do fluxo de revisão,
+    os campos de revisão (verdict/defense/reviewed_by/reviewed_at) são zerados
+    junto; dentro do fluxo, são preservados (o veredito é trilha de auditoria).
+    """
     normalized_status = normalize_audit_status(status, default=None)
     if normalized_status is None:
         raise ValueError("Status de auditoria invalido.")
@@ -953,7 +1140,7 @@ def update_audit_status(
     try:
         cursor = conn.cursor()
 
-        # Validate source status transition (C1 fix)
+        # Valida a transição a partir do status de origem (fix C1)
         cursor.execute("SELECT status FROM audits WHERE id = %s", (audit_id,))
         row = cursor.fetchone()
         if row is None:
@@ -964,7 +1151,7 @@ def update_audit_status(
             raise ValueError(
                 f"Transicao de status invalida: {current_status} -> {normalized_status}"
             )
-        # Preserve review fields for statuses that are part of the review flow
+        # Preserva os campos de revisão para status que fazem parte do fluxo de revisão
         _REVIEW_FLOW_STATUSES = {
             AUDIT_STATUS_APPROVED,
             AUDIT_STATUS_CONTESTATION_PENDING_REVIEW,
@@ -1003,6 +1190,8 @@ def update_audit_status(
         conn.close()
 
 
+# ── Descarte e restauração (soft-delete) ─────────────────────────────────────
+
 def discard_audit(
     get_connection: ConnectionFactory,
     audit_id: int,
@@ -1014,6 +1203,10 @@ def discard_audit(
 
     Descartadas saem da cota mensal, do dashboard e do painel do supervisor,
     mas permanecem para rastreabilidade (trilha de auditoria/LGPD).
+
+    Guarda o status anterior em `pre_discard_status` para o `restore_audit`
+    devolver a auditoria ao ponto em que estava. Idempotente: descartar de
+    novo retorna {"already_discarded": True} sem alterar nada.
     """
     normalized_reason = str(reason or "").strip() or None
     normalized_reviewer = str(discarded_by or "").strip() or "Auditoria"
@@ -1050,8 +1243,9 @@ def discard_audit(
         )
         conn.commit()
 
-        # Do not delete the associated arquivo_salvo.
-        # This preserves user feedback stored in the file when an audit is soft-deleted.
+        # Não deletar o arquivo_salvo associado.
+        # Isso preserva o feedback do usuário guardado no arquivo quando a
+        # auditoria sofre soft-delete.
     finally:
         conn.close()
 
@@ -1129,6 +1323,8 @@ def restore_audit(
     }
 
 
+# ── Contestação (revisão técnica do supervisor) ──────────────────────────────
+
 def finalize_contestation_review(
     get_connection: ConnectionFactory,
     audit_id: int,
@@ -1138,6 +1334,26 @@ def finalize_contestation_review(
     reviewed_by: str,
     updated_details: Optional[list] = None,
 ) -> dict:
+    """Encerra a revisão técnica de uma contestação (aceita ou rejeitada).
+
+    Pré-condições (ValueError se violadas): veredito ∈ {accepted, rejected},
+    defesa técnica não vazia e auditoria em `contestation_pending_review`.
+
+    Parâmetros relevantes:
+        updated_details: lista de critérios corrigidos — só é aplicada quando
+            o veredito é ACEITO; rejeição preserva a avaliação original.
+        defense: justificativa técnica obrigatória do revisor (vai para
+            `review_defense`).
+
+    Recalcula score/max_score a partir dos pesos dos critérios (modelo binário
+    pass/fail) quando aceita. Caso a auditoria original tenha sido zerada por
+    fatal flag (score 0 com soma de critérios > 0), o zero é MANTIDO mesmo com
+    critérios aprovados — a contestação corrige critérios, não anula a falha
+    fatal.
+
+    Efeito colateral: UPDATE + commit (status final sempre `approved`; o campo
+    `contestation_verdict` registra a decisão para a trilha de auditoria).
+    """
     normalized_verdict = str(verdict or "").strip().lower()
     if normalized_verdict not in (
         AUDIT_CONTESTATION_VERDICT_ACCEPTED,
@@ -1156,17 +1372,17 @@ def finalize_contestation_review(
     if current_audit.get("status") != AUDIT_STATUS_CONTESTATION_PENDING_REVIEW:
         raise ValueError("A auditoria nao esta em revisao tecnica.")
 
-    # Both accepted and rejected contestations go to the dashboard (approved).
-    # When accepted, the updated_details are applied to the audit.
-    # The contestation_verdict field records the original decision for audit trail.
+    # Contestações aceitas E rejeitadas vão para o dashboard (approved).
+    # Quando aceita, os updated_details são aplicados à auditoria.
+    # O campo contestation_verdict registra a decisão original para a trilha de auditoria.
     target_status = AUDIT_STATUS_APPROVED
 
     conn = get_connection()
     try:
         cursor = conn.cursor()
 
-        # Only accepted contestations may rewrite criteria and score. Rejected
-        # contestations preserve the original audit and store the technical defense.
+        # Só contestações ACEITAS podem reescrever critérios e score. Rejeitadas
+        # preservam a auditoria original e armazenam apenas a defesa técnica.
         extra_updates = ""
         params = [
             target_status,
@@ -1180,7 +1396,7 @@ def finalize_contestation_review(
         ):
             if not isinstance(updated_details, list):
                 raise ValueError("Detalhes atualizados da contestacao devem ser uma lista.")
-            # Detect if a fatal flag originally zeroed the audit despite criteria successes
+            # Detecta se uma fatal flag zerou a auditoria original apesar de critérios aprovados
             was_fatal_zeroed = False
             if current_audit.get("score") == 0.0:
                 original_sum = sum(float(d.get("obtainedScore", 0)) for d in (current_audit.get("details") or []))
@@ -1245,6 +1461,8 @@ def finalize_contestation_review(
     }
 
 
+# ── Export para fechamento/BI e listagens ────────────────────────────────────
+
 def _resolve_audio_hash_fallback(cursor, rows) -> dict:
     """Batch-resolve audio metadata para linhas sem `audio_storage_path` via `input_hash`.
 
@@ -1308,6 +1526,32 @@ def get_audits_for_export(
     skip: int = 0,
     max_per_operator: Optional[int] = None,
 ) -> list[dict]:
+    """Lista auditorias para o fechamento mensal, painel do supervisor e revisão.
+
+    ⚠️ CONTRATO BI: o fechamento (DOCX/BI) consome o dict retornado aqui.
+    Chaves, labels e semântica dos campos são contrato estável — NÃO alterar
+    formato sem alinhamento (ver memória "Fechamento intocável").
+
+    Filtros (todos opcionais, combináveis):
+        month/year: mês-calendário sobre COALESCE(audit_date, timestamp).
+        supervisor/escala: comparação exata case-insensitive via JOIN com
+            `colaboradores`.
+        sector_id: setor normalizado (minúsculas).
+        operator_name: LIKE parcial case-insensitive.
+        statuses: lista de status; sem ela, descartadas ficam FORA por default.
+        max_per_operator: limita a N auditorias mais recentes por operador
+            (ROW_NUMBER particionado por identidade do operador).
+        limit/skip: paginação aplicada após os demais filtros.
+
+    Pós-processamento em Python: deduplicação por id (o JOIN com
+    `colaboradores` pode multiplicar linhas), filtro pelo escopo de qualidade
+    (`call_quality` — documentos ficam fora do fechamento), resolução de
+    áudio disponível (caminho próprio ou fallback por hash, somente leitura)
+    e anexo do feedback de gestor quando existir.
+
+    Obs.: `details` sai como JSON cru (string) e `transcription` desserializada
+    — assimetria mantida porque os consumidores dependem desse formato.
+    """
     conn = get_connection()
     try:
 
@@ -1478,6 +1722,11 @@ def get_audits_for_export(
         conn.close()
 
 def list_pending_dispatch_audits(get_connection, older_than_hours: Optional[int] = None) -> list[dict]:
+    """Lista auditorias paradas em `awaiting_pair` (aguardando envio ao supervisor).
+
+    Usada pelo lembrete de despacho pendente; `older_than_hours` filtra só as
+    paradas há mais tempo que o limite. Junta dados do colaborador para exibição.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -1506,6 +1755,7 @@ def list_pending_dispatch_audits(get_connection, older_than_hours: Optional[int]
         conn.close()
 
 def upsert_audit_draft(get_connection, input_hash: str, user_id: str, details_json: str, transcription_json: str) -> None:
+    """Salva/atualiza o rascunho de auditoria manual do usuário (1 por input_hash+user)."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -1526,6 +1776,7 @@ def upsert_audit_draft(get_connection, input_hash: str, user_id: str, details_js
         conn.close()
 
 def get_audit_draft(get_connection, input_hash: str, user_id: str) -> Optional[dict]:
+    """Recupera o rascunho de auditoria do usuário para a gravação, se existir."""
     conn = get_connection()
     try:
         cursor = conn.cursor()

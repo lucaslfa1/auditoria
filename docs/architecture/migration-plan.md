@@ -111,7 +111,7 @@ Recursos pedidos:
 
 10. **Identidades**
     - **Managed Identity** atribuída ao ACA App: papéis `AcrPull` no ACR, `Key Vault Secrets User` no Key Vault, `Storage Blob Data Contributor` no Storage Account, `Cognitive Services User` em cada recurso de IA. Para conectar ao Postgres via Entra ID (preferível), adicionar como **Azure AD admin** do Flexible Server.
-    - **App Registration** (`sp-github-deploy-auditoria`) com **Federated Credential** apontando para `repo:lucaslfa84/auditoria:ref:refs/heads/main`. Papel `Contributor` no RG de prod (escopo restrito a `aca-auditoria-api` + `cracrauditoriaprod`).
+    - **App Registration** (`sp-github-deploy-auditoria`) com **Federated Credential** apontando para `repo:lucaslfa1/auditoria:ref:refs/heads/main`. Papel `Contributor` no RG de prod (escopo restrito a `aca-auditoria-api` + `cracrauditoriaprod`).
 
 ### 2.2 Cotas a confirmar antes de pedir
 
@@ -536,7 +536,7 @@ jobs:
             --query "properties.configuration.ingress.fqdn" -o tsv
 ```
 
-> O App Registration `sp-github-deploy-auditoria` precisa de **Federated Credential** para o subject `repo:lucaslfa84/auditoria:ref:refs/heads/main` (sem secret estático).
+> O App Registration `sp-github-deploy-auditoria` precisa de **Federated Credential** para o subject `repo:lucaslfa1/auditoria:ref:refs/heads/main` (sem secret estático).
 
 ### 5.2 Container Apps Job para o cron (substitui Cloud Scheduler)
 

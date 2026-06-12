@@ -1,3 +1,46 @@
+"""Repository da fila de revisão de classificação (`fila_revisao_classificacao`).
+
+Coração da triagem: cada gravação que entra no sistema (sync Huawei D-1 ou
+upload manual no Classificador) vira UMA linha nesta fila, deduplicada pelo
+`input_hash` (UNIQUE, hash do conteúdo do arquivo). A linha carrega a
+classificação prevista (setor/alerta/operador), confiança, prioridade,
+motivos de revisão e um `metadata_json` rico (origem, ids Huawei, caminho da
+mídia classificada, flags de processamento) — o payload parseado devolvido
+por este módulo é contrato público para a UI de triagem, a automação e os
+relatórios.
+
+Posição no fluxo: sync Huawei → classificação GPT → ESTA FILA → automação
+audita os itens READY (`core/automation.py`) → "Arquivos Salvos"
+(`awaiting_pair`) → revisão humana → fechamento.
+
+Ciclo de vida (constantes em `db/domain_constants.py`):
+- `downloaded`        → baixado do Huawei, aguardando classificação (fase 2);
+- `pending` / `needs_manual_triage` / `blocked_operator` → exigem triagem humana;
+- `auto_resolved` / `reviewed` → READY: elegíveis à auditoria automática;
+- `audited`           → terminal: já virou auditoria em Arquivos Salvos;
+- `monthly_capped`    → retido por cota mensal do operador; volta a ser
+  elegível quando o período (YYYY-MM) gravado no metadata difere do corrente;
+- `ready_for_audit` e `all` são status VIRTUAIS de consulta — nunca persistidos.
+
+Descarte (esteira binária v1.3.103): item que não presta NÃO fica preso — a
+linha é removida da fila e o `huawei_sync_logs` vira tombstone:
+`discarded_permanent` (lixo definitivo; nunca reentra) ou
+`discarded_recoverable` (falha técnica transitória; pode voltar num próximo
+sync até o limite anti-loop, quando é promovido a permanente).
+
+CUSTO DE API: módulo é quase todo acesso a banco (sem custo Azure). Exceção
+pontual: `corrigir_classificacao_fila_revisao` dispara o gatilho RLHF quando
+o humano contradiz a IA — 1 chamada de embedding (Azure OpenAI) por correção.
+
+O arquivo também abriga o dataset de benchmark de classificação
+(`ligacoes_auditadas` + `resultados_classificacao` + `resultados_auditoria`):
+gabarito humano usado para medir a taxa de acerto de setor/alerta da IA.
+
+Todas as funções públicas recebem `get_connection` (factory) e gerenciam a
+própria conexão/transação; helpers que recebem cursor explícito rodam dentro
+da transação do caller.
+"""
+
 import contextlib
 import json
 from datetime import datetime, timedelta, timezone
@@ -27,7 +70,14 @@ from repositories.common import (
 )
 
 
+# ── Constantes e helpers internos ────────────────────────────────────────────
+
 ConnectionFactory = Callable[[], Any]
+
+# Statuses que um re-sync NÃO pode sobrescrever: ou representam trabalho humano
+# já concluído (reviewed/audited), ou decisões de gate tomadas pelo pipeline
+# (monthly_capped/needs_manual_triage/blocked_operator). Para eles,
+# `sincronizar_fila_revisao_classificacao` devolve o id existente sem alterar a linha.
 PROTECTED_SYNC_STATUSES = (
     REVIEW_QUEUE_STATUS_REVIEWED,
     REVIEW_QUEUE_STATUS_AUDITED,
@@ -36,6 +86,9 @@ PROTECTED_SYNC_STATUSES = (
     REVIEW_QUEUE_STATUS_BLOCKED_OPERATOR,
 )
 
+# Statuses que impedem abrir nova task de auditoria em background para o item
+# (ver `tentar_iniciar_processamento_auditoria`): ou já foi auditado, ou está
+# retido por um gate que a auditoria disparada manualmente não deve atropelar.
 AUDIT_TASK_BLOCKED_STATUSES = {
     REVIEW_QUEUE_STATUS_AUDITED,
     REVIEW_QUEUE_STATUS_MONTHLY_CAPPED,
@@ -45,11 +98,13 @@ AUDIT_TASK_BLOCKED_STATUSES = {
 
 
 def _normalize_sector_id(value: Optional[str]) -> Optional[str]:
+    """Normaliza id de setor (trim + minúsculas); vazio/None vira None."""
     normalized = str(value or "").strip().lower()
     return normalized or None
 
 
 def _normalize_metadata_value(value: Optional[object]) -> dict:
+    """Converte `metadata_json` (dict ou string JSON) em dict mutável; inválido vira {}."""
     if isinstance(value, dict):
         return dict(value)
     if isinstance(value, str):
@@ -59,6 +114,11 @@ def _normalize_metadata_value(value: Optional[object]) -> dict:
 
 
 def _parse_metadata_datetime(value: Any) -> Optional[datetime]:
+    """Interpreta timestamp ISO vindo do metadata; retorna datetime UTC-aware ou None.
+
+    Aceita sufixo "Z" e assume UTC quando o valor é naive (sem timezone),
+    para permitir comparação segura com `datetime.now(timezone.utc)`.
+    """
     if not value:
         return None
     try:
@@ -68,6 +128,9 @@ def _parse_metadata_datetime(value: Any) -> Optional[datetime]:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed
+
+
+# ── Dataset de benchmark: ligações auditadas (ground truth) ──────────────────
 
 
 def upsert_ligacao_auditada(
@@ -82,6 +145,14 @@ def upsert_ligacao_auditada(
     qualidade_referencia: Optional[str] = None,
     observacao: Optional[str] = None,
 ) -> int:
+    """Insere/atualiza uma ligação no dataset de ground truth (`ligacoes_auditadas`).
+
+    Dedupe por `hash_arquivo` (ON CONFLICT atualiza os campos de referência).
+    `setor_referencia`/`alerta_referencia`/`qualidade_referencia` são o gabarito
+    humano contra o qual `resultados_classificacao` mede o acerto da IA.
+
+    Retorna o id da linha (existente ou recém-criada). Efeito: UPSERT + commit.
+    """
     if not nome_arquivo or not caminho_relativo or not hash_arquivo:
         raise ValueError("nome_arquivo, caminho_relativo e hash_arquivo são obrigatórios")
 
@@ -134,6 +205,7 @@ def upsert_ligacao_auditada(
 
 
 def get_ligacao_auditada_por_hash(get_connection: ConnectionFactory, hash_arquivo: str) -> Optional[dict]:
+    """Busca uma ligação do dataset de ground truth pelo hash do arquivo; None se ausente."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -173,6 +245,14 @@ def registrar_resultado_classificacao(
     erro: Optional[str] = None,
     metadata: Optional[dict] = None,
 ) -> int:
+    """Registra uma execução de classificação contra o gabarito (`resultados_classificacao`).
+
+    Persiste o que a IA previu (setor/alerta/operador, confiança, modelo e
+    versão do prompt) e, quando o caller já comparou com o gabarito, os flags
+    `acertou_setor`/`acertou_alerta` (gravados como 0/1; None = sem comparação).
+
+    Retorna o id do registro criado. Efeito: INSERT + commit.
+    """
     now = datetime.now().isoformat()
     setor_previsto_normalizado = _normalize_sector_id(setor_previsto)
     conn = get_connection()
@@ -210,7 +290,15 @@ def registrar_resultado_classificacao(
         conn.close()
 
 
+# ── Purga e descarte de itens da fila ────────────────────────────────────────
+
+
 def _unlink_item_media(input_hash: str, media_path: Optional[str], *, logger=None) -> None:
+    """Apaga do storage o áudio classificado de um item purgado (melhor esforço).
+
+    Falha de I/O vira apenas warning: o item já saiu da fila e a mídia órfã
+    será recolhida depois pela limpeza de storage da automação.
+    """
     import logging
     from storage.audit_storage import resolve_stored_audit_audio_path
 
@@ -240,9 +328,11 @@ def _purgar_item_fila(
     """Remove o item da fila (libera o UNIQUE input_hash) e trata o huawei_sync_logs
     conforme `sync_log_action`:
       - "delete": apaga a linha (limpeza por idade) -> permite re-entrada via novo download.
-      - "tombstone_recoverable": marca 'discarded_recoverable' (rebaixa ate o limite anti-loop).
+      - "tombstone_recoverable": marca 'discarded_recoverable' (rebaixa até o limite anti-loop).
       - "tombstone_permanent": marca 'discarded_permanent' (tombstone; nunca rebaixa).
 
+    Roda dentro da transação do caller (recebe cursor; NÃO faz commit) — a
+    mídia física só deve ser apagada pelo caller após o commit.
     Retorna (media_path, tombstone_result) onde tombstone_result=(attempts, status) ou None.
     """
     if not isinstance(metadata, dict):
@@ -276,11 +366,16 @@ def _purgar_item_fila(
 
 def limpar_fila_revisao_classificacao_antiga(get_connection: ConnectionFactory, hours_old: int = 24) -> dict:
     """
-    Remove somente itens explicitamente arquivados/descartaveis ha mais de X horas.
+    Remove somente itens explicitamente arquivados/descartáveis há mais de X horas.
 
-    A fila de revisao guarda trabalho operacional dos auditores; por isso a
-    limpeza automatica nao remove estados pendentes, bloqueados ou em triagem
+    Elegibilidade: `metadata.archived` ou `metadata.cleanup_discardable` = true.
+    A fila de revisão guarda trabalho operacional dos auditores; por isso a
+    limpeza automática NÃO remove estados pendentes, bloqueados ou em triagem
     manual apenas por idade.
+
+    O `huawei_sync_logs` correspondente é APAGADO (action "delete"), o que
+    permite re-entrada do call num próximo sync. A mídia física é removida
+    após o commit (melhor esforço). Retorna {"deleted": n}.
     """
     from datetime import datetime, timedelta, timezone
     import logging
@@ -341,14 +436,18 @@ def descartar_item_automacao(
     loop_limit: int = 3,
     log_fields: Optional[dict] = None,
 ) -> dict:
-    """Descarta um item da fila no modo automacao: remove a linha da fila em transacao,
-    marca o huawei_sync_logs como descartado (tombstone) e apaga a midia apos commit.
-    No-op idempotente se o item ja nao existir.
+    """Descarta um item da fila no modo automação: remove a linha da fila em transação,
+    marca o huawei_sync_logs como descartado (tombstone) e apaga a mídia após o commit.
+    No-op idempotente se o item já não existir.
 
-    tombstone=True  -> 'discarded_permanent' (impossivel de auditar; nunca rebaixa).
-    tombstone=False -> 'discarded_recoverable' (pode voltar num proximo sync ate o limite
+    tombstone=True  -> 'discarded_permanent' (impossível de auditar; nunca rebaixa).
+    tombstone=False -> 'discarded_recoverable' (pode voltar num próximo sync até o limite
                        anti-loop `loop_limit`, quando vira permanent). Substitui o antigo
                        DELETE do sync_log: a linha agora persiste para contar tentativas.
+
+    Braço de descarte da esteira binária v1.3.103 (chamado via
+    `core/automation_disposition.execute_discard`). Retorna
+    {"discarded": bool, "tombstone": status final ou None, "attempts": n ou None}.
     """
     import logging
 
@@ -409,6 +508,9 @@ def descartar_item_automacao(
         conn.close()
 
 
+# ── Upsert e transições de status da fila ────────────────────────────────────
+
+
 def sincronizar_fila_revisao_classificacao(
     get_connection: ConnectionFactory,
     input_hash: str,
@@ -424,6 +526,19 @@ def sincronizar_fila_revisao_classificacao(
     metadata: Optional[dict] = None,
     status_override: Optional[str] = None,
 ) -> Optional[int]:
+    """Insere ou atualiza (dedupe por `input_hash`) um item na fila de revisão.
+
+    Porta de entrada única da fila — usada pelo sync Huawei (enqueue) e pelo
+    classificador manual. Regras:
+    - Tombstone permanente: se a origem é huawei_sync e o call_id está
+      'discarded_permanent' no huawei_sync_logs, o item NÃO reentra (retorna None);
+    - Statuses protegidos (PROTECTED_SYNC_STATUSES): a linha existente não é
+      sobrescrita; retorna o id atual sem alterar nada;
+    - Status calculado: `pending` quando `precisa_revisao`, senão `auto_resolved`
+      (elegível à automação) — salvo `status_override` explícito.
+
+    Retorna o id da linha (None quando bloqueado por tombstone).
+    """
     if not input_hash or not nome_arquivo:
         raise ValueError("input_hash e nome_arquivo são obrigatórios")
 
@@ -541,11 +656,20 @@ def tentar_iniciar_processamento_auditoria(
     inflight_timeout_seconds: int = 600,
     ignore_status_block: bool = False,
 ) -> dict:
-    """Marca uma gravação como em processamento com lock transacional.
+    """Marca uma gravação como em processamento com lock transacional (claim).
 
     A rota de auditoria em background pode receber dois cliques quase
-    simultâneos. O `FOR UPDATE` serializa essas chamadas para que apenas uma
-    delas saia com permissao de criar a task.
+    simultâneos. O `SELECT ... FOR UPDATE` serializa essas chamadas para que
+    apenas uma delas saia com permissão de criar a task. Recusa quando:
+    - o item não existe → {"started": False, "reason": "not_found"};
+    - o status atual está em AUDIT_TASK_BLOCKED_STATUSES e
+      `ignore_status_block` é False → reason "blocked_status";
+    - já existe task viva (metadata.audit_task_status == "processing" iniciada
+      há menos de `inflight_timeout_seconds`) → reason "processing". Passado o
+      timeout, o claim anterior é tratado como órfão e pode ser retomado.
+
+    Em sucesso aplica `status` + `metadata_merge` na linha (commit) e retorna
+    {"started": True, "status": ..., "started_at": ...}.
     """
     if not input_hash:
         raise ValueError("input_hash e obrigatorio")
@@ -630,6 +754,16 @@ def atualizar_status_fila_revisao_classificacao(
     motivos_revisao_append: Optional[list[str]] = None,
     metadata_merge: Optional[dict] = None,
 ) -> bool:
+    """Transiciona o status de um item e faz merge incremental de motivos/metadata.
+
+    - `motivos_revisao_append`: anexa motivos novos sem duplicar (preserva ordem);
+    - `metadata_merge`: update raso (shallow) sobre o metadata existente;
+    - `erro=None` preserva o erro atual (passar string vazia para limpar);
+    - statuses VIRTUAIS de consulta (`all`, `ready_for_audit`) são rejeitados
+      com ValueError — nunca devem ser persistidos.
+
+    Retorna True se o item existia e foi atualizado; False caso contrário.
+    """
     if not input_hash:
         raise ValueError("input_hash e obrigatorio")
 
@@ -702,6 +836,12 @@ def corrigir_classificacao_fila_revisao(
     operator_id: Optional[str] = None,
     revisado_por: Optional[str] = None,
 ) -> Optional[dict]:
+    """Aplica correção humana de setor/alerta a um item da fila (triagem manual).
+
+    Sobrescreve a classificação da IA, registra quem revisou em
+    `motivos_revisao` e promove o item para o fluxo de auditoria.
+    Retorna o item atualizado ou None se o hash não existir.
+    """
     if not input_hash:
         raise ValueError("input_hash e obrigatorio")
     if not setor_previsto or not alerta_previsto:
@@ -843,6 +983,13 @@ def listar_fila_revisao_classificacao(
     origem: Optional[str] = None,
     order_by: str = "priority",
 ) -> list[dict]:
+    """Lista itens da fila de triagem com filtros de status/setor/origem.
+
+    `status=ready_for_audit` tem regra especial: além dos statuses prontos,
+    inclui itens `monthly_capped` de períodos ANTERIORES (a trava de cota
+    mensal expira na virada do mês e o item volta a ser elegível).
+    `status=pending` unifica auto e manual na mesma lista (v1.3.92).
+    """
     status_normalizado = normalize_review_status(status)
 
     conn = get_connection()
@@ -1017,6 +1164,11 @@ def obter_fila_revisao_classificacao_por_hash(
     get_connection: ConnectionFactory,
     input_hash: str,
 ) -> Optional[dict]:
+    """Busca um item da fila pelo `input_hash` (chave de dedupe da gravação).
+
+    Inclui o flag `is_oficial` calculado (operador cadastrado e ATIVO em
+    `colaboradores`) com a mesma regra da listagem.
+    """
     if not input_hash:
         raise ValueError("input_hash e obrigatorio")
 
@@ -1093,6 +1245,11 @@ def obter_fila_revisao_classificacao_por_auditoria(
     audit_id: int,
     audit_input_hash: Optional[str] = None,
 ) -> Optional[dict]:
+    """Localiza o item da fila vinculado a uma auditoria já criada.
+
+    O vínculo vive em `metadata.audit_id` / `metadata.audit_input_hash`
+    (gravados quando a auditoria nasce do item). Retorna o mais recente.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -1137,6 +1294,10 @@ def obter_fila_revisao_classificacao_por_auditoria(
 def listar_paths_audio_classificado_fila_revisao(
     get_connection: ConnectionFactory,
 ) -> list[str]:
+    """Lista os paths de áudio classificado (`metadata.classified_audio_path`).
+
+    Usado pela limpeza de storage para saber quais arquivos ainda têm dono.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -1169,6 +1330,11 @@ def registrar_resultado_auditoria(
     resumo: Optional[str] = None,
     detalhes: Optional[list[dict]] = None,
 ) -> int:
+    """Insere um resultado de auditoria em `resultados_auditoria` e retorna o id.
+
+    Histórico do dataset `ligacoes_auditadas` (importação/benchmark), separado
+    da tabela `audits` do fluxo principal.
+    """
     now = datetime.now().isoformat()
     conn = get_connection()
     try:
@@ -1191,6 +1357,7 @@ def registrar_resultado_auditoria(
 
 
 def get_resumo_ligacoes_auditadas(get_connection: ConnectionFactory, setor: Optional[str] = None) -> dict:
+    """Agrega contadores de `ligacoes_auditadas` (total, por qualidade e por setor)."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -1295,6 +1462,7 @@ def listar_ligacoes_auditadas(
     qualidade: Optional[str] = None,
     setor: Optional[str] = None,
 ) -> list[dict]:
+    """Lista o dataset `ligacoes_auditadas` com filtros de qualidade/setor (cap 500)."""
     limite = max(1, min(int(limit), 500))
     qualidade_normalizada = normalize_quality_reference(qualidade) if qualidade else None
     setor_normalizado = _normalize_sector_id(setor)

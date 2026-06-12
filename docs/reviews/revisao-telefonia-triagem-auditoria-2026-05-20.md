@@ -7,7 +7,7 @@ Revisao iniciada nos modulos Telefonia, Triagem e Auditoria antes de uma janela 
 ## Estado do repositorio
 
 - Branch local verificada: `main`.
-- Remoto verificado: `origin https://github.com/lucaslfa84/auditoria`.
+- Remoto verificado: `origin https://github.com/lucaslfa1/auditoria`.
 - Comando executado: `git pull --ff-only`.
 - Resultado: `Already up to date.`
 - Arquivos nao rastreados ja presentes e nao relacionados a esta revisao: `check_space.py`, `cleanup.py`.

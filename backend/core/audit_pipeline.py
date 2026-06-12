@@ -1,3 +1,30 @@
+"""Contexto canônico do pipeline de auditoria pós-classificação.
+
+Papel no fluxo: depois que uma ligação/documento é classificado (setor +
+alerta + operador), esses dados de identificação precisam viajar intactos
+por transcrição → avaliação → persistência do resultado. Este módulo define
+o objeto que carrega esse contexto (`AuditPipelineContext`), os construtores
+por origem e o reparo determinístico de setor/alerta antes da auditoria.
+
+Origens suportadas (constantes `AUDIT_ORIGIN_*`):
+- `manual_upload`    → upload avulso na UI (`routers/audit.py`);
+- `telefonia_manual` → auditoria disparada da tela Telefonia
+  (`routers/telefonia.py`);
+- `automation`       → esteira automática sobre a fila
+  `fila_revisao_classificacao` (`core/automation.py`, `core/automation_cache.py`).
+
+Destino do contexto: `attach_pipeline_context_to_audio_quality` embute o
+resultado de `to_audit_metadata()` em `audio_quality["audit_pipeline"]`, que
+é gravado junto do artefato por `db.database.persist_audit_artifacts` e lido
+de volta por `core/qualification_audit.py` (qualificação/observabilidade).
+É assim que a classificação fica rastreável no resultado salvo.
+
+CUSTO DE API: zero — módulo puramente de normalização/metadados, sem chamadas
+Azure. A única dependência externa é `repair_queue_audit_context`, que
+consulta o catálogo de setores/alertas no Postgres via `core.classification`
+(cache TTL). Transcrição (Azure Speech) e avaliação (Azure OpenAI GPT-4o),
+que são pagas, acontecem nos consumidores deste contexto.
+"""
 from __future__ import annotations
 
 import logging
@@ -9,10 +36,18 @@ from db.domain_constants import DEFAULT_SOURCE_TYPE, SOURCE_TYPE_AUDIO, SOURCE_T
 
 logger = logging.getLogger(__name__)
 
+# ── Origens do pipeline e constantes de domínio ──────────────────────────────
+
+# Identificadores de origem gravados em `audio_quality["audit_pipeline"]["origin"]`.
+# Fazem parte do artefato persistido (relatórios/UI dependem deles) — não
+# renomear sem migração dos dados já salvos.
 AUDIT_ORIGIN_MANUAL_UPLOAD = "manual_upload"
 AUDIT_ORIGIN_TELEFONIA_MANUAL = "telefonia_manual"
 AUDIT_ORIGIN_AUTOMATION = "automation"
 
+# Sentinelas que etapas anteriores (classificação GPT, metadata Huawei) usam
+# para "valor ausente/não identificado". A comparação é case-insensitive e
+# pós-trim — sempre testar via `is_unknown_value`, nunca por igualdade direta.
 UNKNOWN_VALUES = {
     "",
     "desconhecido",
@@ -24,6 +59,11 @@ UNKNOWN_VALUES = {
     "null",
 }
 
+# Whitelist de chaves do metadata da fila de revisão que podem ser copiadas
+# para o artefato persistido (campo `source_metadata` de `to_audit_metadata`).
+# Filtra o restante para não vazar campos internos/voláteis da triagem para o
+# resultado salvo. Inclui a telemetria Huawei (huawei_*) e a identidade real
+# do operador resolvida na classificação (operator_*_real).
 PIPELINE_METADATA_KEYS = {
     "origem",
     "source_type",
@@ -53,11 +93,15 @@ PIPELINE_METADATA_KEYS = {
 }
 
 
+# ── Helpers de coerção/normalização (tolerantes, nunca levantam) ─────────────
+
 def _clean_text(value: Any) -> str:
+    """Converte para str tratando None e remove espaços nas bordas."""
     return str(value or "").strip()
 
 
 def _first_text(*values: Any) -> str:
+    """Primeiro valor não vazio (após limpeza) na ordem dada, ou ""."""
     for value in values:
         text = _clean_text(value)
         if text:
@@ -66,6 +110,7 @@ def _first_text(*values: Any) -> str:
 
 
 def _coerce_metadata(value: Any) -> dict[str, Any]:
+    """Aceita dict ou JSON serializado (coluna `metadata_json` da fila); resto vira {}."""
     if isinstance(value, dict):
         return dict(value)
     if isinstance(value, str) and value.strip():
@@ -78,6 +123,7 @@ def _coerce_metadata(value: Any) -> dict[str, Any]:
 
 
 def _coerce_float(value: Any) -> Optional[float]:
+    """`float(value)` tolerante: None, "" ou valor inválido viram None."""
     if value is None or value == "":
         return None
     try:
@@ -87,18 +133,52 @@ def _coerce_float(value: Any) -> Optional[float]:
 
 
 def is_unknown_value(value: Any) -> bool:
+    """True se o valor é uma sentinela de "desconhecido" (ver UNKNOWN_VALUES).
+
+    Usada pelos consumidores (automação, telefonia) para decidir se um campo
+    de classificação precisa de reparo/triagem manual antes de auditar.
+    """
     return _clean_text(value).lower() in UNKNOWN_VALUES
 
 
 def normalize_source_type(source_type: Any, filename: str = "") -> str:
+    """Normaliza o tipo de fonte para um valor válido de `SOURCE_TYPES`.
+
+    Valor fora do domínio cai no fallback por extensão do arquivo:
+    `.pdf` → `pdf` (documento); qualquer outro → `DEFAULT_SOURCE_TYPE`
+    (`audio`). O tipo decide a rota de processamento (transcrição de áudio
+    versus parser de documento) — ver memória "auditoria áudio vs documento".
+    """
     normalized = _clean_text(source_type).lower()
     if normalized in SOURCE_TYPES:
         return normalized
     return SOURCE_TYPE_PDF if _clean_text(filename).lower().endswith(".pdf") else DEFAULT_SOURCE_TYPE
 
 
+# ── Contexto canônico do pipeline ────────────────────────────────────────────
+
 @dataclass
 class AuditPipelineContext:
+    """Identificação que acompanha um item da classificação até o artefato salvo.
+
+    Campos principais:
+    - `origin`: uma das constantes `AUDIT_ORIGIN_*` (de onde a auditoria partiu);
+    - `source_type`: `audio` ou `pdf` (decide a rota transcrição × parser);
+    - `sector_id`/`alert_id`/`alert_label`: classificação prevista (ids do
+      catálogo oficial; `sector_id` sempre minúsculo);
+    - `operator_name`/`operator_id`: operador previsto/resolvido;
+    - `queue_input_hash`: hash do item na fila (dedupe/rastreabilidade);
+    - `media_path`: caminho da mídia classificada no storage;
+    - `metadata`: cópia do metadata da fila (filtrado por
+      `PIPELINE_METADATA_KEYS` só na hora de persistir);
+    - `classification_confidence`/`review_reasons`: telemetria da classificação;
+    - `context_repair_*`: trilha de auditoria dos reparos aplicados por
+      `repair_queue_audit_context`/`apply_resolved_operator`.
+
+    Mutável por design: as funções de reparo ajustam os campos in-place e
+    registram cada mudança via `mark_repaired`, preservando o histórico.
+    """
+
     origin: str
     source_type: str = DEFAULT_SOURCE_TYPE
     filename: str = ""
@@ -116,6 +196,11 @@ class AuditPipelineContext:
     context_repair_reasons: list[str] = field(default_factory=list)
 
     def mark_repaired(self, reason: str) -> None:
+        """Registra um reparo aplicado ao contexto (idempotente por motivo).
+
+        Os motivos acumulados saem em `to_audit_metadata()["context_repair"]`,
+        deixando visível no artefato salvo o que foi corrigido e de onde veio.
+        """
         reason = _clean_text(reason)
         if not reason:
             return
@@ -124,6 +209,11 @@ class AuditPipelineContext:
             self.context_repair_reasons.append(reason)
 
     def to_router_context(self) -> dict[str, Any]:
+        """Formato esperado pelo roteador de auditoria (kwargs de processamento).
+
+        Inclui o próprio contexto em `pipeline_context` para que a camada de
+        avaliação consiga repassá-lo até a persistência sem perder os campos.
+        """
         return {
             "sector_id": self.sector_id,
             "alert_id": self.alert_id,
@@ -136,6 +226,14 @@ class AuditPipelineContext:
         }
 
     def to_audit_metadata(self) -> dict[str, Any]:
+        """Serializa o contexto para o bloco `audit_pipeline` do artefato salvo.
+
+        É o contrato de persistência (gravado por `persist_audit_artifacts`
+        dentro de `audio_quality`, lido por `qualification_audit` e pela UI):
+        alterar chaves aqui exige atualizar `coerce_pipeline_context` e os
+        leitores. O metadata da fila entra filtrado por
+        `PIPELINE_METADATA_KEYS`, descartando valores vazios.
+        """
         source_metadata = {
             key: value
             for key, value in (self.metadata or {}).items()
@@ -165,6 +263,14 @@ class AuditPipelineContext:
 
 
 def coerce_pipeline_context(value: Any) -> Optional[AuditPipelineContext]:
+    """Reconstrói um `AuditPipelineContext` a partir de instância ou dict serializado.
+
+    Operação inversa de `to_audit_metadata`: aceita o próprio objeto (passa
+    direto), um Mapping no formato persistido (re-hidrata campo a campo, com
+    coerção tolerante) ou qualquer outra coisa → None. Permite que camadas
+    que só carregam JSON (fila, rotas HTTP) repassem o contexto sem acoplar
+    na dataclass.
+    """
     if value is None:
         return None
     if isinstance(value, AuditPipelineContext):
@@ -202,6 +308,8 @@ def coerce_pipeline_context(value: Any) -> Optional[AuditPipelineContext]:
     )
 
 
+# ── Construção do contexto por origem ────────────────────────────────────────
+
 def build_manual_upload_context(
     *,
     filename: str,
@@ -212,6 +320,13 @@ def build_manual_upload_context(
     operator_name: Optional[str],
     operator_id: Optional[str],
 ) -> AuditPipelineContext:
+    """Contexto para upload manual na UI (origin=`manual_upload`).
+
+    Os campos vêm do formulário (o auditor escolheu setor/alerta/operador),
+    então não há metadata de fila nem confiança de classificação. Apenas
+    normaliza: `sector_id` minúsculo e `source_type` validado contra o
+    domínio (com fallback pela extensão do arquivo).
+    """
     return AuditPipelineContext(
         origin=AUDIT_ORIGIN_MANUAL_UPLOAD,
         source_type=normalize_source_type(source_type, filename),
@@ -225,6 +340,16 @@ def build_manual_upload_context(
 
 
 def build_queue_audit_context(item: dict, *, origin: str) -> AuditPipelineContext:
+    """Contexto a partir de um item da fila `fila_revisao_classificacao`.
+
+    Usado pela automação (origin=`automation`) e pela tela Telefonia
+    (origin=`telefonia_manual`). Cada campo tem cadeia de fallback: primeiro
+    as colunas do item (`setor_previsto`, `alerta_previsto`,
+    `operador_previsto`...), depois as variantes históricas no metadata —
+    a ordem das alternativas é contrato com dados antigos já gravados, não
+    reordenar. `media_path` prioriza o áudio classificado salvo no storage
+    sobre o caminho original do item.
+    """
     metadata = _coerce_metadata((item or {}).get("metadata") or (item or {}).get("metadata_json"))
     filename = _first_text((item or {}).get("nome_arquivo"), metadata.get("filename"), "gravacao.wav")
     motivos = (item or {}).get("motivos_revisao") or metadata.get("review_reasons") or []
@@ -276,8 +401,25 @@ def build_queue_audit_context(item: dict, *, origin: str) -> AuditPipelineContex
     )
 
 
+# ── Reparo determinístico do contexto antes da auditoria ─────────────────────
+
 def repair_queue_audit_context(context: AuditPipelineContext) -> AuditPipelineContext:
-    """Repair sector/alert using catalog aliases, filename hints and Huawei metadata."""
+    """Repara setor/alerta usando aliases do catálogo, dicas do nome do arquivo e metadata Huawei.
+
+    Objetivo: evitar auditar (e gastar API) com setor/alerta "desconhecido"
+    quando a informação existe em outro lugar do item. Estratégia em camadas:
+
+    1. monta candidatos ignorando sentinelas (`is_unknown_value`) — valor
+       atual do contexto, senão variantes do metadata;
+    2. alinha os candidatos com o catálogo oficial via
+       `align_classification_with_catalog` (resolve aliases/ids canônicos;
+       consulta o Postgres com cache — falha vira warning, nunca aborta);
+    3. aplica o melhor valor disponível (alinhado > candidato), registrando
+       cada mudança em `mark_repaired` para auditoria posterior.
+
+    Muta e retorna o MESMO objeto recebido (in-place). Levanta `ValueError`
+    apenas se `context` for None.
+    """
     if context is None:
         raise ValueError("context is required")
 
@@ -321,6 +463,8 @@ def repair_queue_audit_context(context: AuditPipelineContext) -> AuditPipelineCo
     aligned_alert = _clean_text(aligned.get("alert_id"))
     aligned_label = _clean_text(aligned.get("alert_label"))
 
+    # Preferência: valor alinhado ao catálogo > candidato bruto do metadata.
+    # Só sobrescreve com valores conhecidos — sentinela nunca substitui dado.
     if aligned_sector and not is_unknown_value(aligned_sector):
         if aligned_sector != context.sector_id:
             context.mark_repaired(f"sector:{context.sector_id or 'empty'}->{aligned_sector}")
@@ -342,6 +486,8 @@ def repair_queue_audit_context(context: AuditPipelineContext) -> AuditPipelineCo
     if aligned_label and aligned_label != context.alert_label:
         context.alert_label = aligned_label
 
+    # Marca recuperação total (campo era sentinela e agora tem valor real) —
+    # sinal distinto do reparo pontual "a->b" registrado acima.
     if is_unknown_value(original_sector) and context.sector_id and not is_unknown_value(context.sector_id):
         context.mark_repaired("sector_recovered")
     if is_unknown_value(original_alert) and context.alert_id and not is_unknown_value(context.alert_id):
@@ -357,6 +503,14 @@ def apply_resolved_operator(
     fallback_operator_name: Optional[str] = None,
     fallback_operator_id: Optional[str] = None,
 ) -> None:
+    """Aplica ao contexto o operador resolvido contra o cadastro RH (in-place).
+
+    `resolved_operator` é o dict retornado pela resolução de identidade
+    (`core.classification` / repositório de operadores): usa `name` e, para o
+    id, prioriza `matricula` > `preferredId` > fallback informado. Troca de
+    nome é registrada em `mark_repaired`; troca de id não (id não é exibido
+    como reparo). No-op se não houver contexto ou operador resolvido.
+    """
     if context is None or not resolved_operator:
         return
     resolved_name = _clean_text(resolved_operator.get("name")) or _clean_text(fallback_operator_name)
@@ -372,12 +526,25 @@ def apply_resolved_operator(
         context.operator_id = resolved_id
 
 
+# ── Anexação do contexto ao artefato persistido ──────────────────────────────
+
 def attach_pipeline_context_to_audio_quality(
     audio_quality: Optional[dict],
     pipeline_context: Any,
     *,
     transcription_metadata: Optional[dict[str, Any]] = None,
 ) -> Optional[dict]:
+    """Embute o contexto do pipeline no dict `audio_quality` antes de persistir.
+
+    Ponto de junção entre classificação e resultado salvo: o bloco
+    `audio_quality["audit_pipeline"]` (gerado por `to_audit_metadata`) é o que
+    `persist_audit_artifacts` grava e o que a qualificação lê depois. Se
+    `transcription_metadata` for informado, anexa também um resumo da
+    estratégia de transcrição vencedora (selector de candidatos).
+
+    Não muta o dict recebido (retorna cópia rasa). Se o contexto não puder
+    ser coerido, devolve `audio_quality` inalterado.
+    """
     context = coerce_pipeline_context(pipeline_context)
     if context is None:
         return audio_quality

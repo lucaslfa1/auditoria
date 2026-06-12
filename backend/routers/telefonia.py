@@ -1,15 +1,41 @@
 from __future__ import annotations
-"""Router do modulo Telefonia — sincronizacao com Huawei AICC.
+"""Router do módulo Telefonia — integração com a Huawei AICC (sync, fila e ações).
 
-Endpoints expostos:
-    POST /api/telefonia/sync/manual      - admin dispara sync manual
-    GET  /api/telefonia/sync/status      - status do ultimo sync
-    GET  /api/telefonia/sync/history     - historico (placeholder)
-    GET  /api/telefonia/recordings       - lista ligacoes baixadas (placeholder)
-    POST /api/telefonia/cron/sync        - gatilho do Cloud Scheduler
+Papel no fluxo: porta de entrada HTTP do pipeline de Telefonia. O sync (manual
+ou D-1 via cron) baixa as ligações da Huawei → itens entram na fila
+`fila_revisao_classificacao` com origem=huawei_sync → triagem/classificação →
+auditoria (instantânea por aqui, ou em lote via core/automation.py) → resultado
+em "Arquivos Salvos" com status `awaiting_pair` → revisão humana.
 
-O router antigo em `routers/automation.py` mantem shims para nao quebrar o
-frontend legado ate a migracao completa.
+Grupos de endpoints (prefixo /api/telefonia):
+  - Sync manual:        POST /sync/manual|cancel|pause|resume|clear,
+                        GET /sync/status|history
+  - Cron (Scheduler):   POST /cron/sync e POST /sync/d-minus-1 — autenticados
+                        por Bearer CRON_SECRET_TOKEN (sem sessão de usuário);
+                        todos os demais endpoints exigem admin (require_admin)
+  - Pipeline D-1:       POST /sync/d-minus-1/manual,
+                        GET /sync/d-minus-1/status|summary
+  - Fila de gravações:  GET/DELETE /recordings, DELETE /recordings/{hash},
+                        GET /recordings/{hash}/audio
+  - Ações por gravação: POST /recordings/{hash}/triage|classify|audit,
+                        GET /recordings/{hash}/audit-status,
+                        DELETE /recordings/{hash}/audit
+  - Operação:           GET /sync/diagnostics (inclui custo_diario do
+                        cost_guard), POST /sync/reset-lock,
+                        POST /automacao/toggle, POST /sync/cron-toggle
+  - Debug OBS:          GET /debug/obs, GET /debug/obs/search
+
+CUSTO DE API: POST /recordings/{hash}/classify e POST /recordings/{hash}/audit
+disparam chamadas PAGAS ao Azure (Speech para transcrição + OpenAI GPT-4o para
+classificação/avaliação). Os syncs (manual/cron/D-1) geram custo indireto ao
+enfileirar itens que o pipeline classifica em seguida. Teto diário e
+kill-switch em core/cost_guard.py.
+
+Credenciais Huawei: cofre com precedência env > tabela `configuracoes`
+(ver _credentials_status).
+
+O router antigo em `routers/automation.py` mantém shims para não quebrar o
+frontend legado até a migração completa.
 """
 
 
@@ -78,8 +104,13 @@ from repositories.common import json_loads
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/telefonia", tags=["telefonia"])
+
+# ── Constantes do módulo ─────────────────────────────────────────────────────
+# Chaves da tabela `configuracoes` que controlam o cron de coleta da Telefonia.
 TELEFONIA_CRON_SYNC_CONFIG_KEY = "telefonia_cron_sync_ativa"
 TELEFONIA_SYNC_INTERVAL_CONFIG_KEY = "telefonia_sync_intervalo_segundos"
+# Status de run D-1 que ainda admitem retry automático no mesmo dia
+# (consultados por _calcular_proxima_execucao_d1_sp).
 D1_RETRY_PENDING_STATUSES = {
     "empty",
     "error",
@@ -87,12 +118,18 @@ D1_RETRY_PENDING_STATUSES = {
     "obs_voice_empty_will_retry",
     "obs_manifest_empty_will_retry",
 }
+# Motivo gravado em motivos_revisao quando o admin envia a gravação à triagem.
 TELEFONIA_TRIAGE_REASON = "enviado_para_triagem_telefonia"
 
 
+# ── Estado em memória do módulo (perde-se em restart do pod) ─────────────────
+
+# Tasks de auditoria em background por input_hash — permitem o cancelamento
+# imediato via DELETE /recordings/{hash}/audit.
 _ACTIVE_AUDIT_TASKS: Dict[str, asyncio.Task] = {}
 
 def _safe_int(value: Any, default: int) -> int:
+    """Converte valor arbitrário para int, com default em entrada inválida."""
     try:
         return int(str(value).strip())
     except (TypeError, ValueError):
@@ -118,15 +155,18 @@ _LAST_SYNC_RUN_ID: int | None = None
 
 
 def _utc_now_iso() -> str:
+    """Timestamp atual em UTC no formato ISO-8601 (padrão de persistência do módulo)."""
     return datetime.now(timezone.utc).isoformat()
 
 
 def _is_telefonia_cron_sync_enabled() -> bool:
+    """Lê em `configuracoes` se o cron de coleta da Telefonia está ligado (default: sim)."""
     raw = configuration.get_config_value(database.get_connection, TELEFONIA_CRON_SYNC_CONFIG_KEY, "true")
     return str(raw or "").strip().lower() == "true"
 
 
 def _get_telefonia_sync_interval_seconds() -> int:
+    """Intervalo (s) entre coletas do cron; usa a chave legada `automacao_intervalo_segundos` como fallback e, por fim, 600s."""
     legacy_default = configuration.get_config_value(database.get_connection, "automacao_intervalo_segundos", "600")
     raw = configuration.get_config_value(database.get_connection, TELEFONIA_SYNC_INTERVAL_CONFIG_KEY, legacy_default or "600")
     try:
@@ -145,6 +185,12 @@ def _calcular_proxima_execucao_d1_sp(
     max_retries: int,
     retry_intervalo_minutos: int,
 ) -> Optional[datetime]:
+    """Calcula o próximo disparo do pipeline D-1 em horário de São Paulo.
+
+    Considera o horário diário configurado e, quando a última run terminou em
+    status que admite retry (D1_RETRY_PENDING_STATUSES), o intervalo de retry.
+    Retorna None se o horário configurado for inválido.
+    """
     try:
         hh, mm = horario_raw.split(":")
         proxima = now_sp.replace(hour=int(hh), minute=int(mm), second=0, microsecond=0)
@@ -174,6 +220,7 @@ def _calcular_proxima_execucao_d1_sp(
 
 
 def _is_sync_running() -> bool:
+    """True se há sync em andamento: task local viva OU lock `sync_lock` (TTL 30min) no banco (cobre múltiplas instâncias)."""
     if _LAST_SYNC_TASK is not None and not _LAST_SYNC_TASK.done():
         return True
     
@@ -210,11 +257,13 @@ _TRIAGE_STATUS_LABELS = {
 
 
 def _queue_metadata(item: dict) -> dict:
+    """Extrai o dict `metadata` de um item da fila, tolerando None/tipo errado."""
     metadata = (item or {}).get("metadata") or {}
     return metadata if isinstance(metadata, dict) else {}
 
 
 def _resolve_audit_created_by_for_queue_item(item: dict, user: dict) -> str:
+    """Define o `criado_por` da auditoria: 'automacao' p/ itens automáticos, senão o usuário logado."""
     metadata = _queue_metadata(item)
     if metadata.get("is_manual") is False:
         return "automacao"
@@ -224,6 +273,7 @@ def _resolve_audit_created_by_for_queue_item(item: dict, user: dict) -> str:
 
 
 def _is_audit_task_cancel_requested(input_hash: str) -> bool:
+    """Consulta no banco se o usuário pediu cancelamento da auditoria em background (metadata.audit_task_status='canceled')."""
     try:
         item = classification_review.obter_fila_revisao_classificacao_por_hash(
             database.get_connection,
@@ -238,11 +288,13 @@ def _is_audit_task_cancel_requested(input_hash: str) -> bool:
 
 
 def _raise_if_audit_task_cancel_requested(input_hash: str) -> None:
+    """Checkpoint de cancelamento: lança CancelledError se o cancelamento foi pedido."""
     if _is_audit_task_cancel_requested(input_hash):
         raise asyncio.CancelledError(f"Auditoria cancelada para input_hash={input_hash}")
 
 
 def _cleanup_audit_task(input_hash: str, task: asyncio.Task) -> None:
+    """Callback de término da task de auditoria: tira do registro e loga cancelamento/erro."""
     if _ACTIVE_AUDIT_TASKS.get(input_hash) is task:
         _ACTIVE_AUDIT_TASKS.pop(input_hash, None)
     if task.cancelled():
@@ -262,6 +314,7 @@ def _cleanup_audit_task(input_hash: str, task: asyncio.Task) -> None:
 
 
 def _start_audit_task(input_hash: str, **kwargs) -> asyncio.Task:
+    """Dispara a auditoria em background e registra a task para permitir cancelamento."""
     task = asyncio.create_task(
         _process_audit_background_task(input_hash=input_hash, **kwargs),
         name=f"telefonia_audit_{input_hash[:12]}",
@@ -272,6 +325,7 @@ def _start_audit_task(input_hash: str, **kwargs) -> asyncio.Task:
 
 
 def _metadata_flag(metadata: dict, key: str) -> bool:
+    """Lê flag booleana do metadata aceitando bool ou strings ('1', 'true', 'sim'...)."""
     value = (metadata or {}).get(key)
     if isinstance(value, bool):
         return value
@@ -279,6 +333,7 @@ def _metadata_flag(metadata: dict, key: str) -> bool:
 
 
 def _recording_sent_to_triage(item: dict) -> bool:
+    """True se a gravação já foi enviada à triagem (carimbo no metadata ou motivo registrado)."""
     metadata = _queue_metadata(item)
     motivos = (item or {}).get("motivos_revisao") or []
     if not isinstance(motivos, list):
@@ -292,20 +347,24 @@ def _recording_sent_to_triage(item: dict) -> bool:
 
 
 def _is_huawei_queue_item(item: dict) -> bool:
+    """True se o item nasceu do sync Huawei (metadata.origem == 'huawei_sync')."""
     return str(_queue_metadata(item).get("origem") or "").lower() == "huawei_sync"
 
 
 def _recording_media_path(item: dict) -> str:
+    """Path da mídia classificada no storage (áudio ou documento)."""
     metadata = _queue_metadata(item)
     return str(metadata.get("classified_audio_path") or metadata.get("classified_file_path") or "").strip()
 
 
 def _recording_source_type(item: dict) -> str:
+    """Tipo da mídia de origem ('audio', 'pdf'...) registrado no metadata."""
     metadata = _queue_metadata(item)
     return str(metadata.get("source_type") or "").strip().lower()
 
 
 def _recording_is_audio(item: dict) -> bool:
+    """True se a gravação é áudio (PDFs de chat seguem fluxo documental — v1.3.105)."""
     source_type = _recording_source_type(item)
     filename = str((item or {}).get("nome_arquivo") or "").lower()
     if source_type == SOURCE_TYPE_PDF or filename.endswith(".pdf"):
@@ -314,6 +373,11 @@ def _recording_is_audio(item: dict) -> bool:
 
 
 def _resolve_registered_huawei_operator(metadata: dict, item: dict) -> Optional[dict]:
+    """Resolve o colaborador cadastrado tentando todos os IDs Huawei presentes no item.
+
+    Retorna o cadastro normalizado (nome, setor, escala...) do primeiro ID que
+    casar em `colaboradores`, ou None se nenhum estiver cadastrado.
+    """
     candidates = (
         metadata.get("id_huawei"),
         metadata.get("operator_id"),
@@ -345,10 +409,17 @@ def _resolve_registered_huawei_operator(metadata: dict, item: dict) -> Optional[
 
 
 def _is_huawei_recording_item(item: dict) -> bool:
+    """True se é gravação de ÁUDIO vinda do sync Huawei (exclui PDFs)."""
     return _is_huawei_queue_item(item) and _recording_is_audio(item)
 
 
 def _huawei_recording_direction_block(item: dict) -> Optional[tuple[str, str]]:
+    """Aplica o guardrail de direção/setor: retorna (motivo, setor) se bloqueada.
+
+    Regras: setor fora do módulo Telefonia bloqueia; setores de risco
+    outbound-only bloqueiam ligações receptivas ou de direção desconhecida.
+    None = liberada.
+    """
     if not _is_huawei_queue_item(item):
         return None
 
@@ -378,6 +449,7 @@ def _huawei_recording_direction_block(item: dict) -> Optional[tuple[str, str]]:
 
 
 def _raise_if_huawei_direction_blocked(item: dict) -> None:
+    """Converte o bloqueio de direção/setor em HTTP 409 com mensagem explicativa."""
     direction_block = _huawei_recording_direction_block(item)
     if not direction_block:
         return
@@ -400,6 +472,7 @@ def _raise_if_huawei_direction_blocked(item: dict) -> None:
 
 
 def _is_visible_telefonia_recording(item: dict) -> bool:
+    """Filtro da lista de gravações da UI: só áudio Huawei ativo e acionável (não arquivado/auditado/bloqueado/em triagem)."""
     metadata = _queue_metadata(item)
     status = str((item or {}).get("status") or "").strip().lower()
     if not _is_huawei_recording_item(item):
@@ -421,6 +494,7 @@ def _is_visible_telefonia_recording(item: dict) -> bool:
 
 
 def _coerce_call_started_at(metadata: dict) -> Optional[str]:
+    """Converte begin_time Huawei (epoch ms) em ISO UTC; None se ausente/inválido."""
     raw = metadata.get("huawei_begin_time") or metadata.get("begin_time")
     if raw is None:
         return None
@@ -437,6 +511,11 @@ def _coerce_call_started_at(metadata: dict) -> Optional[str]:
 
 
 def _recording_item_from_queue(item: dict) -> dict:
+    """Projeta um item da fila no formato que a UI de gravações consome.
+
+    Calcula campos derivados: disponibilidade de áudio, bloqueio de direção,
+    `can_send_to_audit`, timestamps normalizados e flags de revisão.
+    """
     metadata = _queue_metadata(item)
     input_hash = str((item or {}).get("input_hash") or "").strip()
     status = str((item or {}).get("status") or "").strip()
@@ -501,6 +580,7 @@ def _recording_item_from_queue(item: dict) -> dict:
 
 
 def _get_huawei_queue_item_or_404(input_hash: str, *, require_audio: bool = True) -> dict:
+    """Busca item Huawei da fila pelo hash ou lança 404 (400 se hash vazio)."""
     clean_hash = str(input_hash or "").strip()
     if not clean_hash:
         raise HTTPException(status_code=400, detail="Hash da gravacao e obrigatorio.")
@@ -514,6 +594,7 @@ def _get_huawei_queue_item_or_404(input_hash: str, *, require_audio: bool = True
 
 
 def _get_recording_queue_item_or_404(input_hash: str, *, require_audio: bool = True) -> dict:
+    """Busca item da fila (qualquer origem) pelo hash ou lança 404."""
     clean_hash = str(input_hash or "").strip()
     if not clean_hash:
         raise HTTPException(status_code=400, detail="Hash da gravacao e obrigatorio.")
@@ -527,6 +608,7 @@ def _get_recording_queue_item_or_404(input_hash: str, *, require_audio: bool = T
 
 
 async def _sync_saved_file_for_manual_audit(audit_id: int, *, criado_por: str) -> bool:
+    """Espelha a auditoria recém-criada em Arquivos Salvos (não propaga falha — só loga)."""
     try:
         return bool(
             await asyncio.to_thread(
@@ -541,6 +623,14 @@ async def _sync_saved_file_for_manual_audit(audit_id: int, *, criado_por: str) -
 
 
 def _credentials_status() -> Dict[str, Any]:
+    """Resolve o cofre de credenciais Huawei e diz o que falta para o sync.
+
+    Cada credencial é buscada primeiro nas envs e depois na tabela
+    `configuracoes` (env tem precedência). O conjunto exigido depende do
+    `auth_mode`: modos OAuth diretos pedem app key/secret; o modo proxy pede
+    AK/SK. Retorna {configured, missing, auth_mode, fields} para a UI do
+    cofre — nunca expõe os valores, só `has_value`/`from_env`.
+    """
     aliases = {
         "ak": (("HUAWEI_AK",), ("huawei_ak",)),
         "sk": (("HUAWEI_SK",), ("huawei_sk",)),
@@ -559,6 +649,7 @@ def _credentials_status() -> Dict[str, Any]:
     missing = []
 
     def first_env_value(keys: tuple[str, ...]) -> str:
+        """Primeiro valor não-vazio entre os aliases de env da credencial."""
         for env_key in keys:
             value = str(os.getenv(env_key) or "").strip()
             if value:
@@ -566,6 +657,7 @@ def _credentials_status() -> Dict[str, Any]:
         return ""
 
     def first_config_value(keys: tuple[str, ...]) -> str:
+        """Primeiro valor não-vazio entre as chaves do cofre (tabela `configuracoes`)."""
         for db_key in keys:
             value = str(configuration.get_config_value(database.get_connection, db_key, "") or "").strip()
             if value:
@@ -606,6 +698,7 @@ def _credentials_status() -> Dict[str, Any]:
 
 
 def _parse_iso_to_ms(value: Any) -> Optional[int]:
+    """Converte datetime ISO (do datetime-local do navegador) em epoch ms; assume UTC-3 quando sem timezone."""
     if value is None:
         return None
     text = str(value).strip()
@@ -880,10 +973,17 @@ async def _run_manual_sync(
     end_time_ms: Optional[int] = None,
     pause_event: threading.Event | None = None,
 ) -> None:
+    """Corpo da task de sync manual: executa `executar_sync_huawei` e persiste o desfecho.
+
+    Atualiza o snapshot `_LAST_SYNC` (status/progresso para a UI), respeita
+    cancelamento/pausa via events e grava o histórico da run no banco.
+    Custo indireto: itens enfileirados serão classificados pelo pipeline (GPT).
+    """
     global _LAST_SYNC_CANCEL_EVENT, _LAST_SYNC_PAUSE_EVENT, _LAST_SYNC_RUN_ID
     run_id = _LAST_SYNC_RUN_ID
 
     def _finalize(*, status: str, baixadas: int, enfileiradas: int, erros: int, mensagem: Optional[str]) -> None:
+        """Fecha a run no banco (UPDATE por run_id; fallback INSERT histórico)."""
         finished_at = _utc_now_iso()
         _LAST_SYNC["finished_at"] = finished_at
         if run_id is not None and run_id >= 0:
@@ -920,6 +1020,7 @@ async def _run_manual_sync(
 
     try:
         def _update_progress(stage: str, completed: int, total: int) -> None:
+            """Publica progresso para a UI e emite heartbeat da run no banco."""
             _LAST_SYNC["progress"] = {
                 "stage": stage,
                 "completed": completed,
@@ -995,6 +1096,7 @@ async def _run_manual_sync(
 
 @router.get("/sync/status")
 async def sync_status(_user: dict = Depends(require_admin)) -> Dict[str, Any]:
+    """Status consolidado do sync para a UI: última run, progresso, flags do cron e credenciais."""
     engine_enabled = (os.getenv("ENABLE_HUAWEI_SYNC", "false") or "").strip().lower() == "true"
     cron_token_configured = bool((os.getenv("CRON_SECRET_TOKEN", "") or "").strip())
     try:
@@ -1284,6 +1386,7 @@ _classify_semaphore_state: Optional[tuple[Any, asyncio.Semaphore]] = None
 
 
 def _classify_max_concurrency() -> int:
+    """Limite de classificações simultâneas (env TELEFONIA_CLASSIFY_MAX_CONCURRENCY, default 3)."""
     raw = os.getenv("TELEFONIA_CLASSIFY_MAX_CONCURRENCY", "3")
     try:
         return max(1, int(str(raw).strip()))
@@ -1292,6 +1395,7 @@ def _classify_max_concurrency() -> int:
 
 
 def _get_classify_semaphore() -> asyncio.Semaphore:
+    """Semáforo de classificação preso ao event loop atual (recriado se o loop mudar)."""
     global _classify_semaphore_state
     loop = asyncio.get_running_loop()
     if _classify_semaphore_state is None or _classify_semaphore_state[0] is not loop:
@@ -1394,6 +1498,7 @@ AUDIT_TASK_INFLIGHT_TIMEOUT = timedelta(minutes=10)
 
 
 def _parse_iso_to_aware(value: Any) -> Optional[datetime]:
+    """Converte ISO em datetime timezone-aware (assume UTC quando sem timezone)."""
     if not value:
         return None
     try:
@@ -1406,6 +1511,7 @@ def _parse_iso_to_aware(value: Any) -> Optional[datetime]:
 
 
 def _get_telefonia_monthly_audit_quota() -> int:
+    """Cota mensal de auditorias por operador; falha de config vira 503 (default 2 só em teste isolado)."""
     try:
         return _get_monthly_audit_quota()
     except Exception as exc:
@@ -1417,6 +1523,7 @@ def _get_telefonia_monthly_audit_quota() -> int:
 
 
 def _extract_audit_context(item: dict) -> Dict[str, Any]:
+    """Monta o contexto de auditoria (alerta/setor/operador) a partir do item da fila, com auto-reparo."""
     pipeline_context = repair_queue_audit_context(
         build_queue_audit_context(item, origin=AUDIT_ORIGIN_TELEFONIA_MANUAL)
     )
@@ -1653,7 +1760,9 @@ async def _process_audit_background_task(
 
 
 class AuditRecordingRequest(BaseModel):
-    force: bool = False
+    """Payload do POST /recordings/{hash}/audit."""
+
+    force: bool = False  # True = re-audita mesmo que já exista auditoria para o hash
 
 
 @router.post("/recordings/{input_hash}/audit", status_code=202)
@@ -1775,6 +1884,7 @@ async def auditar_instantaneamente_gravacao(
     }
 
 async def _run_audit_task_and_cleanup(input_hash: str, **kwargs):
+    """Roda a auditoria em background aguardando o término (cancelamento é desfecho normal)."""
     task = _start_audit_task(input_hash, **kwargs)
     try:
         await task

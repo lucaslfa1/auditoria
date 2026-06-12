@@ -1,3 +1,35 @@
+"""Orquestrador de transcrição de áudio de telefonia (coração do pipeline de auditoria).
+
+Papel no fluxo: recebe os bytes do áudio da ligação (auditoria manual ou
+automação), prepara o arquivo para o Azure, executa a cadeia de engines de
+transcrição, pontua cada resultado como candidato e devolve os segmentos
+diarizados ("Operador:" / "Motorista:") que alimentam a avaliação GPT-4o em
+`core/evaluation.py`.
+
+Arquitetura atual (default desde 2026-05-20):
+- Engine DEFAULT é `fast` (Azure Fast Transcription REST) — melhor texto para
+  telefonia G.729/GSM. Cadeia de fallback: fast → whisper → gpt4o_diarize → sdk.
+- CANDIDATE SELECTOR (`core/transcription_selector.py`): cada engine executada
+  vira um `TranscriptionCandidate` com score determinístico (diarização +
+  qualidade de texto); o selector decide aceitar, aguardar confirmação de
+  outra engine ou exigir revisão manual.
+- JUDGE LLM (`core/transcription_judge.py`): desempata os dois melhores
+  candidatos quando o selector sinaliza `empate_requer_judge` (1 chamada
+  GPT-4o adicional).
+- `hybrid_dual` (Diarize + Whisper em paralelo + fusão GPT-4o) é LEGADO
+  opt-in via AZURE_TRANSCRIPTION_ENGINE=hybrid_dual. NÃO recomendar nem
+  reativar — mantido apenas por compatibilidade.
+
+CUSTO DE API: praticamente tudo aqui dispara chamadas PAGAS ao Azure. Cada
+estratégia adicional da cadeia de fallback soma custo. Registro no
+`cost_guard` (teto diário) por categoria:
+- `transcricao_fast`    → Azure Speech (em `transcription_providers/azure.py`)
+- `transcricao_whisper` → Azure OpenAI Whisper (idem)
+- `transcricao_diarize` → GPT-4o-transcribe-diarize (`openai_diarize.py`)
+- `merge_hybrid_dual`   → GPT-4o de fusão (neste módulo)
+- `judge_transcricao`   → GPT-4o do judge (`transcription_judge.py`)
+"""
+
 import asyncio
 import hashlib
 import json
@@ -121,6 +153,10 @@ __all__ = [
     "_clone_transcription_segment", "_parse_float",
 ]
 
+# ── Resolução de engine (default fast; hybrid_dual é legado opt-in) ─────────
+
+# Grafias aceitas historicamente para o engine legado; todas normalizam para
+# o id canônico "hybrid_dual".
 _LEGACY_HYBRID_DUAL_ALIASES = {
     "hybrid_dual",
     "hybrid-dual",
@@ -132,6 +168,7 @@ _LEGACY_HYBRID_DUAL_ALIASES = {
 
 
 def _resolve_transcription_engine(raw_engine: Optional[str]) -> str:
+    """Normaliza o valor de AZURE_TRANSCRIPTION_ENGINE para um id canônico."""
     # Migracao: fast e o engine PADRAO em todos os fluxos. hybrid_dual fica como
     # legado opt-in — so roda quando pedido explicitamente via
     # AZURE_TRANSCRIPTION_ENGINE=hybrid_dual (ou pelos aliases legados).
@@ -139,6 +176,8 @@ def _resolve_transcription_engine(raw_engine: Optional[str]) -> str:
     if engine in _LEGACY_HYBRID_DUAL_ALIASES:
         return "hybrid_dual"
     return engine
+
+# ── Hash de idempotência e validação do formato de transcrição ──────────────
 
 def compute_input_hash(
     audio_file: bytes,
@@ -148,6 +187,13 @@ def compute_input_hash(
     operator_id: Optional[str],
     sector_id: Optional[str]
 ) -> str:
+    """SHA-256 determinístico das entradas de uma auditoria (idempotência).
+
+    Combina bytes do áudio + mime + alerta serializado + identidade do
+    operador/setor. Usado pela automação para detectar reprocessamento do
+    mesmo item e evitar gastar transcrição/avaliação (chamadas pagas) à toa.
+    Mudar a composição deste hash invalida deduplicações já persistidas.
+    """
     hasher = hashlib.sha256()
     hasher.update(mime_type.encode("utf-8"))
     hasher.update(b"\0")
@@ -164,6 +210,11 @@ def compute_input_hash(
     hasher.update((sector_id or "").encode("utf-8"))
     return hasher.hexdigest()
 def validate_transcription(data: Any) -> bool:
+    """Confere se o payload tem o formato mínimo de transcrição.
+
+    Aceita lista de segmentos ou dict com chave "transcription"; cada
+    segmento precisa de start/end/text. Não valida conteúdo, só estrutura.
+    """
     if isinstance(data, dict) and "transcription" in data:
         data = data.get("transcription")
     if not isinstance(data, list):
@@ -175,17 +226,24 @@ def validate_transcription(data: Any) -> bool:
             return False
     return True
 def extract_transcription(data: Any) -> list[dict]:
+    """Extrai a lista de segmentos do JSON retornado pela IA (dict ou lista)."""
     if isinstance(data, dict):
         t = data.get("transcription", [])
         return t if isinstance(t, list) else []
     if isinstance(data, list):
         return data
     return []
+# ── Integridade da fusão GPT-4o (estrutura + evidência numérica) ────────────
+# Helpers usados pelo hybrid_dual (LEGADO) para garantir que a fusão não
+# corrompa timestamps, falantes nem números ditados (senhas, CPFs, placas).
+
 def _timestamp_signature(segment: dict) -> tuple[str, str]:
+    """Par (start, end) como strings, usado como chave de pareamento de segmentos."""
     return (str(segment.get("start") or "").strip(), str(segment.get("end") or "").strip())
 
 
 def _timestamps_equivalent(first: str, second: str) -> bool:
+    """Compara timestamps com tolerância de 1 ms (formatos textuais variam)."""
     if first == second:
         return True
     return abs(parse_iso_duration(first) - parse_iso_duration(second)) <= 0.001
@@ -195,11 +253,12 @@ def _preserve_diarization_metadata(
     merged_segments: list[dict],
     diarized_segments: list[dict],
 ) -> list[dict]:
-    """Keep speaker metadata after GPT-4o text fusion.
+    """Preserva os metadados de falante após a fusão de texto com GPT-4o.
 
-    The merge prompt asks GPT-4o to return only start/end/text. Candidate
-    validation still needs the native diarization fields from the source
-    segments to score speaker reliability correctly.
+    O prompt de fusão pede ao GPT-4o que retorne apenas start/end/text. A
+    validação de candidatos ainda precisa dos campos nativos de diarização
+    dos segmentos de origem para pontuar corretamente a confiabilidade de
+    falante — então eles são re-anexados aqui (sem sobrescrever start/end/text).
     """
     if not isinstance(merged_segments, list) or not isinstance(diarized_segments, list):
         return merged_segments
@@ -233,10 +292,16 @@ def _preserve_diarization_metadata(
 
 
 def _segments_to_text(segments: list[dict]) -> str:
+    """Concatena o texto de todos os segmentos em uma única string."""
     return " ".join(str(segment.get("text") or "") for segment in segments if isinstance(segment, dict))
 
 
 def _extract_numeric_evidence(text: str) -> set[str]:
+    """Extrai sequências de 4+ dígitos (senhas, CPFs, placas) ignorando separadores.
+
+    São a "evidência numérica" que a fusão GPT-4o é proibida de perder ou
+    inventar — base dos checks de `_validate_merged_evidence`.
+    """
     evidence: set[str] = set()
     for match in re.finditer(r"(?:\d[\s\.\-:/]*){4,}", str(text or "")):
         digits = re.sub(r"\D+", "", match.group(0))
@@ -246,6 +311,7 @@ def _extract_numeric_evidence(text: str) -> set[str]:
 
 
 def _segments_numeric_evidence(segments: list[dict]) -> set[str]:
+    """Evidência numérica do texto concatenado dos segmentos."""
     return _extract_numeric_evidence(_segments_to_text(segments))
 
 
@@ -253,7 +319,11 @@ def _validate_merged_structure(
     merged_segments: list[dict],
     diarized_segments: list[dict],
 ) -> dict[str, Any]:
-    """Diagnose merge output changes without blocking audit processing."""
+    """Diagnostica mudanças estruturais da fusão (contagem, timestamps, falantes).
+
+    Apenas diagnóstico — não bloqueia o processamento da auditoria por si só;
+    quem decide rejeitar o merge é o chamador (`merge_transcriptions_with_gpt4o`).
+    """
     issues: list[dict[str, Any]] = []
     expected_count = len(diarized_segments or [])
     actual_count = len(merged_segments or [])
@@ -310,6 +380,12 @@ def _validate_merged_evidence(
     accurate_text: str,
     diarized_segments: Optional[list[dict]] = None,
 ) -> dict[str, Any]:
+    """Verifica se a fusão preservou a evidência numérica do Whisper.
+
+    Retorna dict com `is_blocking` (corrupção REAL: número sumiu ou foi
+    inventado) e diagnósticos não-bloqueantes (divergência entre as ASRs).
+    Ver comentário inline sobre por que `numeric_conflict` NÃO bloqueia.
+    """
     expected_numbers = _extract_numeric_evidence(accurate_text)
     merged_numbers = _segments_numeric_evidence(merged_segments)
     source_numbers = _segments_numeric_evidence(diarized_segments or [])
@@ -353,13 +429,23 @@ def _validate_merged_evidence(
         "source_only_numeric_sequences": source_only_numbers,
         "accurate_only_numeric_sequences": accurate_only_numbers,
     }
+# Aliases internos: nomes históricos deste módulo que os testes (e código
+# legado) ainda importam; apontam para as implementações canônicas em
+# audio.diarization_quality.
 _normalize_lookup_text = normalize_lookup_text
 _extract_segment_speaker = extract_segment_speaker
 _clone_transcription_segment = clone_transcription_segment
 _parse_float = parse_float_value
 
 
+# ── Roteamento p/ GPT-4o diarize como engine primária (smart routing) ───────
+
 def _resolve_whisper_prompt(sector_id: Optional[str]) -> str:
+    """Prompt de vocabulário do Whisper: específico do setor (DB) ou default do JSON.
+
+    Falha de banco não derruba a transcrição — cai no prompt local de
+    `text_corrections.json`.
+    """
     default_prompt = TEXT_CORRECTIONS_CONFIG.get(
         "whisper_prompt",
         "Opentech, nstech, BAS, motorista, placa, Mondelez, Unilever, Buonny, Sascar, Tracker, Onix, Autotrac, Omnilink, Ravex, isca, [Inaudível].",
@@ -377,6 +463,12 @@ def _should_use_gpt4o_diarize_as_primary(
     alert: Optional[AuditAlert],
     sector_id: Optional[str],
 ) -> bool:
+    """Indica se o setor/alerta está na lista de setores que preferem GPT-4o diarize.
+
+    A lista vem de env (AZURE_GPT4O_DIARIZE_PRIMARY_SECTORS); o match é por
+    substring normalizada no sector_id e, na falta dele, no label/contexto do
+    alerta. Só tem efeito quando o engine é auto/smart.
+    """
     primary_sectors = _get_gpt4o_diarize_primary_sectors()
     if not primary_sectors:
         return False
@@ -393,6 +485,12 @@ def _should_use_gpt4o_diarize_as_primary(
 
     return False
 def _should_preprocess_audio_for_azure(audio_size_bytes: int, mime_type: str) -> bool:
+    """Decide se o áudio precisa ser convertido/comprimido antes do upload ao Azure.
+
+    Sempre converte acima de 24 MB (limite prático de upload). Para formatos
+    lossless/PCM, converte a partir de AZURE_LOSSLESS_PREPROCESS_MIN_BYTES
+    (default 8 MB) para reduzir tempo e custo de transferência.
+    """
     if int(audio_size_bytes or 0) >= 24 * 1024 * 1024:
         return True
     safe_mime = (mime_type or "").strip().lower()
@@ -407,6 +505,7 @@ def _should_preprocess_audio_for_azure(audio_size_bytes: int, mime_type: str) ->
     min_bytes = max(0, min(min_bytes, 24 * 1024 * 1024))
     return int(audio_size_bytes or 0) >= min_bytes
 def _build_candidate_diarization(transcription_segments: list[dict], diarization_reference: dict) -> dict[str, Any]:
+    """Calcula as métricas de diarização (score, swap_risk...) de um candidato."""
     quality = build_diarization_quality(
         transcription_segments,
         {"diarization_reference": dict(diarization_reference or {})},
@@ -419,6 +518,11 @@ def _transcription_candidate_is_acceptable(
     transcription_segments: list[dict],
     diarization_reference: dict,
 ) -> bool:
+    """Gate de aceitação imediata: texto válido + score de diarização mínimo + swap_risk low.
+
+    Candidato aceitável encerra a cadeia de fallback (não gasta as próximas
+    engines); reprovado vira "insufficient" mas continua concorrendo no selector.
+    """
     if not _transcription_looks_valid(transcription_segments):
         return False
     diarization = _build_candidate_diarization(transcription_segments, diarization_reference)
@@ -426,6 +530,7 @@ def _transcription_candidate_is_acceptable(
     swap_risk = str(diarization.get("swap_risk") or "").strip().lower()
     return bool(score is not None and score >= _get_gpt4o_diarize_min_score() and swap_risk == "low")
 def _score_transcription_candidate(transcription_segments: list[dict], diarization_reference: dict) -> int:
+    """Score determinístico do candidato: diarização (x10000) + bônus de risco + texto."""
     diarization = _build_candidate_diarization(transcription_segments, diarization_reference)
     diarization_score = _parse_float(diarization.get("score")) or 0.0
     swap_risk = str(diarization.get("swap_risk") or "").strip().lower()
@@ -435,6 +540,12 @@ def _should_promote_prescan_to_gpt4o(
     transcription_segments: list[dict],
     driver_label: str,
 ) -> bool:
+    """Avalia o pré-scan (trecho curto via Fast) e decide se promove ao GPT-4o diarize.
+
+    Promove quando o Fast não separou falantes (1 voz só), o swap_risk é alto
+    ou o score ficou abaixo do mínimo configurado — sinais de que o diarize
+    (mais caro) deve assumir como engine primária.
+    """
     diarization_reference = build_diarization_reference(driver_label)
     diarization = _build_candidate_diarization(transcription_segments, diarization_reference)
     telephony_segment_count = int(diarization.get("telephony_segment_count") or 0)
@@ -459,6 +570,13 @@ def _should_use_gpt4o_diarize_as_primary_for_audio(
     *,
     gpt4o_diarize_available: bool,
 ) -> bool:
+    """Decide se o GPT-4o diarize vira engine PRIMÁRIA para este áudio (smart routing).
+
+    CUSTO: quando AZURE_GPT4O_DIARIZE_SMART_ROUTING está ativo (default),
+    transcreve um TRECHO do áudio via Azure Fast Transcription (chamada paga,
+    porém curta) como pré-scan antes de decidir. Falha do pré-scan assume
+    GPT-4o como primário (fail-safe a favor da qualidade, não do custo).
+    """
     if not gpt4o_diarize_available:
         return False
     if not _should_use_gpt4o_diarize_as_primary(alert, sector_id):
@@ -482,7 +600,10 @@ def _should_use_gpt4o_diarize_as_primary_for_audio(
     except Exception as exc:
         logger.warning("[Transcription] Smart routing falhou no pre-scan: %s; usando GPT-4o como primario", exc)
         return True
+# ── Configuração do selector de candidatos e metadados de decisão ───────────
+
 def _guess_audio_filename(mime_type: str) -> str:
+    """Nome de arquivo sintético por MIME (as APIs Azure exigem filename no upload)."""
     mapping = {
         "audio/wav": "audio.wav",
         "audio/x-wav": "audio.wav",
@@ -498,6 +619,7 @@ def _guess_audio_filename(mime_type: str) -> str:
 
 
 def _get_transcription_strategy_timeout_seconds() -> int:
+    """Timeout por estratégia da cadeia (default: timeout base + 240s, clamp 120–4200s)."""
     default_timeout = _get_transcription_timeout_seconds() + 240
     raw = os.getenv("AZURE_TRANSCRIPTION_STRATEGY_TIMEOUT_SECONDS", str(default_timeout))
     try:
@@ -508,10 +630,16 @@ def _get_transcription_strategy_timeout_seconds() -> int:
 
 
 def _is_candidate_selector_enabled() -> bool:
+    """Selector de candidatos ligado? (default ON; desligado = primeiro válido vence)."""
     return _env_flag("TRANSCRIPTION_CANDIDATE_SELECTOR_ENABLED", True)
 
 
 def _critical_alert_for_transcription_selector(alert: Optional[AuditAlert]) -> bool:
+    """Alerta crítico (polícia, pânico, sinistro...) endurece os gates do selector.
+
+    Lista configurável via TRANSCRIPTION_CRITICAL_ALERT_IDS; match por
+    substring no id/label do alerta.
+    """
     configured = os.getenv(
         "TRANSCRIPTION_CRITICAL_ALERT_IDS",
         "PRIORITARIO-POLICIA,PARADA-MOT,BOTAO-PANICO,SUSPEITA-SINISTRO",
@@ -533,6 +661,11 @@ def _candidate_to_metadata(
     cross_signals: dict[str, dict[str, Any]],
     judge_results: Optional[dict[str, dict[str, Any]]] = None,
 ) -> dict[str, Any]:
+    """Serializa um candidato (+ sinais cruzados e veredito do judge) para os metadados.
+
+    Esse payload é persistido junto da auditoria e exibido na UI de revisão
+    para explicar POR QUE a engine vencedora foi escolhida.
+    """
     related_signals = {
         key: value
         for key, value in cross_signals.items()
@@ -559,7 +692,17 @@ def _candidate_to_metadata(
     return payload
 
 
+# ── Parsing de tempo e falante dos payloads Azure STT ───────────────────────
+# As variantes da API Azure (Fast REST, SDK, batch) divergem em nomes de campo
+# e unidades (ms, ticks de 100ns, segundos, ISO-8601, "MM:SS"). Estes helpers
+# normalizam tudo para milissegundos/segundos sem lançar exceção.
+
 def parse_iso_duration(duration_str) -> float:
+    """Converte duração em segundos a partir de ISO-8601 (PT1M5S), "HH:MM:SS" ou número.
+
+    Tolerante: entrada inválida retorna 0.0 (nunca lança) — timestamps ruins
+    não podem derrubar a transcrição inteira.
+    """
     if duration_str is None:
         return 0.0
     if isinstance(duration_str, (int, float)):
@@ -592,6 +735,11 @@ def parse_iso_duration(duration_str) -> float:
         return 0.0
 
 def _to_milliseconds(value: Any, assume: str) -> Optional[float]:
+    """Converte um valor de tempo para ms assumindo a unidade indicada.
+
+    `assume`: "ms", "seconds", "ticks" (100ns do Azure) ou "auto"
+    (heurística por magnitude para payloads de unidade desconhecida).
+    """
     numeric = _parse_float(value)
     if numeric is None and isinstance(value, str):
         text_value = value.strip()
@@ -617,7 +765,8 @@ def _to_milliseconds(value: Any, assume: str) -> Optional[float]:
     if assume == "ms":
         return numeric
 
-    # Auto mode: tolerate mixed units from different Azure STT API variants.
+    # Modo auto: tolera unidades mistas vindas das diferentes variantes da API
+    # Azure STT (>=1e8 só faz sentido como ticks; <=600 só como segundos).
     if numeric >= 100_000_000:
         return numeric / 10_000.0
     if numeric <= 600:
@@ -626,6 +775,7 @@ def _to_milliseconds(value: Any, assume: str) -> Optional[float]:
         return numeric
     return numeric / 10_000.0
 def _normalize_speaker_id(raw_speaker: Any) -> int:
+    """Extrai o id numérico do falante ("Guest-1", "speaker 2", 3...); -1 = desconhecido."""
     if raw_speaker is None or isinstance(raw_speaker, bool):
         return -1
     if isinstance(raw_speaker, int):
@@ -651,6 +801,7 @@ def _normalize_speaker_id(raw_speaker: Any) -> int:
             return -1
     return -1
 def _extract_phrase_text(phrase: dict) -> str:
+    """Texto de uma frase do payload Azure (text/display/lexical, com fallback em nBest)."""
     text = str(phrase.get("text") or phrase.get("display") or phrase.get("lexical") or "").strip()
     if text:
         return text
@@ -665,6 +816,12 @@ def _extract_phrase_text(phrase: dict) -> str:
                 return candidate
     return ""
 def _extract_phrase_timing_ms(phrase: dict) -> tuple[float, float]:
+    """Resolve (offset_ms, duration_ms) de uma frase testando os aliases de campo conhecidos.
+
+    Cada variante da API usa um nome/unidade diferente (offsetMilliseconds,
+    offsetInTicks, start...); a primeira fonte que parsear vence. Sem duração
+    explícita, deriva de end - start. Nunca retorna negativo.
+    """
     offset_ms = None
     duration_ms = None
 
@@ -725,9 +882,15 @@ def _extract_phrase_timing_ms(phrase: dict) -> tuple[float, float]:
         duration_ms = 0.0
 
     return (max(0.0, offset_ms), max(0.0, duration_ms))
+# ── Filtros anti-alucinação de segmentos Whisper ─────────────────────────────
+# Whisper alucina em silêncio/URA (lição da v1.2.x): estes filtros descartam ou
+# substituem por "[Inaudível]" segmentos com métricas típicas de alucinação.
+
 def _transcription_looks_valid(segments: list[dict]) -> bool:
+    """Wrapper do validador do orchestrator (mantido aqui p/ testes legados)."""
     return transcription_looks_valid(segments, normalize_text_for_dedupe)
 def _score_transcription_segments(segments: list[dict]) -> int:
+    """Wrapper do scorer de texto do orchestrator (mantido aqui p/ testes legados)."""
     return score_transcription_segments(segments)
 def _should_discard_whisper_segment(
     texto_normalizado: str,
@@ -737,6 +900,12 @@ def _should_discard_whisper_segment(
     duracao_seconds: float,
     start_seconds: float,
 ) -> bool:
+    """Decide DESCARTAR um segmento Whisper (alucinação óbvia ou lixo).
+
+    Usa as métricas nativas do Whisper (no_speech_prob, avg_logprob,
+    compression_ratio). Os 2 primeiros segundos da ligação são poupados
+    (saudação curta é legítima, mesmo com métricas ruins).
+    """
     if not texto_normalizado:
         return True
 
@@ -763,6 +932,12 @@ def _should_replace_whisper_segment_with_inaudivel(
     compression_ratio: float,
     duracao_seconds: float,
 ) -> bool:
+    """Decide trocar o texto do segmento Whisper pelo marcador "[Inaudível]".
+
+    Diferente do descarte: o turno EXISTE no áudio, mas o texto não é
+    confiável — preservar o turno mantém a estrutura da conversa para o
+    auditor. Inclui frases-alucinação conhecidas observadas em produção.
+    """
     if not texto_normalizado:
         return False
 
@@ -785,6 +960,12 @@ def _should_replace_whisper_segment_with_inaudivel(
         return True
 
     return False
+
+# ── Wrappers dos providers (toda chamada aqui é PAGA) ───────────────────────
+# Os providers reais vivem em transcription_providers/; estes wrappers apenas
+# injetam as dependências deste módulo (filtros, parsing, prompts) e mantêm a
+# assinatura histórica usada por serviços e testes.
+
 def transcribe_audio_azure(
     audio_file: bytes,
     operator_label: str,
@@ -796,6 +977,14 @@ def transcribe_audio_azure(
     api_key_override: Optional[str] = None,
     sector_id: Optional[str] = None,
 ) -> list[dict]:
+    """Transcreve via Azure (Fast Transcription ou Whisper, conforme endpoint).
+
+    CUSTO: 1 chamada paga por execução. Sem overrides usa o endpoint Speech
+    (Fast Transcription, categoria `transcricao_fast`); com
+    endpoint/api_key_override aponta para o deployment Whisper
+    (`transcricao_whisper`). Retorna segmentos diarizados já filtrados
+    (anti-alucinação, dedupe, correções fonéticas).
+    """
     dependencies = AzureTranscriptionDependencies(
         text_corrections_config=TEXT_CORRECTIONS_CONFIG,
         guess_audio_filename=_guess_audio_filename,
@@ -834,6 +1023,11 @@ def transcribe_audio_assemblyai(
     operator_name: Optional[str] = None,
     driver_name: Optional[str] = None,
 ) -> list[dict]:
+    """Stub do provider AssemblyAI (REMOVIDO do projeto): sempre lança RuntimeError.
+
+    Mantido apenas para que chamadas legadas falhem com mensagem clara em vez
+    de AttributeError.
+    """
     raise RuntimeError(
         "AssemblyAI transcription provider was removed from this project. "
         "Use the Azure Speech, Azure Whisper, or GPT-4o diarize paths."
@@ -841,6 +1035,7 @@ def transcribe_audio_assemblyai(
 
 
 def _build_azure_merge_client(endpoint: str, api_key: str) -> Any:
+    """Cria o cliente Azure OpenAI usado na fusão hybrid_dual (timeout 180s)."""
     from openai import AzureOpenAI
 
     return AzureOpenAI(
@@ -862,6 +1057,14 @@ def transcribe_audio_gpt4o_diarize(
     operator_name: Optional[str] = None,
     driver_name: Optional[str] = None,
 ) -> list[dict]:
+    """Transcreve com diarização nativa via GPT-4o-transcribe-diarize.
+
+    CUSTO: 1+ chamadas pagas ao Azure OpenAI (categoria `transcricao_diarize`);
+    o provider faz retry interno (AZURE_GPT4O_DIARIZE_RETRY_*), então o pior
+    caso multiplica o custo. É o engine mais caro por minuto de áudio — usado
+    como fallback do fast ou como primário via smart routing/setores
+    configurados. Retorna segmentos com prefixo de falante já normalizado.
+    """
     endpoint = (endpoint_override or "").strip()
     api_key = (api_key_override or "").strip()
     if not endpoint or not api_key:
@@ -897,6 +1100,8 @@ def transcribe_audio_gpt4o_diarize(
         driver_name=driver_name,
         dependencies=dependencies,
     )
+# ── Fusão hybrid_dual (LEGADO opt-in — não recomendar) ──────────────────────
+
 async def merge_transcriptions_with_gpt4o(
     diarized_segments: list[dict],
     accurate_text: str,
@@ -912,10 +1117,16 @@ async def merge_transcriptions_with_gpt4o(
 ) -> tuple[list[dict], str]:
     """Usa GPT-4o para fundir a estrutura do Diarize com a precisão do Whisper.
 
+    CUSTO: 1 chamada paga ao Azure OpenAI GPT-4o (categoria
+    `merge_hybrid_dual` no cost_guard). Só roda no engine legado hybrid_dual.
+
     Retorna (segments, merge_status) onde merge_status é:
       - "merged":   fusão GPT-4o concluída com sucesso
       - "no_credentials": faltou Azure OpenAI config; devolve diarized puro
       - "merge_failed":   exceção na fusão; devolve diarized puro
+      - "merge_rejected_diagnostics": fusão respondeu mas alterou estrutura/
+        timestamps/falantes ou perdeu/inventou número do Whisper; devolve
+        diarized puro (proteção de integridade da evidência)
     """
     from core import config as core_config
 
@@ -1010,6 +1221,8 @@ Retorne APENAS o JSON final resultante."""
         logger.error("Falha ao fundir transcricoes: %s", exc)
         return diarized_segments, "merge_failed"
 
+# ── Orquestrador principal ───────────────────────────────────────────────────
+
 async def transcribe_audio(
     audio_file: bytes,
     mime_type: str,
@@ -1021,6 +1234,37 @@ async def transcribe_audio(
     allow_degraded_hybrid_fallback: bool = False,
     audio_quality_score: Optional[float] = None,
 ) -> list[dict] | tuple[list[dict], dict[str, Any]]:
+    """Ponto de entrada da transcrição: roda a cadeia de engines e escolhe o resultado.
+
+    Fluxo (rota Azure, a padrão em produção):
+    1. Normaliza MIME e prepara o áudio (conversão/compressão se necessário).
+    2. Resolve o engine via AZURE_TRANSCRIPTION_ENGINE (default `fast`) e
+       monta a ordem de execução — fallback fast → whisper → gpt4o_diarize →
+       sdk, condicionado às flags AZURE_*_FALLBACK e credenciais disponíveis.
+    3. Executa cada estratégia com timeout; cada resultado vira um candidato
+       pontuado. Com o selector LIGADO (default), a decisão final é do
+       `transcription_selector` (+ judge GPT-4o no empate); desligado, o
+       primeiro candidato aceitável vence.
+    4. `hybrid_dual` (LEGADO opt-in) roda Diarize+Whisper em paralelo e funde
+       via GPT-4o; em modo estrito não degrada silenciosamente.
+
+    Parâmetros-chave:
+    - `alert`/`sector_id`: roteiam smart routing e endurecem gates p/ alertas
+      críticos; também definem o rótulo do interlocutor (Motorista etc.).
+    - `return_metadata`: True devolve (segments, metadata) com candidatos,
+      attempts, decisão do selector e judge — persistido p/ auditoria da escolha.
+    - `allow_degraded_hybrid_fallback`: True (fluxo MANUAL) entrega o melhor
+      candidato mesmo reprovado pelo selector, p/ o auditor corrigir na tela;
+      False (automação) lança RuntimeError e o item vai p/ revisão.
+    - `audio_quality_score`: score do QualityAnalyzer, repassado aos gates.
+
+    CUSTO: cada estratégia executada é uma chamada paga (Speech/Whisper/
+    GPT-4o); selector/judge podem somar mais 1 chamada GPT-4o. A rota
+    não-Azure (Gemini, só quando AI_PROVIDER_PRIORITY != azure) também é paga.
+
+    Levanta RuntimeError quando todas as estratégias falham, quando o selector
+    exige revisão manual (automação) ou quando não há provider configurado.
+    """
     operator_label = "Operador"
     driver_label = infer_interlocutor_label(alert, driver_name)
     diarization_reference = build_diarization_reference(driver_label)
@@ -1038,7 +1282,8 @@ async def transcribe_audio(
             level="info"
         )
 
-    # Transcription Priority Logic
+    # Prioridade de provider: rota Azure só quando há credencial de pelo menos
+    # um engine (Speech ou GPT-4o diarize); senão cai na rota da IA primária.
     if AI_PROVIDER_PRIORITY == "azure" and (
         AZURE_SPEECH_KEY
         or bool(gpt4o_diarize_endpoint and gpt4o_diarize_key)
@@ -1105,6 +1350,7 @@ async def transcribe_audio(
         whisper_available = bool(whisper_endpoint and whisper_key)
 
         def run_fast() -> list[dict]:
+            """Azure Fast Transcription (engine default). 1 chamada paga ao Speech."""
             if not os.getenv("AZURE_SPEECH_ENDPOINT"):
                 raise RuntimeError("AZURE_SPEECH_ENDPOINT nao configurado para Fast Transcription")
             return transcribe_audio_azure(
@@ -1118,6 +1364,7 @@ async def transcribe_audio(
             )
 
         def run_whisper() -> list[dict]:
+            """Azure Whisper (endpoint próprio). 1 chamada paga; nunca usar isolado p/ telefonia (alucina em silêncio)."""
             if not whisper_available:
                 raise RuntimeError("Azure Whisper nao configurado para fallback")
             return transcribe_audio_azure(
@@ -1133,6 +1380,7 @@ async def transcribe_audio(
             )
 
         def run_gpt4o_diarize() -> list[dict]:
+            """GPT-4o-transcribe-diarize (diarização nativa). 1 chamada paga ao OpenAI."""
             if not gpt4o_diarize_available:
                 raise RuntimeError("GPT-4o-transcribe-diarize nao configurado para fallback")
             return transcribe_audio_gpt4o_diarize(
@@ -1147,6 +1395,7 @@ async def transcribe_audio(
             )
 
         def run_sdk() -> list[dict]:
+            """Speech SDK ConversationTranscriber — last resort da cadeia (texto pior em telefonia)."""
             from transcription_providers.speech_sdk_transcriber import transcribe_with_conversation_transcriber
 
             sdk_audio = azure_audio if azure_mime in WAV_MIME_TYPES else convert_audio_to_wav(azure_audio)
@@ -1166,6 +1415,7 @@ async def transcribe_audio(
             """
 
             async def run_fast_fallback(reason: str) -> tuple[list[dict], str]:
+                """Fallback operacional do hybrid_dual: registra o motivo e entrega via Fast."""
                 hybrid_dual_operational_fallback.clear()
                 hybrid_dual_operational_fallback.update(
                     {
@@ -1280,6 +1530,12 @@ async def transcribe_audio(
         selector_enabled = _is_candidate_selector_enabled()
 
         async def build_selector_result() -> tuple[list[dict], dict[str, Any]]:
+            """Decide o candidato vencedor entre as transcrições coletadas.
+
+            Score determinístico primeiro; empate vai ao judge LLM (1 chamada
+            paga GPT-4o, v1.3.80). Devolve (segments, metadata) com a trilha da
+            decisão para `audio_quality.transcription_provider`.
+            """
             cross_signals = compute_cross_signals(candidate_artifacts)
             decision = select_transcription_candidate(
                 candidate_artifacts,
@@ -1375,6 +1631,7 @@ async def transcribe_audio(
             return selected.segments, metadata
 
         def has_pending_whisper_confirmation(current_index: int) -> bool:
+            """True se ainda falta rodar o Whisper como candidato de confirmação na cadeia."""
             if not selector_enabled:
                 return False
             if any(candidate.provider == "whisper" for candidate in candidate_artifacts):
@@ -1382,6 +1639,7 @@ async def transcribe_audio(
             return "whisper" in run_order[current_index + 1 :]
 
         def has_pending_diarize_confirmation(current_index: int, selection_status: str) -> bool:
+            """True se vale rodar o diarize como desempate (só quando a seleção pediu revisão)."""
             if not selector_enabled or selection_status != DECISION_NEEDS_REVIEW:
                 return False
             if any(candidate.provider == "gpt4o_diarize" for candidate in candidate_artifacts):

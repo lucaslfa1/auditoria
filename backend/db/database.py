@@ -1,3 +1,21 @@
+"""Camada central de persistência — fachada histórica do banco (PostgreSQL).
+
+Papel no sistema: este módulo nasceu monolítico e hoje atua em dois modos:
+
+1. **Fachada de delegação** — a maioria das funções apenas repassa para o
+   repositório correspondente em `repositories/` (audits, saved_files,
+   classification_review, configuration...). Callers antigos continuam
+   importando `database.X`; a implementação real vive no repository.
+   Decisão documentada (v1.3.127): NÃO dividir este arquivo — os reexports
+   preservam compatibilidade e o custo/risco do split não se paga.
+2. **Lógica própria** — bootstrap do banco (`init_db`: migrations + seeds),
+   persistência de artefatos de auditoria (`persist_audit_artifacts`),
+   recuperação/anexo de áudio e a montagem de Arquivos Salvos
+   (`_build_saved_audit_*`).
+
+CUSTO DE API: zero — nenhuma chamada a serviços pagos; somente PostgreSQL.
+"""
+
 import logging
 import os
 import json
@@ -54,14 +72,17 @@ from schemas import AuditResult
 
 
 def get_connection():
+    """Abre conexão PostgreSQL via pool (`db.connection.create_connection`) — passada como factory aos repositories."""
     return create_connection()
 
 
 def _is_production_environment() -> bool:
+    """True em produção (ENVIRONMENT=production explícito ou K_SERVICE do Cloud Run)."""
     return is_production_environment()
 
 
 def _resolve_auth_users_seed_path(raw_path: str) -> str:
+    """Resolve o path do seed de usuários (relativo vira relativo a backend/db/)."""
     candidate = (raw_path or "").strip()
     if not candidate:
         return ""
@@ -71,6 +92,11 @@ def _resolve_auth_users_seed_path(raw_path: str) -> str:
 
 
 def _load_auth_seed_users_from_config() -> list[dict]:
+    """Carrega usuários para o seed inicial: env AUTH_USERS_JSON > arquivo AUTH_USERS_FILE.
+
+    Em produção, a ausência de ambos é ERRO (não existe fallback local, por
+    segurança). Em dev/teste, retorna lista vazia.
+    """
     raw_inline_users = (os.getenv("AUTH_USERS_JSON", "") or "").strip()
     if raw_inline_users:
         try:
@@ -107,6 +133,7 @@ def _load_auth_seed_users_from_config() -> list[dict]:
 
 
 def _is_isolated_test_database() -> bool:
+    """True quando rodando sob pytest (seeds pesados são pulados para isolar os testes)."""
     return os.getenv("PYTEST_CURRENT_TEST") is not None
 
 
@@ -129,6 +156,13 @@ def _should_seed_operadores_from_json() -> bool:
 
 
 def init_db():
+    """Bootstrap do banco no startup do app (chamado pelo prestart/lifespan).
+
+    Sequência: tabela de metadados → migrations pendentes (commit por step,
+    v1.3.113) → configs default → seeds idempotentes (usuários, critérios,
+    catálogo oficial v1.3.120, operadores). Seguro rodar em todo boot: cada
+    seed tem guarda própria e não sobrescreve dados existentes.
+    """
     conn = get_connection()
     try:
         c = conn.cursor()
@@ -241,6 +275,7 @@ def seed_operadores_from_json():
 
 
 def get_database_runtime_info() -> dict:
+    """Snapshot do banco para diagnóstico: engine, ambiente, nº de tabelas, migrations aplicadas e schema_metadata."""
     info = {
         "engine": "postgresql",
         "path": "",
@@ -284,6 +319,12 @@ def get_database_runtime_info() -> dict:
 
 
 def _seed_users(c):
+    """Seed inicial de `users` (só roda com a tabela VAZIA).
+
+    Fonte: AUTH_USERS_JSON/AUTH_USERS_FILE. Banco vazio sem bootstrap
+    configurado é erro fatal fora de teste — evita subir app sem login.
+    Senhas entram com hash bcrypt.
+    """
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         import bcrypt
@@ -559,8 +600,9 @@ def _seed_ai_prompts(c):
     if not prompts_dict:
         return
 
-    # Flatten the dict into dot-paths
+    # Achata o dict em chaves dot-path (ex.: "classification.system")
     def _flatten(d, parent_key=''):
+        """Achata o JSON de prompts em pares (dot-path, valor-json); `safety_nets.*` fica como JSON inteiro."""
         items = []
         for k, v in d.items():
             new_key = f"{parent_key}.{k}" if parent_key else k
@@ -608,6 +650,7 @@ def upsert_ligacao_auditada(
     qualidade_referencia: Optional[str] = None,
     observacao: Optional[str] = None,
 ) -> int:
+    """Fachada: delega para `repositories.classification_review.upsert_ligacao_auditada` (implementação e docstring lá)."""
     from repositories.classification_review import upsert_ligacao_auditada as repository_upsert_ligacao_auditada
 
     return repository_upsert_ligacao_auditada(
@@ -625,6 +668,7 @@ def upsert_ligacao_auditada(
 
 
 def get_ligacao_auditada_por_hash(hash_arquivo: str) -> Optional[dict]:
+    """Fachada: delega para `repositories.classification_review.get_ligacao_auditada_por_hash` (implementação e docstring lá)."""
     from repositories.classification_review import get_ligacao_auditada_por_hash as repository_get_ligacao_auditada_por_hash
 
     return repository_get_ligacao_auditada_por_hash(get_connection, hash_arquivo)
@@ -643,6 +687,7 @@ def registrar_resultado_classificacao(
     erro: Optional[str] = None,
     metadata: Optional[dict] = None,
 ) -> int:
+    """Fachada: delega para `repositories.classification_review.registrar_resultado_classificacao` (implementação e docstring lá)."""
     from repositories.classification_review import registrar_resultado_classificacao as repository_registrar_resultado_classificacao
 
     return repository_registrar_resultado_classificacao(
@@ -675,6 +720,7 @@ def sincronizar_fila_revisao_classificacao(
     metadata: Optional[dict] = None,
     status_override: Optional[str] = None,
     ) -> Optional[int]:
+    """Fachada: delega para `repositories.classification_review.sincronizar_fila_revisao_classificacao` (implementação e docstring lá)."""
     from repositories.classification_review import sincronizar_fila_revisao_classificacao as repository_sincronizar_fila_revisao_classificacao
 
     return repository_sincronizar_fila_revisao_classificacao(
@@ -695,6 +741,7 @@ def sincronizar_fila_revisao_classificacao(
 
 
 def limpar_fila_revisao_classificacao_antiga(hours_old: int = 24) -> dict:
+    """Fachada: delega para `repositories.classification_review.limpar_fila_revisao_classificacao_antiga` (implementação e docstring lá)."""
     from repositories.classification_review import limpar_fila_revisao_classificacao_antiga as repository_limpar_fila
     return repository_limpar_fila(get_connection, hours_old)
 
@@ -706,12 +753,14 @@ def listar_fila_revisao_classificacao(
     origem: Optional[str] = None,
     order_by: str = "priority",
 ) -> list[dict]:
+    """Fachada: delega para `repositories.classification_review.listar_fila_revisao_classificacao` (implementação e docstring lá)."""
     from repositories.classification_review import listar_fila_revisao_classificacao as repository_listar_fila_revisao_classificacao
 
     return repository_listar_fila_revisao_classificacao(get_connection, limit, status, sector_id, origem, order_by)
 
 
 def obter_fila_revisao_classificacao_por_hash(input_hash: str) -> Optional[dict]:
+    """Fachada: delega para `repositories.classification_review.obter_fila_revisao_classificacao_por_hash` (implementação e docstring lá)."""
     from repositories.classification_review import obter_fila_revisao_classificacao_por_hash as repository_obter_fila_revisao_classificacao_por_hash
 
     return repository_obter_fila_revisao_classificacao_por_hash(get_connection, input_hash)
@@ -726,6 +775,7 @@ def descartar_item_automacao(
     loop_limit: int = 3,
     log_fields: Optional[dict] = None,
 ) -> dict:
+    """Fachada: delega para `repositories.classification_review.descartar_item_automacao` (implementação e docstring lá)."""
     from repositories.classification_review import descartar_item_automacao as repository_descartar_item_automacao
 
     return repository_descartar_item_automacao(
@@ -743,6 +793,7 @@ def obter_fila_revisao_classificacao_por_auditoria(
     audit_id: int,
     audit_input_hash: Optional[str] = None,
 ) -> Optional[dict]:
+    """Fachada: delega para `repositories.classification_review.obter_fila_revisao_classificacao_por_auditoria` (implementação e docstring lá)."""
     from repositories.classification_review import (
         obter_fila_revisao_classificacao_por_auditoria as repository_obter_fila_revisao_classificacao_por_auditoria,
     )
@@ -755,6 +806,7 @@ def obter_fila_revisao_classificacao_por_auditoria(
 
 
 def listar_paths_audio_classificado_fila_revisao() -> list[str]:
+    """Fachada: delega para `repositories.classification_review.listar_paths_audio_classificado_fila_revisao` (implementação e docstring lá)."""
     from repositories.classification_review import listar_paths_audio_classificado_fila_revisao as repository_listar_paths_audio_classificado_fila_revisao
 
     return repository_listar_paths_audio_classificado_fila_revisao(get_connection)
@@ -768,6 +820,7 @@ def atualizar_status_fila_revisao_classificacao(
     motivos_revisao_append: Optional[list[str]] = None,
     metadata_merge: Optional[dict] = None,
 ) -> bool:
+    """Fachada: delega para `repositories.classification_review.atualizar_status_fila_revisao_classificacao` (implementação e docstring lá)."""
     from repositories.classification_review import atualizar_status_fila_revisao_classificacao as repository_atualizar_status_fila_revisao_classificacao
 
     return repository_atualizar_status_fila_revisao_classificacao(
@@ -789,6 +842,7 @@ def corrigir_classificacao_fila_revisao(
     operator_id: Optional[str] = None,
     revisado_por: Optional[str] = None,
 ) -> Optional[dict]:
+    """Fachada: delega para `repositories.classification_review.corrigir_classificacao_fila_revisao` (implementação e docstring lá)."""
     from repositories.classification_review import corrigir_classificacao_fila_revisao as repository_corrigir_classificacao_fila_revisao
 
     return repository_corrigir_classificacao_fila_revisao(
@@ -809,18 +863,21 @@ def registrar_resultado_auditoria(
     resumo: Optional[str] = None,
     detalhes: Optional[list[dict]] = None,
 ) -> int:
+    """Fachada: delega para `repositories.classification_review.registrar_resultado_auditoria` (implementação e docstring lá)."""
     from repositories.classification_review import registrar_resultado_auditoria as repository_registrar_resultado_auditoria
 
     return repository_registrar_resultado_auditoria(get_connection, ligacao_id, nota, nota_maxima, resumo, detalhes)
 
 
 def get_resumo_ligacoes_auditadas(setor: Optional[str] = None) -> dict:
+    """Fachada: delega para `repositories.classification_review.get_resumo_ligacoes_auditadas` (implementação e docstring lá)."""
     from repositories.classification_review import get_resumo_ligacoes_auditadas as repository_get_resumo_ligacoes_auditadas
 
     return repository_get_resumo_ligacoes_auditadas(get_connection, setor)
 
 
 def listar_ligacoes_auditadas(limit: int = 100, qualidade: Optional[str] = None, setor: Optional[str] = None) -> list[dict]:
+    """Fachada: delega para `repositories.classification_review.listar_ligacoes_auditadas` (implementação e docstring lá)."""
     from repositories.classification_review import listar_ligacoes_auditadas as repository_listar_ligacoes_auditadas
 
     return repository_listar_ligacoes_auditadas(get_connection, limit, qualidade, setor)
@@ -839,6 +896,11 @@ def save_audit(
     colaborador_id: Optional[int] = None,
     criado_por: str = "",
 ):
+    """Salva a auditoria (delega ao repository) e espelha em Arquivos Salvos.
+
+    Diferente da fachada pura: após o INSERT, chama
+    `_sync_arquivo_salvo_for_audit` para o item aparecer na tela de revisão.
+    """
     from repositories.audits import save_audit as repository_save_audit
 
     audit_id = repository_save_audit(
@@ -870,6 +932,7 @@ def queue_audit_for_supervisor_review(
     ai_feedback: Optional[str] = None,
     rebalance: bool = True,
 ) -> dict:
+    """Enfileira a auditoria para aprovação do supervisor e espelha em Arquivos Salvos."""
     from repositories.audits import enqueue_audit_for_supervisor_review as repository_enqueue_audit_for_supervisor_review
 
     queued = repository_enqueue_audit_for_supervisor_review(
@@ -891,6 +954,7 @@ def queue_audit_for_supervisor_review(
 
 
 def get_audit_media_record(audit_id: int) -> Optional[dict]:
+    """Fachada: delega para `repositories.audits.get_audit_media_record_by_id` (implementação e docstring lá)."""
     from repositories.audits import get_audit_media_record_by_id as repository_get_audit_media_record_by_id
 
     return repository_get_audit_media_record_by_id(get_connection, audit_id)
@@ -904,6 +968,12 @@ def _attach_audio_to_audit_record(
     original_filename: Optional[str],
     input_hash: Optional[str],
 ) -> Optional[dict]:
+    """Grava o áudio da auditoria no storage e registra os metadados na linha do audit.
+
+    Idempotente: se já existe áudio armazenado e o arquivo está acessível,
+    reutiliza. Se o UPDATE no banco falhar após gravar o arquivo, desfaz a
+    gravação (não deixa arquivo órfão).
+    """
     if not audio_bytes:
         return None
 
@@ -952,6 +1022,7 @@ def attach_audio_to_audit_record(
     original_filename: Optional[str],
     input_hash: Optional[str],
 ) -> Optional[dict]:
+    """Versão pública de `_attach_audio_to_audit_record` (mesma semântica)."""
     return _attach_audio_to_audit_record(
         audit_id,
         audio_bytes=audio_bytes,
@@ -966,6 +1037,12 @@ def recover_audit_audio_from_classified_queue(
     audit: Optional[dict] = None,
     media_record: Optional[dict] = None,
 ) -> Optional[dict]:
+    """Recupera o áudio de uma auditoria sem mídia a partir da fila de classificados.
+
+    Caminho de auto-reparo: localiza o item da fila vinculado à auditoria,
+    carrega o áudio do storage classificado e anexa ao registro do audit.
+    Qualquer falha devolve o `media_record` original (best-effort, só loga).
+    """
     audit = audit or get_audit_by_id(audit_id)
     if not audit:
         return media_record
@@ -1034,7 +1111,15 @@ def persist_audit_artifacts(
     criado_por: str = "",
     sync_saved_file: bool = True,
 ) -> Optional[int]:
+    """Funil ÚNICO de persistência de uma auditoria concluída (manual ou automática).
+
+    Em uma passada: salva o audit (ou reaproveita cache), anexa o áudio,
+    marca o item da fila como `audited` e espelha em Arquivos Salvos.
+    Também normaliza `sector_id` (fix de acento, v1.3.106). Retorna o
+    audit_id ou None quando nada foi salvo.
+    """
     def _sync_queue_as_audited(audit_id: int) -> None:
+        """Marca o item da fila como audited e grava o vínculo audit_id/hash no metadata."""
         if not input_hash:
             return
         try:
@@ -1166,6 +1251,7 @@ def persist_audit_artifacts(
 
 
 def update_audit_result(input_hash: str, result: AuditResult, ai_feedback: Optional[str] = None) -> Optional[int]:
+    """Atualiza o resultado da auditoria localizada pelo input_hash e re-espelha em Arquivos Salvos."""
     from repositories.audits import update_audit_result as repository_update_audit_result
 
     audit_id = repository_update_audit_result(get_connection, input_hash, result, ai_feedback)
@@ -1175,6 +1261,7 @@ def update_audit_result(input_hash: str, result: AuditResult, ai_feedback: Optio
 
 
 def get_latest_audit_id_by_input_hash(input_hash: str) -> Optional[int]:
+    """Fachada: delega para `repositories.audits.get_latest_audit_id_by_input_hash` (implementação e docstring lá)."""
     from repositories.audits import get_latest_audit_id_by_input_hash as repository_get_latest_audit_id_by_input_hash
 
     return repository_get_latest_audit_id_by_input_hash(get_connection, input_hash)
@@ -1185,6 +1272,7 @@ def update_audit_result_by_id(
     result: AuditResult,
     ai_feedback: Optional[str] = None,
 ) -> Optional[int]:
+    """Atualiza o resultado de uma auditoria existente e re-espelha em Arquivos Salvos."""
     from repositories.audits import update_audit_result_by_id as repository_update_audit_result_by_id
 
     updated_id = repository_update_audit_result_by_id(get_connection, audit_id, result, ai_feedback)
@@ -1194,6 +1282,7 @@ def update_audit_result_by_id(
 
 
 def _as_plain_dicts(items: Any) -> list[dict]:
+    """Normaliza lista mista (modelos Pydantic ou dicts) em lista de dicts puros."""
     if not isinstance(items, list):
         return []
     normalized: list[dict] = []
@@ -1206,6 +1295,7 @@ def _as_plain_dicts(items: Any) -> list[dict]:
 
 
 def _json_safe_number(value: Any) -> Optional[float]:
+    """Converte para float serializável em JSON; None se não numérico."""
     if value is None:
         return None
     try:
@@ -1215,6 +1305,7 @@ def _json_safe_number(value: Any) -> Optional[float]:
 
 
 def _slug_file_part(value: Any, fallback: str, max_len: int = 48) -> str:
+    """Gera slug seguro para nome de arquivo (sem acentos/símbolos, '_' como separador)."""
     normalized = unicodedata.normalize("NFD", str(value or "").strip().lower())
     parts: list[str] = []
     last_separator = False
@@ -1237,6 +1328,7 @@ def _slug_file_part(value: Any, fallback: str, max_len: int = 48) -> str:
 
 
 def _build_saved_audit_filename(audit: dict) -> str:
+    """Nome do arquivo em Arquivos Salvos: Auditoria_<id>_<operador>_<alerta>.json."""
     audit_id = audit.get("id") or "sem_id"
     operator = _slug_file_part(audit.get("operator_name"), "operador")
     alert = _slug_file_part(audit.get("alert_label") or audit.get("alert_id"), "auditoria")
@@ -1246,6 +1338,7 @@ def _build_saved_audit_filename(audit: dict) -> str:
 
 
 def _as_dict(value: Any) -> dict:
+    """Coage dict ou string-JSON em dict; qualquer outra coisa vira {}."""
     if isinstance(value, dict):
         return dict(value)
     if isinstance(value, str) and value.strip():
@@ -1258,6 +1351,7 @@ def _as_dict(value: Any) -> dict:
 
 
 def _find_nested_value(value: Any, keys: tuple[str, ...], *, max_depth: int = 4) -> Any:
+    """Busca recursiva da primeira chave preenchida em estruturas aninhadas (dicts/listas, até max_depth)."""
     if max_depth < 0:
         return None
     if isinstance(value, dict):
@@ -1278,6 +1372,7 @@ def _find_nested_value(value: Any, keys: tuple[str, ...], *, max_depth: int = 4)
 
 
 def _saved_audit_source_metadata(metadata: Optional[dict]) -> dict:
+    """Filtra do metadata de origem só as chaves whitelisted para Arquivos Salvos (SAVED_AUDIT_SOURCE_METADATA_KEYS)."""
     source = _as_dict(metadata)
     return {
         key: value
@@ -1287,6 +1382,7 @@ def _saved_audit_source_metadata(metadata: Optional[dict]) -> dict:
 
 
 def _coerce_saved_audit_call_iso(value: Any) -> Optional[str]:
+    """Normaliza o horário da ligação para ISO (aceita epoch ms/s ou string ISO)."""
     if value in (None, ""):
         return None
 
@@ -1322,6 +1418,7 @@ def _coerce_saved_audit_call_iso(value: Any) -> Optional[str]:
 
 
 def _saved_audit_call_timestamp(audit: dict, source_metadata: Optional[dict] = None, existing_metadata: Optional[dict] = None) -> Optional[str]:
+    """Resolve o horário da LIGAÇÃO (não da auditoria): Huawei begin_time primeiro, depois fallbacks do audit."""
     metadata_candidates = [
         _as_dict(source_metadata),
         _as_dict(audit.get("source_metadata")),
@@ -1352,6 +1449,7 @@ def _saved_audit_call_timestamp(audit: dict, source_metadata: Optional[dict] = N
 
 
 def _format_saved_audit_call_timestamp(value: Optional[str]) -> str:
+    """Formata o horário da ligação para exibição (dd/mm/aaaa hh:mm em horário de Brasília)."""
     if not value:
         return ""
     normalized = str(value).strip().replace("Z", "+00:00")
@@ -1371,6 +1469,7 @@ def _format_saved_audit_call_timestamp(value: Optional[str]) -> str:
 
 
 def _build_saved_audit_content(audit: dict, source_metadata: Optional[dict] = None, existing_metadata: Optional[dict] = None) -> str:
+    """Monta o texto legível do Arquivo Salvo (data da ligação, resumo, feedback e critérios)."""
     summary = str(audit.get("summary") or "").strip()
     ai_feedback = str(audit.get("ai_feedback") or "").strip()
     details = _as_plain_dicts(audit.get("details"))
@@ -1399,6 +1498,7 @@ def _build_saved_audit_content(audit: dict, source_metadata: Optional[dict] = No
 
 
 def _build_saved_audit_metadata(audit: dict, source_metadata: Optional[dict] = None, existing_metadata: Optional[dict] = None) -> dict:
+    """Monta o metadata estruturado do Arquivo Salvo (ids, status, score, origem, timestamps)."""
     saved_filename = _build_saved_audit_filename(audit)
     original_filename = str(audit.get("audio_original_filename") or "").strip()
     audit_timestamp = audit.get("timestamp")
@@ -1524,6 +1624,7 @@ def _sync_arquivo_salvo_for_audit(audit_id: int, *, criado_por: str = "") -> Non
 
 
 def sync_arquivo_salvo_for_audit(audit_id: int) -> None:
+    """Versão pública de `_sync_arquivo_salvo_for_audit` (despacho assíncrono do espelho)."""
     _sync_arquivo_salvo_for_audit(audit_id)
 
 
@@ -1547,29 +1648,40 @@ def update_audit_by_id(audit_id: int, result: AuditResult, ai_feedback: Optional
 
 
 def get_stats():
+    """Fachada: delega para `repositories.analytics.get_stats` (implementação e docstring lá)."""
     from repositories.analytics import get_stats as repository_get_stats
 
     return repository_get_stats(get_connection)
 
 def get_history(limit=10):
+    """Fachada: delega para `repositories.analytics.get_history` (implementação e docstring lá)."""
     from repositories.analytics import get_history as repository_get_history
 
     return repository_get_history(get_connection, limit)
 
 class _SharedConnection:
-    """Wraps a Any to suppress close() during shared usage."""
+    """Proxy de conexão que NEUTRALIZA o close() durante uso compartilhado.
+
+    Permite passar a MESMA conexão para vários repositories em sequência
+    (cada um chama close() ao terminar) sem fechá-la de fato — quem fecha é
+    o caller, no finally. Todo o resto é delegado à conexão real.
+    """
     __slots__ = ("_conn",)
 
     def __init__(self, conn):
+        """Guarda a conexão real (via object.__setattr__, por causa do __setattr__ custom)."""
         object.__setattr__(self, "_conn", conn)
 
     def close(self):
+        """No-op proposital: o dono da conexão fecha ao final do bloco."""
         pass
 
     def __getattr__(self, name):
+        """Delega leitura de atributos/métodos à conexão real."""
         return getattr(self._conn, name)
 
     def __setattr__(self, name, value):
+        """Delega escrita de atributos à conexão real (exceto o slot interno)."""
         if name in self.__slots__:
             object.__setattr__(self, name, value)
         else:
@@ -1577,6 +1689,7 @@ class _SharedConnection:
 
 
 def update_audit_status(audit_id: int, status: str, reason: Optional[str] = None, contested_criteria: Optional[str] = None):
+    """Atualiza o status da auditoria e, na MESMA conexão, rebalanceia a fila do operador e re-espelha o Arquivo Salvo."""
     from repositories.audits import update_audit_status as repository_update_audit_status
     from repositories.audits import rebalance_operator_review_queue as repository_rebalance_operator_review_queue
     from repositories.audits import get_audit_by_id as repository_get_audit_by_id
@@ -1600,6 +1713,7 @@ def update_audit_status(audit_id: int, status: str, reason: Optional[str] = None
 
 
 def discard_audit(audit_id: int, *, discarded_by: str, reason: Optional[str] = None) -> dict:
+    """Descarta a auditoria e rebalanceia a fila pareada do operador (par órfão em awaiting_pair é promovido)."""
     from repositories.audits import discard_audit as repository_discard_audit
     from repositories.audits import rebalance_operator_review_queue as repository_rebalance_operator_review_queue
     from repositories.audits import get_audit_by_id as repository_get_audit_by_id
@@ -1630,6 +1744,7 @@ def discard_audit(audit_id: int, *, discarded_by: str, reason: Optional[str] = N
 
 
 def restore_audit(audit_id: int, *, restored_by: str) -> dict:
+    """Restaura uma auditoria descartada e rebalanceia a fila pareada do operador."""
     from repositories.audits import restore_audit as repository_restore_audit
     from repositories.audits import rebalance_operator_review_queue as repository_rebalance_operator_review_queue
     from repositories.audits import get_audit_by_id as repository_get_audit_by_id
@@ -1674,6 +1789,7 @@ def get_audits_for_export(
     skip: int = 0,
     max_per_operator: Optional[int] = None,
 ) -> list[dict]:
+    """Fachada: delega para `repositories.audits.get_audits_for_export` (implementação e docstring lá)."""
     from repositories.audits import get_audits_for_export as repository_get_audits_for_export
 
     return repository_get_audits_for_export(
@@ -1699,6 +1815,7 @@ def finalize_contestation_review(
     reviewed_by: str,
     updated_details: Optional[list] = None,
 ) -> dict:
+    """Conclui a revisão de contestação (veredito + defesa) e re-espelha o Arquivo Salvo."""
     from repositories.audits import finalize_contestation_review as repository_finalize_contestation_review
 
     result = repository_finalize_contestation_review(
@@ -1724,12 +1841,14 @@ def finalize_contestation_review(
 
 
 def save_gestor_feedback(audit_id: int, gestor_nome: str, feedback_texto: str, pontos_melhoria: str) -> bool:
+    """Fachada: delega para `repositories.supervisor_feedback.save_gestor_feedback` (implementação e docstring lá)."""
     from repositories.supervisor_feedback import save_gestor_feedback as repository_save_gestor_feedback
 
     return repository_save_gestor_feedback(get_connection, audit_id, gestor_nome, feedback_texto, pontos_melhoria)
 
 
 def get_gestor_feedback(audit_id: int) -> dict | None:
+    """Fachada: delega para `repositories.supervisor_feedback.get_gestor_feedback` (implementação e docstring lá)."""
     from repositories.supervisor_feedback import get_gestor_feedback as repository_get_gestor_feedback
 
     return repository_get_gestor_feedback(get_connection, audit_id)
@@ -1753,6 +1872,7 @@ def save_report_export(
     file_size_bytes: Optional[int] = None,
     metadata: Optional[dict] = None,
 ) -> int:
+    """Fachada: delega para `repositories.report_exports.save_report_export` (implementação e docstring lá)."""
     from repositories.report_exports import save_report_export as repository_save_report_export
 
     return repository_save_report_export(
@@ -1782,30 +1902,35 @@ def list_report_exports(
     file_format: Optional[str] = None,
     operator_name: Optional[str] = None,
 ) -> list[dict]:
+    """Fachada: delega para `repositories.report_exports.list_report_exports` (implementação e docstring lá)."""
     from repositories.report_exports import list_report_exports as repository_list_report_exports
 
     return repository_list_report_exports(get_connection, limit, report_kind, file_format, operator_name)
 
 
 def get_sectors():
+    """Fachada: delega para `repositories.analytics.get_sectors` (implementação e docstring lá)."""
     from repositories.analytics import get_sectors as repository_get_sectors
 
     return repository_get_sectors(get_connection)
 
 
 def get_analytics(sector_id: str = None):
+    """Fachada: delega para `repositories.analytics.get_analytics` (implementação e docstring lá)."""
     from repositories.analytics import get_analytics as repository_get_analytics
 
     return repository_get_analytics(get_connection, sector_id)
 
 
 def get_technical_incidents(limit: int = 50, sector_id: str = None):
+    """Fachada: delega para `repositories.analytics.get_technical_incidents` (implementação e docstring lá)."""
     from repositories.analytics import get_technical_incidents as repository_get_technical_incidents
 
     return repository_get_technical_incidents(limit, sector_id)
 
 
 def get_all_configs() -> dict:
+    """Fachada: delega para `repositories.configuration.get_all_configs` (implementação e docstring lá)."""
     from repositories.configuration import get_all_configs as repository_get_all_configs
 
     return repository_get_all_configs(get_connection)
@@ -1819,6 +1944,7 @@ def update_config(
     motivo: str = "",
     origem: str = "ui",
 ) -> bool:
+    """Fachada: delega para `repositories.configuration.update_config` (implementação e docstring lá)."""
     from repositories.configuration import update_config as repository_update_config
 
     return repository_update_config(
@@ -1832,6 +1958,7 @@ def update_config(
 
 
 def get_config_value(chave: str, default: str = "") -> str:
+    """Fachada: delega para `repositories.configuration.get_config_value` (implementação e docstring lá)."""
     from repositories.configuration import get_config_value as repository_get_config_value
 
     return repository_get_config_value(get_connection, chave, default)
@@ -1944,6 +2071,7 @@ def huawei_sync_log_tombstone(
         return (0, "")
 
     def _val(key, idx):
+        """Lê a coluna do RETURNING por nome ou índice (cursor pode devolver dict ou tupla)."""
         try:
             return row[key]
         except (TypeError, KeyError, IndexError):
@@ -2051,6 +2179,7 @@ def save_telefonia_sync_history(
     mensagem_erro: Optional[str],
     trigger_type: str,
 ) -> int:
+    """Fachada: delega para `repositories.telefonia.save_telefonia_sync_history` (implementação e docstring lá)."""
     from repositories.telefonia import save_telefonia_sync_history as repository_save_history
 
     return repository_save_history(
@@ -2068,6 +2197,7 @@ def save_telefonia_sync_history(
 
 
 def list_telefonia_sync_history(limit: int = 50) -> list[dict]:
+    """Fachada: delega para `repositories.telefonia.list_telefonia_sync_history` (implementação e docstring lá)."""
     from repositories.telefonia import list_telefonia_sync_history as repository_list_history
 
     return repository_list_history(get_connection, limit=limit)
@@ -2135,6 +2265,7 @@ def save_arquivo(
     criado_por: str = "",
     data_analise: Optional[str] = None,
 ) -> int:
+    """Fachada: delega para `repositories.saved_files.save_arquivo` (implementação e docstring lá)."""
     from repositories.saved_files import save_arquivo as repository_save_arquivo
 
     return repository_save_arquivo(
@@ -2159,36 +2290,42 @@ def list_arquivos_salvos(
     tipo: Optional[str] = None,
     include_audits: bool = True,
 ) -> list[dict]:
+    """Fachada: delega para `repositories.saved_files.list_arquivos_salvos` (implementação e docstring lá)."""
     from repositories.saved_files import list_arquivos_salvos as repository_list_arquivos_salvos
 
     return repository_list_arquivos_salvos(get_connection, limit, offset, tipo, include_audits)
 
 
 def get_arquivo_salvo(arquivo_id: int) -> Optional[dict]:
+    """Fachada: delega para `repositories.saved_files.get_arquivo_salvo` (implementação e docstring lá)."""
     from repositories.saved_files import get_arquivo_salvo as repository_get_arquivo_salvo
 
     return repository_get_arquivo_salvo(get_connection, arquivo_id)
 
 
 def update_arquivo_salvo(arquivo_id: int, conteudo: str, score: float | None = None, metadata: dict | None = None) -> bool:
+    """Fachada: delega para `repositories.saved_files.update_arquivo_salvo` (implementação e docstring lá)."""
     from repositories.saved_files import update_arquivo_salvo as repository_update_arquivo_salvo
 
     return repository_update_arquivo_salvo(get_connection, arquivo_id, conteudo, score=score, metadata=metadata)
 
 
 def delete_arquivo_salvo(arquivo_id: int) -> bool:
+    """Fachada: delega para `repositories.saved_files.delete_arquivo_salvo` (implementação e docstring lá)."""
     from repositories.saved_files import delete_arquivo_salvo as repository_delete_arquivo_salvo
 
     return repository_delete_arquivo_salvo(get_connection, arquivo_id)
 
 
 def count_arquivos_salvos(tipo: Optional[str] = None, include_audits: bool = True) -> int:
+    """Fachada: delega para `repositories.saved_files.count_arquivos_salvos` (implementação e docstring lá)."""
     from repositories.saved_files import count_arquivos_salvos as repository_count_arquivos_salvos
 
     return repository_count_arquivos_salvos(get_connection, tipo, include_audits)
 
 
 def get_arquivo_by_audit_id(audit_id: int) -> Optional[dict]:
+    """Fachada: delega para `repositories.saved_files.get_arquivo_by_audit_id` (implementação e docstring lá)."""
     from repositories.saved_files import get_arquivo_by_audit_id as repository_get_arquivo_by_audit_id
 
     return repository_get_arquivo_by_audit_id(get_connection, audit_id)
@@ -2203,6 +2340,7 @@ def update_arquivo_by_audit_id(
     data_analise: Optional[str] = None,
     criado_por: Optional[str] = None,
 ) -> bool:
+    """Fachada: delega para `repositories.saved_files.update_arquivo_by_audit_id` (implementação e docstring lá)."""
     from repositories.saved_files import update_arquivo_by_audit_id as repository_update_arquivo_by_audit_id
 
     return repository_update_arquivo_by_audit_id(get_connection, audit_id, conteudo, score, metadata, arquivo=arquivo, data_analise=data_analise, criado_por=criado_por)
@@ -2211,25 +2349,16 @@ def update_arquivo_by_audit_id(
 
 
 def list_pending_dispatch_audits(older_than_hours: Optional[int] = None) -> list[dict]:
+    """Fachada: delega para `repositories.audits.list_pending_dispatch_audits`."""
     from repositories.audits import list_pending_dispatch_audits as repo_list
     return repo_list(get_connection, older_than_hours)
 
 def upsert_audit_draft(input_hash: str, user_id: str, details_json: str, transcription_json: str) -> None:
+    """Fachada: delega para `repositories.audits.upsert_audit_draft`."""
     from repositories.audits import upsert_audit_draft as repo_upsert
     return repo_upsert(get_connection, input_hash, user_id, details_json, transcription_json)
 
 def get_audit_draft(input_hash: str, user_id: str) -> Optional[dict]:
-    from repositories.audits import get_audit_draft as repo_get
-    return repo_get(get_connection, input_hash, user_id)
-
-def list_pending_dispatch_audits(older_than_hours: Optional[int] = None) -> list[dict]:
-    from repositories.audits import list_pending_dispatch_audits as repo_list
-    return repo_list(get_connection, older_than_hours)
-
-def upsert_audit_draft(input_hash: str, user_id: str, details_json: str, transcription_json: str) -> None:
-    from repositories.audits import upsert_audit_draft as repo_upsert
-    return repo_upsert(get_connection, input_hash, user_id, details_json, transcription_json)
-
-def get_audit_draft(input_hash: str, user_id: str) -> Optional[dict]:
+    """Fachada: delega para `repositories.audits.get_audit_draft`."""
     from repositories.audits import get_audit_draft as repo_get
     return repo_get(get_connection, input_hash, user_id)

@@ -212,6 +212,6 @@ npm run build
 
 ## 🔗 Links Importantes
 
-- **Repositório GitHub:** https://github.com/lucaslfa84/auditoria
+- **Repositório GitHub:** https://github.com/lucaslfa1/auditoria
 - **Google AI Studio:** https://aistudio.google.com/
 - **Documentação @google/genai:** https://googleapis.github.io/js-genai/
