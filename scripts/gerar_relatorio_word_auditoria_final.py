@@ -23,7 +23,7 @@ def create_word_report():
     
     doc.add_paragraph('Data: 27 de Abril de 2026').bold = True
     doc.add_paragraph('Projeto: Auditoria').bold = True
-    doc.add_paragraph('Autor da Revisão: Gemini CLI (Consolidação Pós-Auditoria)').bold = True
+    doc.add_paragraph('Revisão de Auditoria (Consolidação)').bold = True
     
     doc.add_paragraph('---')
     
@@ -33,7 +33,7 @@ def create_word_report():
     doc.add_heading('2. Auditoria de Rede e Autenticação (Huawei AICC)', level=1)
     doc.add_paragraph('Status Final: Homologado e Refatorado (Concluído).')
     doc.add_paragraph('- Veredito: O erro 403 (Forbidden) foi completamente mitigado. Foi constatado que o IP do Google Cloud (35.199.111.152) foi aceito na whitelist da Huawei.', style='List Bullet')
-    doc.add_paragraph('- Ações Aplicadas: O código-fonte (huawei_client.py) foi modernizado (via Agente Claude/Codex) para suportar o fluxo oauth_direct nativamente, eliminando a dependência tecnológica do proxy da Teledata (c2Authorization).', style='List Bullet')
+    doc.add_paragraph('- Ações Aplicadas: O código-fonte (huawei_client.py) foi modernizado (via refatoração) para suportar o fluxo oauth_direct nativamente, eliminando a dependência tecnológica do proxy da Teledata (c2Authorization).', style='List Bullet')
     doc.add_paragraph('- Segurança: Injeção de headers canônicos (Bearer Token, X-APP-Key e X-TenantSpaceID) com mecanismo de caching em memória para proteção contra Rate Limiting (Erro 429).', style='List Bullet')
     
     doc.add_heading('3. Auditoria de Processamento de Filas e Interface', level=1)

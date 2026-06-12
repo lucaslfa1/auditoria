@@ -61,7 +61,7 @@ def create_report(output_path):
 
     # Footer
     doc.add_paragraph()
-    doc.add_paragraph("Relatório gerado automaticamente pelo assistente de Inteligência Artificial Gemini.", style='Intense Quote')
+    doc.add_paragraph("Relatório de Auditoria.", style='Intense Quote')
 
     doc.save(output_path)
     print(f"Documento salvo em: {output_path}")

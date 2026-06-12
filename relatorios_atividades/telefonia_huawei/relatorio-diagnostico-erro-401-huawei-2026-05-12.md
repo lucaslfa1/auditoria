@@ -2,7 +2,7 @@
 
 **Data do Diagnóstico:** 12/05/2026
 **Módulo:** Telefonia (Integração Huawei AICC & OBS)
-**Responsável:** Gemini CLI / Lucas Afonso
+**Responsável:** Lucas Afonso
 
 ## 1. Contexto e Sintoma
 O sistema de Sincronização Contínua em Segundo Plano (Cloud Scheduler) estava relatando falhas constantes na coleta de ligações. Os relatórios de execução exibiam "0 chamadas baixadas" e os logs de sincronização indicavam erro em todos os métodos de download (OBS, CC-FS e URL Pré-assinada).

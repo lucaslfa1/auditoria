@@ -1,7 +1,7 @@
 # Relatório Final — Correção da Coleta Automática Huawei D-1
 
 **Data:** 2026-05-24
-**Autor:** lucas (com diagnóstico assistido por Claude)
+**Autor:** lucas 
 **Status:** ✅ Código aplicado e empurrado (`ca706d7`) | ⏳ SQL e recuperação manual pendentes
 
 ---
@@ -12,7 +12,7 @@
 
 ## 2. Hipótese inicial (refutada)
 
-A suspeita imediata foi regressão nos commits recentes (`d9e0c5b` separou coletor/auditor, `09d0a8a` adicionou toggle de cron telefonia, `0816e50` restaurou D-1). Três agentes de busca em paralelo apontaram para flag `telefonia_cron_sync_ativa` ausente em DBs antigos.
+A suspeita imediata foi regressão nos commits recentes (`d9e0c5b` separou coletor/auditor, `09d0a8a` adicionou toggle de cron telefonia, `0816e50` restaurou D-1). A análise apontou para flag `telefonia_cron_sync_ativa` ausente em DBs antigos.
 
 **Refutada pelos logs de produção (`logs.json`, Cloud Run `auditoria-nstech`):**
 - ✅ Google Cloud Scheduler dispara `POST /api/automation/cron/run` regularmente (`User-Agent: Google-Cloud-Scheduler`).

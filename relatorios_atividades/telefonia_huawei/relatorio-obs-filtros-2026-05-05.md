@@ -2,7 +2,7 @@
 
 **Data:** 05/05/2026
 **Módulo:** Integração Huawei AICC (Telefonia)
-**Responsável:** Gemini CLI / Lucas Afonso
+**Responsável:** Lucas Afonso
 
 ## 1. Contexto
 

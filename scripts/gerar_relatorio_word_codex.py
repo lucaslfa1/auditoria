@@ -23,7 +23,7 @@ def create_word_report():
     
     doc.add_paragraph('Data: 27 de Abril de 2026').bold = True
     doc.add_paragraph('Projeto: Auditoria').bold = True
-    doc.add_paragraph('Autor da Revisão: Codex GPT 5.5 / Gemini CLI').bold = True
+    doc.add_paragraph('Revisão de Auditoria').bold = True
     
     doc.add_paragraph('---')
     

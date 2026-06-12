@@ -19,7 +19,7 @@ Este relatório mapeia, em linha do tempo detalhada (estimativa p/ apontamento),
 #### [11:30 - 13:30] 3. Refatoração em Larga Escala (Backend Architecture)
 - Desenho de uma solução resiliente em `classification.py`: a leitura paralela da tabela do banco de dados relacional (que causava dessincronização) foi interrompida, fazendo com que o catálogo fosse alimentado estritamente e em memória direta via `scoring_rules.yaml`. O Yaml tornou-se a "Single Source of Truth".
 - O motor de busca (`get_alert_lookup_by_id`) foi atualizado para uma estrutura híbrida indexar múltiplas raízes simultâneas — entendendo os valores legados de referência popular (o `pop_ref` numérico como 4.1.1) quanto os IDs YAML, curando permanentemente o problema de ambiguidade que quebrava o motor da IA.
-- Modificação dos parâmetros fixos no prompt enviando metadados consolidados no momento do processo ao ChatGPT, com o label descritivo.
+- Modificação dos parâmetros fixos no prompt enviando metadados consolidados no momento do processo ao modelo de IA, com o label descritivo.
 
 #### [13:30 - 14:30] Intervalo / Pausa Organizacional
 

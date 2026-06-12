@@ -1,7 +1,7 @@
 # Avaliação técnica - Automação Huawei D-1 após ajuste 3
 
 **Data:** 2026-05-24  
-**Autor:** Codex  
+**Análise:** Validação Técnica  
 **Base analisada:** `automacao_ajuste.md`, `automacao_ajuste_2.md`, `automacao_ajuste_3.md`, `fix_automacao.sql`, código citado no commit `ca706d7` e testes locais relevantes.
 
 ## 1. Veredito

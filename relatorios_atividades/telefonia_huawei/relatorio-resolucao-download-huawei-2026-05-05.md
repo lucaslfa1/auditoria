@@ -3,7 +3,7 @@
 **Data da Ocorrência:** 03/05/2026 a 05/05/2026
 **Data da Resolução:** 05/05/2026
 **Módulo:** Integração Huawei AICC (Telefonia)
-**Responsável:** Gemini CLI / Lucas Afonso
+**Responsável:** Lucas Afonso
 
 ## 1. Descrição do Problema
 O sistema parou de realizar downloads em nuvem das ligações da Huawei a partir do dia 03/05 (domingo). Os relatórios de execução do cron indicavam:
