@@ -263,6 +263,15 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(quebrados[2].speaker, "Policia")
 
     def test_breaks_unpunctuated_segment_with_embedded_driver_denial(self):
+        import importlib
+        import sys
+        # Forca recarregamento dos modulos para isolar completamente contra poluicao de estado de outros testes.
+        for mod in ["audio.speaker_constants", "audio.speaker_heuristics", "audio.speaker_normalization", "audio.speaker_identification", "audio.speaker_detection"]:
+            if mod in sys.modules:
+                importlib.reload(sys.modules[mod])
+
+        from audio.speaker_detection import SegmentoFormatado, SpeakerDetectionService
+
         # O Azure Fast Transcription as vezes funde tres turnos num bloco unico,
         # SEM pontuacao, rotulado como Operador. A negativa de senha do motorista
         # ('a transportadora nao me deu senha') fica colada no turno do operador.
