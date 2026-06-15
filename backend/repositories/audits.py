@@ -63,213 +63,25 @@ from typing import Callable, Optional, Any
 
 ConnectionFactory = Callable[[], Any]
 
+# Helpers de normalização extraidos (v1.3.145); usados pelas funcoes que ficaram
+# (save_audit, get_audits_for_export, finalize_*, _resolve_open_review_queue) e
+# reexportados para compat (testes chamam os privados via repositories.audits).
+from repositories.audits_helpers import (  # noqa: E402,F401
+    _normalize_binary_detail_status,
+    _normalize_sector_id,
+    _normalize_operator_name,
+    _normalize_operator_id,
+)
+
+# Cota mensal por operador extraida para modulo proprio (v1.3.145); reexportada
+# para manter `repositories.audits.<nome>` patchavel e a fachada db.database valida.
+from repositories.audits_quota import (  # noqa: E402,F401
+    get_operator_audit_counts_for_month_bulk,
+    get_operator_audit_count_for_month,
+    get_supervisor_audit_count_for_month,
+)
+
 _REVIEW_DETAIL_STATUSES = {"pass", "fail"}
-
-
-# ── Normalização de entrada (identidade e status de critério) ────────────────
-
-def _normalize_binary_detail_status(raw_status: object) -> str:
-    """Colapsa o status de um critério para o modelo binário pass/fail.
-
-    `na`/`pending_manual` viram "pass" (não penalizam) e `partial` vira "fail"
-    (modelo binário não tem meio-termo). Levanta ValueError para valores fora
-    do vocabulário conhecido.
-    """
-    status = str(raw_status or "").strip().lower()
-    if status in {"pass", "na", "n/a", "pending_manual"}:
-        return "pass"
-    if status in {"fail", "partial"}:
-        return "fail"
-    raise ValueError("Status de criterio invalido.")
-
-def _normalize_sector_id(sector_id: Optional[str]) -> Optional[str]:
-    """Setor em minúsculas sem espaços nas bordas; vazio vira None."""
-    normalized = str(sector_id or "").strip().lower()
-    return normalized or None
-
-
-def _normalize_operator_name(operator_name: Optional[str]) -> Optional[str]:
-    """Nome do operador sem espaços nas bordas (preserva caixa); vazio vira None."""
-    normalized = str(operator_name or "").strip()
-    return normalized or None
-
-
-def _normalize_operator_id(operator_id: Optional[str]) -> Optional[str]:
-    """Id de telefonia do operador sem espaços nas bordas; vazio vira None."""
-    normalized = str(operator_id or "").strip()
-    return normalized or None
-
-
-# ── Cota mensal por operador (contagens) ─────────────────────────────────────
-# Estas funções só CONTAM; quem aplica o limite (2/operador/mês) são os
-# chamadores: sync Huawei (pré-filtro), automação e o endpoint de promoção.
-
-def get_operator_audit_counts_for_month_bulk(
-    get_connection: ConnectionFactory,
-    operator_keys: list[tuple[str, str]],   # [(name, id), ...]
-    year: int,
-    month: int,
-) -> dict[tuple[str, str], int]:
-    """Retorna {(name_lower, id_lower): count} para todos os operadores em UMA query.
-
-    Conta auditorias do mês no escopo de qualidade (`call_quality`) que não
-    foram descartadas, deduplicando por uid composto (operador|timestamp|
-    alerta|origem) para não contar re-auditorias do mesmo evento duas vezes.
-
-    Parâmetros:
-        operator_keys: pares (nome, id_telefonia) crus — são normalizados aqui.
-        year/month: mês-calendário de referência (usa audit_date com fallback
-            para timestamp).
-
-    Retorno: dict com TODAS as chaves de entrada (operador sem auditoria
-    aparece com 0, graças ao LEFT JOIN). Usado pelo sync Huawei para aplicar
-    a cota em lote sem N+1 de queries.
-    """
-    if not operator_keys:
-        return {}
-    
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        date_start = f"{year:04d}-{month:02d}-01"
-        date_end = f"{year + 1:04d}-01-01" if month == 12 else f"{year:04d}-{month + 1:02d}-01"
-        
-        # Prepara chaves normalizadas para matching
-        # Usamos uma CTE VALUES para fazer join com a tabela de auditorias
-        from psycopg2.extras import execute_values
-        
-        # Filtramos para pegar apenas auditorias do mes/ano atual que nao foram descartadas
-        # e estao no escopo de qualidade.
-        # Identidade e baseada em operator_id (prioridade) ou operator_name.
-        
-        # Para facilitar o join, normalizamos as chaves de entrada
-        normalized_keys = [
-            (str(name or "").strip().lower(), str(oid or "").strip().lower())
-            for name, oid in operator_keys
-        ]
-        
-        # Note: A query de contagem aqui segue a mesma logica da get_operator_audit_count_for_month
-        # mas agrupa por operador.
-        # VALUES montado manualmente (via mogrify, que escapa cada par) por ser
-        # mais seguro/previsível que execute_values em joins complexos com CTE.
-        values_list = ",".join(cursor.mogrify("(%s, %s)", k).decode('utf-8') for k in normalized_keys)
-        
-        final_query = f"""
-            WITH input_keys(search_name, search_id) AS (
-                VALUES {values_list}
-            ),
-            relevant_audits AS (
-                SELECT 
-                    LOWER(TRIM(COALESCE(operator_name, ''))) as op_name,
-                    LOWER(TRIM(COALESCE(operator_id, ''))) as op_id,
-                    CONCAT_WS(
-                        '|',
-                        COALESCE(NULLIF(TRIM(operator_id), ''), LOWER(TRIM(COALESCE(operator_name, '')))),
-                        COALESCE(timestamp::text, ''),
-                        COALESCE(alert_id, ''),
-                        COALESCE(source_type, '')
-                    ) as audit_uid
-                FROM audits
-                WHERE COALESCE(audit_date, timestamp) >= %s
-                  AND COALESCE(audit_date, timestamp) < %s
-                  AND COALESCE(audit_scope, %s) = %s
-                  AND COALESCE(status, '') <> %s
-            )
-            SELECT 
-                ik.search_name, 
-                ik.search_id, 
-                COUNT(DISTINCT ra.audit_uid)
-            FROM input_keys ik
-            LEFT JOIN relevant_audits ra ON (
-                (ik.search_id <> '' AND ra.op_id = ik.search_id)
-                OR (ik.search_id = '' AND ra.op_id = '' AND ra.op_name = ik.search_name)
-            )
-            GROUP BY ik.search_name, ik.search_id
-        """
-        
-        cursor.execute(final_query, (date_start, date_end, CALL_QUALITY_SCOPE, CALL_QUALITY_SCOPE, AUDIT_STATUS_DISCARDED))
-
-        
-        results = {}
-        for row in cursor.fetchall():
-            results[(row[0], row[1])] = int(row[2])
-        return results
-    finally:
-        conn.close()
-
-
-def get_operator_audit_count_for_month(
-    get_connection: ConnectionFactory,
-    operator_name: str,
-    year: int,
-    month: int,
-    operator_id: Optional[str] = None,
-) -> int:
-    """Conta auditorias do mês para UM operador (escopo qualidade, sem descartadas).
-
-    Delega para o bulk para manter consistência de critérios entre o caminho
-    unitário (automação/telefonia) e o caminho em lote (sync Huawei).
-    """
-    counts = get_operator_audit_counts_for_month_bulk(
-        get_connection, 
-        [(operator_name, operator_id)], 
-        year, 
-        month
-    )
-    key = (_normalize_operator_name(operator_name).lower() if operator_name else "", 
-           _normalize_operator_id(operator_id).lower() if operator_id else "")
-    return counts.get(key, 0)
-
-
-def get_supervisor_audit_count_for_month(
-    get_connection: ConnectionFactory,
-    operator_name: str,
-    year: int,
-    month: int,
-    operator_id: Optional[str] = None,
-) -> int:
-    """Conta auditorias do operador visíveis no painel do supervisor no mês.
-
-    Exclui `awaiting_pair` (ainda não enviadas) e `discarded` (soft-delete) —
-    ou seja, conta o que já OCUPA vaga no painel. É esta contagem que o
-    endpoint de promoção usa para aplicar o gate de cota 2/operador/mês
-    (commit 77299af5): atingiu a cota, o auditor precisa deletar uma auditoria
-    do painel para liberar espaço.
-
-    Difere da contagem de `get_operator_audit_count_for_month` (cota de
-    PRODUÇÃO de auditorias, inclui awaiting_pair): aqui a régua é o painel.
-    """
-    import calendar
-    from datetime import date
-    from db.domain_constants import AUDIT_STATUS_AWAITING_PAIR, AUDIT_STATUS_DISCARDED
-    
-    start_date = date(year, month, 1)
-    end_date = date(year, month, calendar.monthrange(year, month)[1])
-    
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        op_id_norm = _normalize_operator_id(operator_id)
-        op_name_norm = _normalize_operator_name(operator_name)
-        
-        query = """
-            SELECT COUNT(*) 
-            FROM audits 
-            WHERE CAST(COALESCE(audit_date, timestamp) AS DATE) >= %s 
-              AND CAST(COALESCE(audit_date, timestamp) AS DATE) <= %s
-              AND status NOT IN (%s, %s)
-              AND (
-                  (TRIM(COALESCE(operator_id, '')) <> '' AND TRIM(COALESCE(operator_id, '')) = %s)
-                  OR 
-                  (TRIM(COALESCE(operator_id, '')) = '' AND LOWER(TRIM(COALESCE(operator_name, ''))) = LOWER(%s))
-              )
-        """
-        cursor.execute(query, (start_date, end_date, AUDIT_STATUS_AWAITING_PAIR, AUDIT_STATUS_DISCARDED, op_id_norm, op_name_norm))
-        row = cursor.fetchone()
-        return int(row[0]) if row else 0
-    finally:
-        conn.close()
-
 
 
 # ── Fila de revisão do supervisor (awaiting_pair → pending_approval) ─────────
@@ -1046,38 +858,46 @@ def get_audit_by_id(get_connection: ConnectionFactory, audit_id: int) -> Optiona
             original_filename = None
 
         return {
-            "id": row["id"],
-            "timestamp": row["timestamp"],
-            "audio_date": row["audit_date"] if "audit_date" in row.keys() else None,
-            "operator_name": row["operator_name"] or "",
-            "operator_id": row["operator_id"] or "",
-            "score": row["score"],
-            "max_score": row["max_score"],
-            "summary": row["summary"] or "",
-            "details": json_loads(row["details_json"], []),
-            "transcription": json_loads(row["transcription_json"], []),
-            "input_hash": row["input_hash"] or "",
-            "alert_id": row["alert_id"] if "alert_id" in row.keys() else None,
-            "alert_label": row["alert_label"] if "alert_label" in row.keys() else None,
-            "sector_id": row["sector_id"] if "sector_id" in row.keys() else None,
-            "supervisor": row["supervisor"] if "supervisor" in row.keys() else "",
-            "escala": row["escala"] if "escala" in row.keys() else "",
-            "source_type": normalize_source_type(row["source_type"], default=DEFAULT_SOURCE_TYPE),
-            "audit_scope": get_audit_scope(row),
-            "audio_quality": json_loads(row["audio_quality"], None),
-            "audio_available": audio_available,
-            "audio_url": f"/api/audit/{row['id']}/audio" if audio_available else None,
-            "audio_mime_type": mime_type,
-            "audio_original_filename": original_filename,
-            "audio_size_bytes": size_bytes,
-            "ai_feedback": row["ai_feedback"] if "ai_feedback" in row.keys() else None,
-            "status": row["status"] if "status" in row.keys() else None,
-            "contestation_reason": row["contestation_reason"] if "contestation_reason" in row.keys() else None,
-            "contested_criteria": json_loads(row["contested_criteria"], None) if "contested_criteria" in row.keys() else None,
-            "contestation_verdict": row["contestation_verdict"] if "contestation_verdict" in row.keys() else None,
-            "review_defense": row["review_defense"] if "review_defense" in row.keys() else None,
-            "reviewed_by": row["reviewed_by"] if "reviewed_by" in row.keys() else None,
-            "reviewed_at": row["reviewed_at"] if "reviewed_at" in row.keys() else None,
+            # --- Identificação / data ---
+            "id": row["id"],                                  # PK da auditoria (tabela audits)
+            "timestamp": row["timestamp"],                    # quando a auditoria foi criada
+            "audio_date": row["audit_date"] if "audit_date" in row.keys() else None,  # data real da ligação (audit_date), não a da auditoria
+            # --- Operador auditado ---
+            "operator_name": row["operator_name"] or "",      # nome do operador
+            "operator_id": row["operator_id"] or "",          # id de telefonia do operador (prioritário p/ matching)
+            # --- Resultado da avaliação ---
+            "score": row["score"],                            # nota obtida
+            "max_score": row["max_score"],                    # nota máxima possível
+            "summary": row["summary"] or "",                  # resumo textual da avaliação
+            "details": json_loads(row["details_json"], []),   # lista de critérios avaliados (status/peso/comentário)
+            "transcription": json_loads(row["transcription_json"], []),  # transcrição diarizada (segmentos)
+            "input_hash": row["input_hash"] or "",            # hash do conteúdo do arquivo (dedupe da gravação)
+            # --- Classificação (setor/alerta) ---
+            "alert_id": row["alert_id"] if "alert_id" in row.keys() else None,        # id do alerta auditado
+            "alert_label": row["alert_label"] if "alert_label" in row.keys() else None,  # rótulo legível do alerta
+            "sector_id": row["sector_id"] if "sector_id" in row.keys() else None,     # setor da auditoria
+            # --- Vínculo de RH (via JOIN colaboradores) ---
+            "supervisor": row["supervisor"] if "supervisor" in row.keys() else "",    # supervisor do operador (cadastro)
+            "escala": row["escala"] if "escala" in row.keys() else "",                # escala/turno do operador (cadastro)
+            # --- Tipo/escopo ---
+            "source_type": normalize_source_type(row["source_type"], default=DEFAULT_SOURCE_TYPE),  # audio | pdf
+            "audit_scope": get_audit_scope(row),              # escopo da auditoria (call_quality)
+            # --- Áudio (disponibilidade + metadados) ---
+            "audio_quality": json_loads(row["audio_quality"], None),  # score/diagnóstico de qualidade do áudio
+            "audio_available": audio_available,               # há áudio servível (caminho próprio ou fallback por hash)
+            "audio_url": f"/api/audit/{row['id']}/audio" if audio_available else None,  # endpoint de streaming (None se sem áudio)
+            "audio_mime_type": mime_type,                     # mime do áudio (ex.: audio/wav)
+            "audio_original_filename": original_filename,      # nome original do arquivo
+            "audio_size_bytes": size_bytes,                   # tamanho do áudio em bytes
+            "ai_feedback": row["ai_feedback"] if "ai_feedback" in row.keys() else None,  # feedback técnico da IA p/ o operador
+            # --- Estado / fluxo de contestação ---
+            "status": row["status"] if "status" in row.keys() else None,  # awaiting_pair|pending_approval|approved|contestation_*|discarded
+            "contestation_reason": row["contestation_reason"] if "contestation_reason" in row.keys() else None,  # motivo da contestação (supervisor)
+            "contested_criteria": json_loads(row["contested_criteria"], None) if "contested_criteria" in row.keys() else None,  # critérios contestados
+            "contestation_verdict": row["contestation_verdict"] if "contestation_verdict" in row.keys() else None,  # veredito (accepted|rejected)
+            "review_defense": row["review_defense"] if "review_defense" in row.keys() else None,  # defesa técnica do auditor
+            "reviewed_by": row["reviewed_by"] if "reviewed_by" in row.keys() else None,  # quem finalizou a revisão
+            "reviewed_at": row["reviewed_at"] if "reviewed_at" in row.keys() else None,  # quando a revisão foi finalizada
         }
     finally:
         conn.close()
@@ -1687,33 +1507,36 @@ def get_audits_for_export(
                 size_bytes = None
 
             results.append(
+                # CONTRATO BI: as chaves e a semântica abaixo são consumidas pelo
+                # fechamento/BI. NÃO renomear nem alterar significado (só adicionar
+                # campos novos, se preciso, sem mexer nos existentes).
                 {
-                    "id": row["id"],
-                    "timestamp": row["timestamp"],
-                    "operator_name": row["operator_name"],
-                    "operator_id": row["operator_id"] or "",
-                    "score": row["score"],
-                    "max_score": row["max_score"],
-                    "summary": row["summary"],
-                    "details": row["details_json"],
-                    "transcription": json_loads(row["transcription_json"], []) if "transcription_json" in row.keys() else [],
-                    "alert_id": row["alert_id"] if "alert_id" in row.keys() else None,
-                    "alert_label": row["alert_label"] if "alert_label" in row.keys() else None,
-                    "sector_id": row["sector_id"] if "sector_id" in row.keys() else None,
-                    "status": row["status"] if "status" in row.keys() else None,
-                    "contestation_reason": row["contestation_reason"] if "contestation_reason" in row.keys() else None,
-                    "contested_criteria": json_loads(row["contested_criteria"], None) if "contested_criteria" in row.keys() else None,
-                    "contestation_verdict": row["contestation_verdict"] if "contestation_verdict" in row.keys() else None,
-                    "review_defense": row["review_defense"] if "review_defense" in row.keys() else None,
-                    "reviewed_by": row["reviewed_by"] if "reviewed_by" in row.keys() else None,
-                    "reviewed_at": row["reviewed_at"] if "reviewed_at" in row.keys() else None,
-                    "supervisor": row["supervisor"] or "",
-                    "escala": row["escala"] or "",
-                    "audio_available": audio_available,
-                    "audio_url": f"/api/audit/{row['id']}/audio" if audio_available else None,
-                    "audio_mime_type": mime_type,
-                    "audio_size_bytes": size_bytes,
-                    "feedback": feedback,
+                    "id": row["id"],                          # PK da auditoria
+                    "timestamp": row["timestamp"],            # quando a auditoria foi criada
+                    "operator_name": row["operator_name"],    # nome do operador auditado
+                    "operator_id": row["operator_id"] or "",  # id de telefonia do operador
+                    "score": row["score"],                    # nota obtida
+                    "max_score": row["max_score"],            # nota máxima possível
+                    "summary": row["summary"],                # resumo da avaliação
+                    "details": row["details_json"],           # critérios (JSON cru — string, não desserializado aqui)
+                    "transcription": json_loads(row["transcription_json"], []) if "transcription_json" in row.keys() else [],  # transcrição diarizada
+                    "alert_id": row["alert_id"] if "alert_id" in row.keys() else None,        # id do alerta
+                    "alert_label": row["alert_label"] if "alert_label" in row.keys() else None,  # rótulo do alerta
+                    "sector_id": row["sector_id"] if "sector_id" in row.keys() else None,     # setor
+                    "status": row["status"] if "status" in row.keys() else None,             # estado da auditoria
+                    "contestation_reason": row["contestation_reason"] if "contestation_reason" in row.keys() else None,  # motivo da contestação
+                    "contested_criteria": json_loads(row["contested_criteria"], None) if "contested_criteria" in row.keys() else None,  # critérios contestados
+                    "contestation_verdict": row["contestation_verdict"] if "contestation_verdict" in row.keys() else None,  # veredito (accepted|rejected)
+                    "review_defense": row["review_defense"] if "review_defense" in row.keys() else None,  # defesa técnica do auditor
+                    "reviewed_by": row["reviewed_by"] if "reviewed_by" in row.keys() else None,  # quem revisou
+                    "reviewed_at": row["reviewed_at"] if "reviewed_at" in row.keys() else None,  # quando revisou
+                    "supervisor": row["supervisor"] or "",    # supervisor do operador (cadastro)
+                    "escala": row["escala"] or "",            # escala/turno do operador (cadastro)
+                    "audio_available": audio_available,       # há áudio servível
+                    "audio_url": f"/api/audit/{row['id']}/audio" if audio_available else None,  # endpoint de streaming
+                    "audio_mime_type": mime_type,             # mime do áudio
+                    "audio_size_bytes": size_bytes,           # tamanho do áudio em bytes
+                    "feedback": feedback,                     # feedback do gestor (dict) ou None
                 }
             )
 
