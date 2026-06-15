@@ -39,8 +39,6 @@ import { useAuditOrchestrator } from './features/audit/hooks/useAuditOrchestrato
 import { LazyErrorBoundary } from './shared/components/LazyErrorBoundary';
 
 // ── Páginas carregadas sob demanda (code-splitting por feature) ──
-// Módulo de Dashboard/BI in-app removido em 2026-06-12 (não usaremos por
-// enquanto); as views 'dashboard' e 'performance' deixaram de existir.
 const Classifier = lazy(() =>
   import('./features/classifier/components/Classifier').then((module) => ({ default: module.Classifier }))
 );
