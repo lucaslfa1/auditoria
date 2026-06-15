@@ -11,7 +11,6 @@ import {
   ClipboardCheck,
   Eye,
   FileText,
-  LayoutDashboard,
   LogOut,
   PhoneCall,
   Scale,
@@ -231,12 +230,6 @@ export function Sidebar({
               </div>
             )}
             {collapsed && <div className="mt-6 mb-2 border-t border-white/5 mx-2" />}
-
-            <button onClick={() => handleViewChange('dashboard')} className={navItemClass(view === 'dashboard', collapsed)} title={collapsed ? 'Dashboard' : ''}>
-              <LayoutDashboard size={20} className={navIconClass(view === 'dashboard')} />
-              {!collapsed && <span className="truncate block hidden md:block lg:block">Dashboard de Qualidade</span>}
-              {!collapsed && <span className="md:hidden block">Dashboard</span>}
-            </button>
 
             <button onClick={() => handleViewChange('fechamento')} className={navItemClass(view === 'fechamento', collapsed)} title={collapsed ? 'Fechamento' : ''}>
               <ClipboardCheck size={20} className={navIconClass(view === 'fechamento')} />
