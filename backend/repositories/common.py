@@ -165,6 +165,12 @@ def normalize_quality_reference(qualidade: Optional[str]) -> str:
     return "indefinida"
 
 
+def normalize_sector_id(value: Optional[str]) -> Optional[str]:
+    """Normaliza id de setor (trim + minúsculas); vazio/None vira None."""
+    normalized = str(value or "").strip().lower()
+    return normalized or None
+
+
 def normalize_review_status(status: Optional[str]) -> str:
     valor = str(status or REVIEW_QUEUE_STATUS_PENDING).strip().lower()
     legacy_aliases = {
