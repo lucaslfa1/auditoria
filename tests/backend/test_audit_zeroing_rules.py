@@ -137,6 +137,35 @@ class TestAuditZeroingRules(unittest.TestCase):
         self.assertIn("Nota zerada", result.summary)
         self.assertIn("solicitar_senha_ou_cpf", result.fatal_flags)
 
+    def test_operator_assumed_denial_without_driver_confirmation_still_zeroes(self):
+        # Regra 2026-06-12: a confirmacao de "nao tem senha" PRECISA vir do
+        # motorista. O operador presumir ("o senhor nao tem a senha, ne?") e
+        # ir direto pro CPF, sem o motorista confirmar, NAO e fallback legitimo
+        # e deve zerar.
+        result = result_from_raw(
+            {
+                "summary": "Operador presumiu ausencia de senha e foi pro CPF.",
+                "details": [
+                    {
+                        "criterionId": "senha",
+                        "status": "pass",
+                        "comment": "Operador validou CPF.",
+                    }
+                ],
+                "fatal_flags": ["solicitar_senha_ou_cpf"],
+            },
+            [AuditCriterion(id="senha", label="Confirmou a senha de segurança?", weight=2.0)],
+            transcription_data=[
+                {"start": "00:00", "end": "00:03", "text": "Operador: O senhor nao tem a senha, ne? Entao confirma o CPF."},
+                {"start": "00:03", "end": "00:06", "text": "Motorista: 12345678901."},
+            ],
+            sector_id="bas",
+        )
+
+        self.assertEqual(result.score, 0.0)
+        self.assertIn("Nota zerada", result.summary)
+        self.assertIn("solicitar_senha_ou_cpf", result.fatal_flags)
+
 
 if __name__ == "__main__":
     unittest.main()

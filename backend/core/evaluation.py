@@ -124,6 +124,21 @@ def _segment_password_flow_text(segment: Any) -> str:
     return _normalize_password_flow_text(getattr(segment, "text", segment))
 
 
+def _segment_is_operator(normalized_text: str) -> bool:
+    """True se o trecho (ja normalizado) e fala do OPERADOR.
+
+    A transcricao vem diarizada com prefixo de locutor no proprio texto
+    ('Operador:' / 'Operador BAS:' / 'Motorista:' / nome do condutor). O
+    operador e sempre rotulado 'Operador...'. Sem prefixo (transcricao nao
+    diarizada), assume-se que NAO e o operador — mantem o comportamento
+    leniente para audios sem diarizacao.
+    """
+    if ":" not in normalized_text:
+        return False
+    speaker = normalized_text.split(":", 1)[0].strip()
+    return speaker.startswith("operador")
+
+
 def _is_password_request_text(text: str) -> bool:
     return "senha" in text and any(
         cue in text
@@ -189,11 +204,17 @@ def _has_cpf_signal(text: str) -> bool:
 
 
 def _has_legitimate_cpf_password_fallback(transcription_data: Any) -> bool:
-    """True quando a conversa mostra senha solicitada/negada antes do CPF.
+    """True quando o MOTORISTA confirma que nao tem senha antes do CPF.
 
-    Essa guarda corrige falso positivo de zeragem: motorista diz que nao tem
-    ou nao recebeu a senha, entao o operador pode validar por CPF. Sem uma
-    negativa antes do CPF, a regra segue zerando por senha/CPF direto.
+    Regra de auditoria (Fatima, 2026-06-12): se o motorista confirma que nao
+    tem/nao recebeu/nao lembra/nao consegue acessar a senha, ele pode validar
+    por CPF — fallback legitimo, nao zera. O que NAO pode acontecer e o
+    operador pedir ou aceitar o CPF SEM essa confirmacao do motorista.
+
+    Por isso a negativa so conta quando vem do MOTORISTA: o operador nao pode
+    presumir ('o senhor nao tem a senha, ne? entao passa o CPF') nem colocar a
+    negativa na boca do condutor. O pedido de CPF em si pode ser do operador,
+    desde que ja exista a confirmacao previa do motorista.
     """
     if not isinstance(transcription_data, list):
         return False
@@ -205,10 +226,14 @@ def _has_legitimate_cpf_password_fallback(transcription_data: Any) -> bool:
         text = _segment_password_flow_text(segment)
         if not text:
             continue
+        is_operator = _segment_is_operator(text)
         if _is_password_request_text(text):
             password_requested = True
-        if _is_password_unavailable_text(text, password_requested):
+        # A confirmacao de "nao tem senha" PRECISA ser do motorista.
+        if not is_operator and _is_password_unavailable_text(text, password_requested):
             password_unavailable = True
+        # O CPF pode aparecer na fala do motorista (ele dita) ou no pedido do
+        # operador — mas so vale apos a confirmacao do motorista acima.
         if password_unavailable and _has_cpf_signal(text):
             return True
 
