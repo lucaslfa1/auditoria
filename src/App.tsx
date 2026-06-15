@@ -39,12 +39,8 @@ import { useAuditOrchestrator } from './features/audit/hooks/useAuditOrchestrato
 import { LazyErrorBoundary } from './shared/components/LazyErrorBoundary';
 
 // ── Páginas carregadas sob demanda (code-splitting por feature) ──
-const Dashboard = lazy(() =>
-  import('./features/dashboard/components/Dashboard').then((module) => ({ default: module.Dashboard }))
-);
-const PerformanceDashboard = lazy(() =>
-  import('./features/dashboard/components/PerformanceDashboard').then((module) => ({ default: module.PerformanceDashboard }))
-);
+// Módulo de Dashboard/BI in-app removido em 2026-06-12 (não usaremos por
+// enquanto); as views 'dashboard' e 'performance' deixaram de existir.
 const Classifier = lazy(() =>
   import('./features/classifier/components/Classifier').then((module) => ({ default: module.Classifier }))
 );
@@ -333,26 +329,6 @@ function App() {
         <LazyErrorBoundary fallbackLabel="Portal do Supervisor">
           <Suspense fallback={<div className="glass-panel rounded-2xl p-6 text-slate-400"><span translate="no">Carregando portal...</span></div>}>
             <SupervisorPortal userRole={userRole} />
-          </Suspense>
-        </LazyErrorBoundary>
-      );
-    }
-
-    if (view === 'dashboard') {
-      return (
-        <LazyErrorBoundary fallbackLabel="Dashboard">
-          <Suspense fallback={<div className="glass-panel rounded-2xl p-6 text-slate-400"><span translate="no">Carregando dashboard...</span></div>}>
-            <Dashboard onNavigateToFiles={() => setView('salvos')} />
-          </Suspense>
-        </LazyErrorBoundary>
-      );
-    }
-
-    if (view === 'performance') {
-      return (
-        <LazyErrorBoundary fallbackLabel="Performance">
-          <Suspense fallback={<div className="glass-panel rounded-2xl p-6 text-slate-400"><span translate="no">Carregando performance...</span></div>}>
-            <PerformanceDashboard />
           </Suspense>
         </LazyErrorBoundary>
       );
