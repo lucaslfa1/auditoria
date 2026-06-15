@@ -48,7 +48,6 @@ for name, imp in [
     ("speaker_detection", "from speaker_detection import SpeakerDetectionService"),
     ("transcription_orchestrator", "from transcription_orchestrator import infer_interlocutor_label"),
     ("routers.auth", "from routers.auth import require_authenticated_user, require_admin"),
-    ("routers.analytics", "from routers.analytics import router as analytics_router"),
     ("routers.audit", "from routers.audit import router as audit_router"),
     ("routers.supervisor", "from routers.supervisor import router as supervisor_router"),
     ("routers.admin", "from routers.admin import router as admin_router"),

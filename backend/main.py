@@ -27,7 +27,6 @@ from routers.audit import router as audit_router
 from routers.auth import SESSION_COOKIE_NAME, router as auth_router
 from routers.classifier import router as classifier_router
 from routers.common import generate_temporary_password as _generate_temporary_password
-from routers.analytics import router as analytics_router
 from routers.automation import router as automation_router
 from routers.telefonia import router as telefonia_router
 from routers.review import router as review_router
@@ -414,7 +413,6 @@ app.include_router(classifier_router)
 app.include_router(supervisor_router)
 app.include_router(review_router)
 app.include_router(admin_router)
-app.include_router(analytics_router)
 app.include_router(automation_router)
 app.include_router(telefonia_router)
 app.include_router(ai_feedback_router)
