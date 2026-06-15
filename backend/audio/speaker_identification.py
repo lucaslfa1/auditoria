@@ -828,6 +828,66 @@ def suavizar_troca_isolada_de_speaker(segmentos: List[SegmentoFormatado]) -> Lis
                 _aplicar_override_heuristico(res[i], ant.speaker)
     return res
 
+# Marcadores que, no MEIO de um bloco sem pontuação, sinalizam o INÍCIO de um
+# novo turno. Servem para separar turnos que o STT fundiu num único segmento sem
+# pontuação (ex.: operador pede senha -> motorista nega -> operador pede CPF), caso
+# em que quebrar_texto_em_clausulas (que só corta em .!?) devolve uma cláusula só.
+# Cada âncora é uma sequência de palavras já normalizadas. Cortes em excesso são
+# inofensivos: cláusulas do mesmo locutor recebem o mesmo rótulo e são remescladas
+# por mesclar_segmentos_consecutivos mais adiante no pipeline.
+_SUBTURN_ANCHORS: Tuple[Tuple[str, ...], ...] = (
+    # Reinício de turno do OPERADOR (tratamento formal).
+    ("o", "senhor"),
+    ("a", "senhora"),
+    # Auto-relato / negativa do MOTORISTA encravado no turno do operador.
+    ("nao", "me", "deu"),
+    ("nao", "tenho"),
+    ("nao", "recebi"),
+    ("nao", "chegou"),
+    ("sem", "senha"),
+)
+
+_SUBTURN_MIN_PALAVRAS = 8
+
+
+def dividir_em_subturnos(texto: str) -> List[str]:
+    """Divide um bloco SEM pontuação em sub-turnos por marcadores de início de turno.
+
+    Complementa quebrar_texto_em_clausulas para os casos em que o STT devolve vários
+    turnos colados sem pontuação. Retorna [texto] quando não há marcador suficiente
+    para um corte seguro (nenhuma divisão é forçada às cegas).
+    """
+    base = (texto or "").strip()
+    if not base:
+        return []
+    palavras = base.split()
+    if len(palavras) < _SUBTURN_MIN_PALAVRAS:
+        return [base]
+
+    norm = [normalizar_texto(p) for p in palavras]
+    cortes: set[int] = set()
+    for i in range(1, len(palavras)):  # nunca corta na posição 0
+        for ancora in _SUBTURN_ANCHORS:
+            n = len(ancora)
+            if i + n <= len(palavras) and tuple(norm[i:i + n]) == ancora:
+                cortes.add(i)
+                break
+    if not cortes:
+        return [base]
+
+    pedacos: List[str] = []
+    anterior = 0
+    for corte in sorted(cortes):
+        pedaco = " ".join(palavras[anterior:corte]).strip()
+        if pedaco:
+            pedacos.append(pedaco)
+        anterior = corte
+    final = " ".join(palavras[anterior:]).strip()
+    if final:
+        pedacos.append(final)
+    return pedacos or [base]
+
+
 def quebrar_segmentos_hibridos(segmentos: List[SegmentoFormatado], operator_label: str, driver_label: str) -> List[SegmentoFormatado]:
     """Divide turnos mistos apenas quando a diarização acústica não está confiável."""
     if len(segmentos) < 2:
@@ -836,6 +896,10 @@ def quebrar_segmentos_hibridos(segmentos: List[SegmentoFormatado], operator_labe
     res: List[SegmentoFormatado] = []
     for i, seg in enumerate(segmentos):
         clausulas = quebrar_texto_em_clausulas(seg.texto)
+        if len(clausulas) < 2:
+            # Fast Transcription às vezes funde turnos num bloco sem pontuação;
+            # tenta uma divisão secundária por marcadores de início de turno.
+            clausulas = dividir_em_subturnos(seg.texto)
         if len(clausulas) < 2:
             res.append(seg)
             continue

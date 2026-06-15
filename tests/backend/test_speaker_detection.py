@@ -6,6 +6,7 @@ from datetime import timedelta
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from audio.speaker_detection import RawPhrase, SegmentoFormatado, SpeakerDetectionService
+from audio.speaker_identification import dividir_em_subturnos
 
 
 class TestSpeakerDetection(unittest.TestCase):
@@ -260,6 +261,63 @@ class TestSpeakerDetection(unittest.TestCase):
 
         self.assertEqual(quebrados[1].speaker, "Operador")
         self.assertEqual(quebrados[2].speaker, "Policia")
+
+    def test_breaks_unpunctuated_segment_with_embedded_driver_denial(self):
+        # O Azure Fast Transcription as vezes funde tres turnos num bloco unico,
+        # SEM pontuacao, rotulado como Operador. A negativa de senha do motorista
+        # ('a transportadora nao me deu senha') fica colada no turno do operador.
+        # O splitter precisa separar para a fala ser atribuida ao Motorista
+        # (caso real: audit 185, setor fenix, zerado indevidamente por senha).
+        bloco = (
+            "alo alo aqui e falo com o senhor jose luiz isso tudo bem senhor jose luiz "
+            "aqui e a nete do rastreamento opentech poderia me informar sua senha de seguranca "
+            "olha a transportadora nao me deu senha nao eu to colocando os quatro ultimos "
+            "numeros do meu telefone o senhor poderia me informar seu cpf para poder validar a ligacao"
+        )
+        segmentos = [
+            SegmentoFormatado(
+                timestamp=timedelta(seconds=27),
+                speaker="Operador",
+                texto=bloco,
+                texto_normalizado=SpeakerDetectionService.normalizar_texto(bloco),
+                duracao_seconds=28.0,
+            ),
+            SegmentoFormatado(
+                timestamp=timedelta(seconds=57),
+                speaker="Motorista",
+                texto="02287984852",
+                texto_normalizado=SpeakerDetectionService.normalizar_texto("02287984852"),
+                duracao_seconds=9.0,
+            ),
+        ]
+
+        quebrados = SpeakerDetectionService.quebrar_segmentos_hibridos(segmentos, "Operador", "Motorista")
+
+        texto_motorista = " ".join(
+            s.texto_normalizado for s in quebrados if s.speaker == "Motorista"
+        )
+        texto_operador = " ".join(
+            s.texto_normalizado for s in quebrados if s.speaker == "Operador"
+        )
+        # A negativa de senha pertence ao motorista, nao ao operador.
+        self.assertIn("nao me deu senha", texto_motorista)
+        self.assertNotIn("nao me deu senha", texto_operador)
+        # O operador continua dono da saudacao e do pedido de senha/CPF.
+        self.assertIn("poderia me informar sua senha", texto_operador)
+
+    def test_dividir_em_subturnos_nao_divide_monologo_sem_marcador(self):
+        # Bloco longo sem pontuação mas SEM troca de turno (monólogo do operador
+        # orientando o motorista) não deve ser fatiado: nenhuma âncora de início
+        # de turno de outro locutor aparece, então retorna o texto inteiro.
+        bloco = (
+            "entao vou te explicar como funciona o procedimento de rastreamento "
+            "voce vai ligar a ignicao esperar um pouquinho e mandar a localizacao "
+            "pelo aplicativo que a gente acompanha por aqui tranquilo"
+        )
+        self.assertEqual(dividir_em_subturnos(bloco), [bloco])
+
+    def test_dividir_em_subturnos_ignora_segmento_curto(self):
+        self.assertEqual(dividir_em_subturnos("o senhor pode confirmar"), ["o senhor pode confirmar"])
 
     def test_maps_multiple_raw_ids_to_same_operator_persona(self):
         phrases = [
