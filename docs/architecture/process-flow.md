@@ -230,8 +230,6 @@ Rotas reais conforme `src/App.tsx`. View default (vazia) = `automacao` (não mai
 | Supervisor | `supervisor` | `/api/gestores/*` | `SupervisorPortal` |
 | Pendentes | `pending-dispatch` | `/api/audit/{id}/promote-...` | `PendingDispatch` — fila awaiting_pair → enviar em lote |
 | Fechamento | `fechamento` | `/api/fechamento/*` | `FechamentoPage` |
-| Dashboard | `dashboard` | `/api/analytics/*` | `Dashboard` (admin) |
-| Performance | `performance` | `/api/analytics/*` | `PerformanceDashboard` |
 | Operadores | `colaboradores` | `/api/operadores/*` | `ColaboradoresPage` |
 | Configurações | `settings` | configs em `configuracoes` | `Settings` (admin) |
 | Contestações | `review` | `/api/gestores/auditorias/.../contest` | `ReviewPage` (admin) |
@@ -308,7 +306,7 @@ Rotas reais conforme `src/App.tsx`. View default (vazia) = `automacao` (não mai
 - `/api/criteria/*` — catálogo de critérios
 - `/api/classify` — classificação em lote (módulo Triagem)
 - `/api/gestores/*` — Portal do Supervisor (aprovar, contestar, exportar gestores)
-- `/api/operadores`, `/api/supervisores`, `/api/analytics`, `/api/fechamento`, `/api/ai-feedback`, `/api/golden-dataset`, `/api/admin/ai-prompts`, `/api/admin/sector-aliases`
+- `/api/operadores`, `/api/supervisores`, `/api/fechamento`, `/api/ai-feedback`, `/api/golden-dataset`, `/api/admin/ai-prompts`, `/api/admin/sector-aliases`
 
 ---
 

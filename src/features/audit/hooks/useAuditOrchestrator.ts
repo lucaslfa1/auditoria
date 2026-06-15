@@ -14,7 +14,6 @@ interface PendingAuditJob {
 
 type ViewType =
   | 'audit'
-  | 'dashboard'
   | 'classifier'
   | 'colaboradores'
   | 'settings'

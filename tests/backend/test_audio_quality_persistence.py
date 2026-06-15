@@ -127,18 +127,10 @@ class TestAudioQualityPersistence(unittest.TestCase):
             status="approved"
         )
 
-        analytics = database.get_analytics("bas")
         stats = database.get_stats()
         history = database.get_history(limit=10)
         incidents = database.get_technical_incidents(limit=10, sector_id="bas")
 
-        self.assertEqual(analytics["total_audits"], 2)
-        self.assertEqual(analytics["valid_audits"], 2)
-        self.assertEqual(analytics["invalid_audits"], 0)
-        self.assertEqual(analytics["telephony_audits"], 0)
-        self.assertEqual(analytics["average_score"], 4.5)
-        self.assertEqual(analytics["average_score_percentage"], 45.0)
-        self.assertEqual(analytics["pass_rate"], 50.0)
         self.assertEqual(stats["total_audits"], 2)
         self.assertEqual(stats["telephony_audits"], 0)
         self.assertEqual(stats["average_score"], 4.5)

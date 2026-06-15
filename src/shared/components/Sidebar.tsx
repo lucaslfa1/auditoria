@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useDialogFocusTrap } from '../hooks/useDialogFocusTrap';
 
-type ViewType = 'audit' | 'dashboard' | 'classifier' | 'colaboradores' | 'settings' | 'supervisor' | 'review' | 'salvos' | 'ia' | 'criterios' | 'admin' | 'admin-aliases' | 'admin-sectors' | 'admin-prompts' | 'telefonia' | 'automacao' | 'fechamento' | 'pending-dispatch';
+type ViewType = 'audit' | 'classifier' | 'colaboradores' | 'settings' | 'supervisor' | 'review' | 'salvos' | 'ia' | 'criterios' | 'admin' | 'admin-aliases' | 'admin-sectors' | 'admin-prompts' | 'telefonia' | 'automacao' | 'fechamento' | 'pending-dispatch';
 
 interface SidebarProps {
   view: ViewType;

@@ -308,11 +308,6 @@ def get_sectors(_user: dict = Depends(require_authenticated_user)) -> list:
     return database.get_sectors()
 
 
-@router.get("/api/analytics")
-def get_audit_analytics(sector_id: str = None, _user: dict = Depends(require_authenticated_user)) -> dict:
-    return database.get_analytics(sector_id)
-
-
 @router.get("/api/dashboard/ligacoes-auditadas/resumo")
 def get_dashboard_ligacoes_auditadas_resumo(
     sector_id: str = None,

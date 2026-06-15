@@ -138,7 +138,7 @@ try:
     routes = [r.path for r in app.routes if hasattr(r, 'path')]
     api_routes = [r for r in routes if r.startswith("/api/")]
     ok(f"{len(api_routes)} rotas API registradas")
-    for prefix in ["/api/auth", "/api/audit", "/api/analytics", "/api/admin"]:
+    for prefix in ["/api/auth", "/api/audit", "/api/admin"]:
         matching = [r for r in api_routes if r.startswith(prefix)]
         if matching:
             ok(f"Router '{prefix}' ({len(matching)} endpoints)")

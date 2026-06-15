@@ -1313,13 +1313,6 @@ def get_sectors():
     return repository_get_sectors(get_connection)
 
 
-def get_analytics(sector_id: str = None):
-    """Fachada: delega para `repositories.analytics.get_analytics` (implementação e docstring lá)."""
-    from repositories.analytics import get_analytics as repository_get_analytics
-
-    return repository_get_analytics(get_connection, sector_id)
-
-
 def get_technical_incidents(limit: int = 50, sector_id: str = None):
     """Fachada: delega para `repositories.analytics.get_technical_incidents` (implementação e docstring lá)."""
     from repositories.analytics import get_technical_incidents as repository_get_technical_incidents
