@@ -649,6 +649,13 @@ export default function FechamentoPage() {
                         onChange={e => handleCellChange(idx, 'supervisor', e.target.value)}
                         className="w-full bg-transparent border-none px-2 py-1 rounded text-slate-400 disabled:cursor-not-allowed disabled:opacity-80"
                       >
+                        {/* Supervisor do cadastro pode nao estar na lista de
+                            supervisores ativos; sem esta opcao o select
+                            desabilitado exibiria em branco (o Excel sai certo,
+                            mas a tela enganava). */}
+                        {row.supervisor && !supervisorOptions.includes(row.supervisor) && (
+                          <option value={row.supervisor}>{row.supervisor}</option>
+                        )}
                         <option value="">-</option>
                         {supervisorOptions.map(supervisor => (
                           <option key={supervisor} value={supervisor}>{supervisor}</option>
