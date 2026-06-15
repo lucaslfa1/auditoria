@@ -119,8 +119,8 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertEqual(rows[0]["operacional"], "8.0")
         self.assertIn("COALESCE(audit_date, timestamp)::TIMESTAMP >= %s", cursor.sql)
         self.assertIn("COALESCE(audit_date, timestamp)::TIMESTAMP < %s", cursor.sql)
-        self.assertIn("c.supervisor as supervisor", cursor.sql)
-        self.assertNotIn("f.supervisor_override, c.supervisor", cursor.sql)
+        # Supervisor editavel: base no cadastro vivo, override do auditor vence.
+        self.assertIn("NULLIF(f.supervisor_override, ''), NULLIF(c.supervisor, '')", cursor.sql)
         self.assertNotIn("EXTRACT(MONTH", cursor.sql)
         self.assertEqual(cursor.params, (list(FECHAMENTO_NOTA_STATUSES), "2026-04-01", "2026-05-01", 4, 2026))
 
@@ -231,7 +231,8 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertIsNone(saved["matricula"])
         self.assertIsNone(saved["nome"])
         self.assertIsNone(saved["operacional"])
-        self.assertIsNone(saved["supervisor"])
+        # Supervisor editavel: input "Sup B" difere da base "Sup A" -> persiste.
+        self.assertEqual(saved["supervisor"], "Sup B")
 
     def test_runtime_schema_creates_colaboradores_before_fechamento_fk(self):
         source = inspect.getsource(ensure_runtime_schema)
@@ -288,7 +289,6 @@ class TestFechamentoModule(unittest.TestCase):
             "nota_pa": 0,
             "nota_cli": 0,
             "nota_policia": 0,
-            "layout_supervisor_override": "Sup Override Antigo",
             "media_auditoria": None,
         }])
         conn = _FakeConnection([
@@ -304,6 +304,50 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertEqual(rows[0]["matricula"], "456")
         self.assertEqual(rows[0]["supervisor"], "Sup Atual")
         self.assertEqual(rows[0]["status"], "INATIVO")
+
+    def test_supervisor_override_do_auditor_vence_a_base_do_cadastro(self):
+        # Decisao 2026-06-12 (v1.3.139): supervisor e editavel no fechamento.
+        # Base = cadastro vivo (db_supervisor); override do auditor vence.
+        layout_cursor = _FakeCursor(rows=[{
+            "layout_id": 7,
+            "id_visual": 3,
+            "sequencia_bloco": 1,
+            "posicao": 3,
+            "layout_matricula": "123",
+            "layout_nome": "Operadora",
+            "layout_turno": "CADASTRO",
+            "layout_supervisor": "Sup Planilha",
+            "layout_setor": "CADASTRO",
+            "nota_coluna": "OPERACIONAL",
+            "status_base": "ATIVO",
+            "layout_huawei": "",
+            "layout_weon": "",
+            "colab_id": 10,
+            "db_nome": "Operadora",
+            "db_matricula": "123",
+            "db_supervisor": "Sup Cadastro",
+            "db_status": "ATIVO",
+            "db_huawei": "",
+            "db_weon": "",
+            "db_setor": "CADASTRO",
+            "db_escala": "CADASTRO",
+            "auditavel": 1,
+            "nota_mot": 0,
+            "nota_pa": 0,
+            "nota_cli": 0,
+            "nota_policia": 0,
+            "layout_supervisor_override": "Sup Escolhido Pelo Auditor",
+            "media_auditoria": None,
+        }])
+        conn = _FakeConnection([
+            _LayoutModeCountCursor(),
+            layout_cursor,
+            _FakeCursor(rows=[]),
+        ])
+
+        rows = get_fechamento_rows(conn, 4, 2026)
+
+        self.assertEqual(rows[0]["supervisor"], "Sup Escolhido Pelo Auditor")
 
     def test_layout_relink_recovers_rows_without_matricula_by_nome(self):
         # O re-vinculo a cada carga tem fallback por nome para linhas sem

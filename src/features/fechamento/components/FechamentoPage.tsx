@@ -341,8 +341,13 @@ export default function FechamentoPage() {
     supervisores.forEach(supervisor => {
       if (supervisor.trim()) options.add(supervisor.trim());
     });
+    // Inclui tambem os supervisores ja presentes nas linhas (ex.: override do
+    // auditor ou supervisor fora da lista de ativos) para serem selecionaveis.
+    rows.forEach(row => {
+      if (row.supervisor.trim()) options.add(row.supervisor.trim());
+    });
     return Array.from(options).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [supervisores]);
+  }, [rows, supervisores]);
 
   const colabIdsNaPlanilha = useMemo(
     () => new Set(rows.map(row => row.colab_id).filter(Boolean)),
@@ -644,15 +649,11 @@ export default function FechamentoPage() {
                     <td className="py-1 px-1 border-r border-white/5">
                       <select
                         value={row.supervisor}
-                        disabled
-                        title="Supervisor vem do cadastro do colaborador"
                         onChange={e => handleCellChange(idx, 'supervisor', e.target.value)}
-                        className="w-full bg-transparent border-none px-2 py-1 rounded text-slate-400 disabled:cursor-not-allowed disabled:opacity-80"
+                        className="w-full bg-transparent border-none focus:ring-1 focus:ring-primary-500 px-2 py-1 rounded text-slate-300"
                       >
-                        {/* Supervisor do cadastro pode nao estar na lista de
-                            supervisores ativos; sem esta opcao o select
-                            desabilitado exibiria em branco (o Excel sai certo,
-                            mas a tela enganava). */}
+                        {/* Default vem do cadastro; auditor pode trocar. Mantem
+                            o valor atual como opcao mesmo fora da lista de ativos. */}
                         {row.supervisor && !supervisorOptions.includes(row.supervisor) && (
                           <option value={row.supervisor}>{row.supervisor}</option>
                         )}

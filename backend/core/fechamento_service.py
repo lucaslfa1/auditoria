@@ -345,9 +345,11 @@ def _format_registered_layout_row(
         if apply_overrides and row.get('matricula_override') is not None
         else row.get('matricula')
     )
-    # Supervisor acompanha o cadastro atual do colaborador; fechamento nao
-    # pode manter um nome antigo via override.
-    supervisor = row.get('supervisor')
+    supervisor = (
+        row.get('supervisor_override')
+        if apply_overrides and row.get('supervisor_override') is not None
+        else row.get('supervisor')
+    )
     setor = row.get('setor_override') if apply_overrides and row.get('setor_override') is not None else row.get('setor')
     escala = row.get('turno_override') if apply_overrides and row.get('turno_override') is not None else row.get('escala')
     huawei = row.get('huawei_override') if apply_overrides and row.get('huawei_override') is not None else row.get('id_huawei')
@@ -725,11 +727,18 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
         if turno is None:
             turno = row.get('turno_override') if apply_overrides and row.get('turno_override') is not None else row.get('layout_turno')
 
-        # Supervisor segue a mesma regra do operador: a fonte de verdade e o
-        # cadastro atual do colaborador. O fechamento nao pode manter supervisor
-        # antigo via layout/override, porque um supervisor removido do cadastro
-        # continuaria aparecendo no Excel.
-        supervisor = row.get('db_supervisor') or ''
+        # Base = supervisor do cadastro vivo (db_supervisor); o override do
+        # auditor (layout/cadeia) vence, como nos demais campos. O fechamento
+        # e totalmente editavel — o auditor pode trocar qualquer campo (decisao
+        # 2026-06-12). Para linhas que o auditor nao tocar, segue o cadastro,
+        # entao supervisor removido reflete automaticamente.
+        supervisor = row.get('layout_supervisor_override') if apply_overrides and row.get('layout_supervisor_override') is not None else None
+        if supervisor is None:
+            supervisor = (
+                row.get('supervisor_override')
+                if apply_overrides and row.get('supervisor_override') is not None
+                else (row.get('db_supervisor') or row.get('layout_supervisor'))
+            )
 
         setor = row.get('layout_setor_override') if apply_overrides and row.get('layout_setor_override') is not None else None
         if setor is None:
@@ -833,7 +842,7 @@ def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides:
     if apply_overrides:
         nome_expr = "COALESCE(f.nome_override, c.nome)"
         matricula_expr = "COALESCE(f.matricula_override, c.matricula)"
-        supervisor_expr = "c.supervisor"
+        supervisor_expr = "COALESCE(NULLIF(f.supervisor_override, ''), NULLIF(c.supervisor, ''), '')"
         setor_expr = "COALESCE(f.setor_override, c.setor)"
         escala_expr = "COALESCE(f.turno_override, c.escala)"
         huawei_expr = "COALESCE(f.huawei_override, c.id_huawei)"
@@ -900,7 +909,7 @@ def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides:
     )
       AND c.nome IS NOT NULL
       AND TRIM(c.nome) != ''
-    ORDER BY COALESCE(c.supervisor, '') ASC, COALESCE(f.nome_override, c.nome) ASC
+    ORDER BY COALESCE(NULLIF(f.supervisor_override, ''), c.supervisor, '') ASC, COALESCE(f.nome_override, c.nome) ASC
     """
     cursor.execute(sql, (list(FECHAMENTO_NOTA_STATUSES), date_start, date_end, month, year))
     db_rows = cursor.fetchall()
@@ -1221,9 +1230,7 @@ def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, 
                 'desempenho': _override_or_none(row.get('desempenho'), base_row.get('desempenho')),
                 'status': _override_or_none(row.get('status'), base_row.get('status')),
                 'turno': _override_or_none(row.get('turno'), base_row.get('turno')),
-                # Supervisor e dado cadastral, nao override de fechamento.
-                # Alteracao deve acontecer no cadastro do colaborador.
-                'supervisor': None,
+                'supervisor': _override_or_none(row.get('supervisor'), base_row.get('supervisor')),
                 'setor': _override_or_none(row.get('setor'), base_row.get('setor')),
                 'processo': _override_or_none(row.get('processo'), base_row.get('processo')),
                 'final': _override_or_none(row.get('final'), base_row.get('final')),
@@ -1307,9 +1314,7 @@ def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, 
             'desempenho': _override_or_none(row.get('desempenho'), base_row.get('desempenho')),
             'status': _override_or_none(row.get('status'), base_row.get('status')),
             'turno': _override_or_none(row.get('turno'), base_row.get('turno')),
-            # Supervisor e dado cadastral, nao override de fechamento.
-            # Alteracao deve acontecer no cadastro do colaborador.
-            'supervisor': None,
+            'supervisor': _override_or_none(row.get('supervisor'), base_row.get('supervisor')),
             'setor': _override_or_none(row.get('setor'), base_row.get('setor')),
             'processo': _override_or_none(row.get('processo'), base_row.get('processo')),
             'final': _override_or_none(row.get('final'), base_row.get('final')),
