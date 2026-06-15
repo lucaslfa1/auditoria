@@ -2,6 +2,19 @@ from __future__ import annotations
 from .huawei.telemetry import _notify_progress, _increment_skip_counter, _empty_process_delta, _is_direction_skip
 from .huawei.download_candidates import _normalize_identity_text
 from .huawei.download_candidates import _slug_filename_part, _call_duration_is_known, _clean_huawei_operator_id, _obs_prefix_candidates, _obs_match_ids, _download_id_candidates, _clean_obs_prefix, _download_candidate_sort_key, _make_filename, _resolve_call_key
+# Resolução de operador (matching/índices/verdade do cadastro) movida para
+# core/huawei/operator_resolution.py. Reexport mantém compat (callers internos +
+# sync_triagem/enqueue/classification/audit_actions/automation_engine + testes).
+from .huawei.operator_resolution import (  # noqa: F401
+    _normalize_setor_regra,
+    _operator_sector_id,
+    _build_operator_indexes,
+    _resolve_huawei_operator_id,
+    _resolve_operador_interacao,
+    _operator_field,
+    _operator_truth_snapshot,
+    _inject_operator_truth,
+)
 """Orquestrador de sincronizacao com a plataforma Huawei AICC.
 
 Fluxo:
@@ -158,9 +171,6 @@ _DURATION_KEYS = (
 )
 
 
-def _normalize_setor_regra(raw_setor: str) -> str:
-    return normalize_huawei_sector(raw_setor)
-
 # Setores de risco aceitam somente ligacoes ativas (outbound). Ligacoes
 # receptivas devem ser descartadas antes do download sempre que a Huawei
 # informar a direcao.
@@ -171,30 +181,6 @@ def _coerce_huawei_is_call_in(value: Any) -> Optional[bool]:
 def _resolve_huawei_is_call_in(interacao: dict) -> Optional[bool]:
     return resolve_huawei_is_call_in(interacao)
 
-def _operator_sector_id(operador: dict) -> str:
-    raw_setor = str(
-        operador.get("setor")
-        or operador.get("sectorId")
-        or operador.get("displaySector")
-        or operador.get("sector")
-        or ""
-    ).strip()
-    escala = str(operador.get("escala") or "").strip()
-    supervisor = str(operador.get("supervisor") or "").strip()
-    raw_sector_slug = _normalize_setor_regra(raw_setor)
-    if raw_sector_slug in _AUDIO_DIRECTION_GATE_SECTORS or raw_sector_slug in _NON_TELEFONIA_SECTORS:
-        return raw_sector_slug
-
-    mapped_sector: Optional[str] = None
-    try:
-        mapped_sector = operators.map_db_sector_to_classification_sector(
-            raw_setor,
-            escala,
-            supervisor,
-        )
-    except Exception:
-        logger.debug("Sync Huawei: falha ao mapear setor do operador.", exc_info=True)
-    return _normalize_setor_regra(mapped_sector or raw_setor)
 
 def _should_skip_call(interacao: dict, operador: dict) -> Optional[str]:
     from core.huawei_sync_gatekeeper import SyncDownloadGatekeeper
@@ -484,135 +470,6 @@ async def _wait_if_paused(
         await asyncio.sleep(0.5)
     logger.info("Sync Huawei: retomado pelo usuario.")
 
-
-def _build_operator_indexes(operadores: list[dict]) -> tuple[dict[str, dict], dict[str, dict]]:
-    by_id: dict[str, dict] = {}
-    by_name: dict[str, dict] = {}
-    for operador in operadores:
-        operador.setdefault("huawei_registered", True)
-        for value in (
-            operador.get("id_huawei"),
-            operador.get("idHuawei"),
-        ):
-            text = _clean_huawei_operator_id(value)
-            if text:
-                by_id.setdefault(text, operador)
-                by_id.setdefault(text.lower(), operador)
-        name_key = _normalize_identity_text(operador.get("nome") or operador.get("name"))
-        if name_key:
-            by_name.setdefault(name_key, operador)
-    return by_id, by_name
-
-def _resolve_huawei_operator_id(interacao: dict) -> str:
-    for key in (
-        "agent_id",
-        "agentId",
-        "agentid",
-        "workNo",
-        "work_no",
-        "operatorId",
-        "operator_id",
-    ):
-        raw_val = interacao.get(key)
-        if raw_val is not None:
-            value = _clean_huawei_operator_id(raw_val)
-            if value:
-                return value
-    return ""
-
-def _resolve_operador_interacao(
-    interacao: dict,
-    by_id: dict[str, dict],
-    by_name: dict[str, dict],
-) -> dict:
-    operator_id = _resolve_huawei_operator_id(interacao)
-    if operator_id:
-        operador = by_id.get(operator_id) or by_id.get(operator_id.lower())
-        if operador:
-            resolved = dict(operador)
-            resolved["huawei_registered"] = True
-            resolved["huawei_match_source"] = "id_huawei"
-            resolved["huawei_call_operator_id"] = operator_id
-            return resolved
-
-    for value in (
-        interacao.get("operatorName"),
-        interacao.get("countName"),
-        interacao.get("agentName"),
-    ):
-        name_key = _normalize_identity_text(value)
-        if name_key and name_key in by_name:
-            matched = by_name[name_key]
-            operator_name = (
-                interacao.get("operatorName")
-                or interacao.get("countName")
-                or interacao.get("agentName")
-                or matched.get("nome")
-                or "Nao Identificado"
-            )
-            from utils.text_processing import format_pt_br_name
-            return {
-                "nome": format_pt_br_name(str(operator_name or "Nao Identificado").strip() or "Nao Identificado"),
-                "id_huawei": str(operator_id or "").strip(),
-                "id_telefonia": str(operator_id or "").strip(),
-                "setor": "",
-                "escala": "",
-                "matricula": "",
-                "auditavel_db": False,
-                "huawei_registered": False,
-                "huawei_match_source": "name_only",
-                "matched_operator_id": matched.get("id"),
-                "matched_operator_name": matched.get("nome") or matched.get("name"),
-                "matched_operator_id_huawei": matched.get("id_huawei") or matched.get("idHuawei"),
-            }
-
-    operator_name = (
-        interacao.get("operatorName")
-        or interacao.get("countName")
-        or interacao.get("agentName")
-        or "Nao Identificado"
-    )
-    from utils.text_processing import format_pt_br_name
-    return {
-        "nome": format_pt_br_name(str(operator_name or "Nao Identificado").strip() or "Nao Identificado"),
-        "id_huawei": str(operator_id or "").strip(),
-        "id_telefonia": str(operator_id or "").strip(),
-        "setor": "",
-        "escala": "",
-        "matricula": "",
-        "auditavel_db": False,
-        "huawei_registered": False,
-        "huawei_match_source": "none",
-    }
-
-
-def _operator_field(operador: dict, *keys: str) -> str:
-    for key in keys:
-        value = str(operador.get(key) or "").strip()
-        if value:
-            return value
-    return ""
-
-def _operator_truth_snapshot(operador: dict) -> dict[str, str]:
-    id_huawei = _operator_field(operador, "id_huawei", "idHuawei")
-    return {
-        "nome": _operator_field(operador, "nome", "name"),
-        "setor": _operator_field(operador, "setor", "displaySector", "sector", "sectorId"),
-        "setor_id": _operator_sector_id(operador),
-        "escala": _operator_field(operador, "escala"),
-        "matricula": _operator_field(operador, "matricula"),
-        "id_huawei": id_huawei,
-    }
-
-def _inject_operator_truth(interacao: dict, operador: dict) -> dict[str, str]:
-    truth = _operator_truth_snapshot(operador)
-    interacao["operatorNameResolved"] = truth["nome"]
-    interacao["operatorSectorResolved"] = truth["setor"]
-    interacao["operatorSectorIdResolved"] = truth["setor_id"]
-    interacao["operatorScaleResolved"] = truth["escala"]
-    interacao["operatorMatriculaResolved"] = truth["matricula"]
-    interacao["operatorIdHuaweiResolved"] = truth["id_huawei"]
-    return truth
 
 def _manifest_row_to_interacao(row: dict[str, str]) -> dict:
     begin_ms = HuaweiDiscoveryService._coerce_huawei_time_ms(row.get("beginTime"))
