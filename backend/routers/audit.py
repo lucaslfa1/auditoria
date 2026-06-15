@@ -411,7 +411,7 @@ async def discard_audit_endpoint(
     """
     if user.get("role") != USER_ROLE_ADMIN:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=403,
             detail="Apenas administradores podem descartar auditorias."
         )
 

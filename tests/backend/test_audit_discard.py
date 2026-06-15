@@ -805,6 +805,31 @@ class TestAuditSaveToSupervisorHandoff(unittest.TestCase):
 
 
 
+class TestDiscardEndpointAuthorization(unittest.TestCase):
+    """Endpoint POST /api/audit/{id}/discard: não-admin recebe 403 limpo, não 500.
+
+    Regressão: o handler usava `status.HTTP_403_FORBIDDEN` sem importar `status`,
+    lançando NameError (→ 500) em vez de 403 para supervisores/usuários comuns.
+    O check de papel ocorre antes de qualquer acesso ao banco, então o teste é
+    puro (sem DB).
+    """
+
+    def test_non_admin_discard_raises_403_not_nameerror(self):
+        import asyncio
+        from fastapi import HTTPException
+        from routers.audit import discard_audit_endpoint
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(
+                discard_audit_endpoint(
+                    audit_id=1,
+                    payload=None,
+                    user={"username": "supervisor.teste", "role": "supervisor"},
+                )
+            )
+        self.assertEqual(ctx.exception.status_code, 403)
+
+
 if __name__ == "__main__":
 
     unittest.main()
