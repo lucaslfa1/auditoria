@@ -75,6 +75,18 @@ from core.classification_lexicon import (
     NON_AUDITABLE_OUTPUT_KEYWORDS,
     STADIA_CONTEXT_KEYWORDS,
 )
+from core.classification_alert_equivalence import (
+    _OPERATIONAL_SECTORS,
+    _OPERATIONAL_ALERT_PREFIXES,
+    _LOGISTICA_KIND_ALERTS,
+    _get_catalog_alert,
+    _apply_alert_match,
+    _normalize_alert_token,
+    _infer_alert_actor_suffix,
+    _extract_operational_alert_kind,
+    _operational_alert_suffix,
+    _get_equivalent_alert_for_sector,
+)
 
 
 def get_operators_summary_for_prompt() -> str:
@@ -494,254 +506,9 @@ def canonicalize_alert_id(alert_id: str) -> str:
     return _canonicalize_alert_id(alert_id)
 
 
-def _legacy_align_classification_with_catalog_unused(classification: dict) -> dict:
-    """LEGADO/NÃO USADO — versão antiga do alinhamento com o catálogo.
-
-    Foi substituída por `align_classification_with_catalog` (mais abaixo)
-    porque o fallback final aqui escolhia o PRIMEIRO setor/alerta do catálogo
-    silenciosamente; a versão ativa marca 'desconhecido' para a triagem
-    revisar. Mantida apenas como referência histórica.
-    """
-    sector_id = str(classification.get("sector_id", "")).strip().lower()
-    alert_id = str(classification.get("alert_id", "")).strip()
-    alert_label = str(classification.get("alert_label", "")).strip()
-    catalog = load_audit_criteria_catalog()
-
-    # --- Step 1: exact match (sector + alert) ---
-    if sector_id in catalog:
-        for alert in catalog[sector_id]["alerts"]:
-            if alert["id"] == alert_id:
-                classification["sector_id"] = sector_id
-                classification["sector_label"] = str(catalog[sector_id]["label"])
-                classification["alert_id"] = alert_id
-                classification["alert_label"] = alert["label"]
-                return classification
-
-    # --- Step 2: cross-sector ID lookup ---
-    matched_alert = get_alert_lookup_by_id().get(alert_id)
-    if matched_alert:
-        matched_sector_id, matched_sector_label, matched_alert_label = matched_alert
-        classification["sector_id"] = matched_sector_id
-        classification["sector_label"] = matched_sector_label
-        classification["alert_id"] = alert_id
-        classification["alert_label"] = matched_alert_label
-        return classification
-
-    # --- Step 3: filename hint resolution ---
-    # Use AI-classified sector as context when filename lacks a sector keyword
-    filename = classification.get("_filename", "")
-    if filename:
-        parsed = parse_filename(filename)
-        hint_sector_id = parsed.sector_hint or sector_id  # fallback to AI sector
-        if parsed.alert_id_hint and hint_sector_id in catalog:
-            hint_sector = catalog[hint_sector_id]
-            for alert in hint_sector["alerts"]:
-                if alert["id"] == parsed.alert_id_hint:
-                    classification["sector_id"] = hint_sector_id
-                    classification["sector_label"] = str(hint_sector["label"])
-                    classification["alert_id"] = parsed.alert_id_hint
-                    classification["alert_label"] = alert["label"]
-                    logger.info(
-                        "align_catalog: recovered from hallucinated alert_id '%s' → '%s' via filename hint (sector=%s)",
-                        alert_id, parsed.alert_id_hint, hint_sector_id,
-                    )
-                    return classification
-
-    # --- Step 4: fuzzy label match inside current sector ---
-    if sector_id in catalog and alert_label:
-        normalized_req = normalize_classification_text(alert_label)
-        best_match = None
-        best_score = 0
-        for alert in catalog[sector_id]["alerts"]:
-            normalized_cat = normalize_classification_text(alert["label"])
-            if not normalized_req or not normalized_cat:
-                continue
-            score = 0
-            if normalized_req in normalized_cat or normalized_cat in normalized_req:
-                score = min(len(normalized_req), len(normalized_cat))
-            if score > best_score:
-                best_score = score
-                best_match = alert
-        if best_match and best_score >= 4:
-            classification["sector_id"] = sector_id
-            classification["sector_label"] = str(catalog[sector_id]["label"])
-            classification["alert_id"] = best_match["id"]
-            classification["alert_label"] = best_match["label"]
-            logger.info(
-                "align_catalog: fuzzy-matched alert_label '%s' → '%s' (%s)",
-                alert_label, best_match["label"], best_match["id"],
-            )
-            return classification
-
-    # --- Step 5: sector is valid but alert doesn't exist → pick first alert ---
-    # NEVER block the flow. The user can edit the selection in the audit form.
-    if sector_id in catalog:
-        classification["sector_id"] = sector_id
-        classification["sector_label"] = str(catalog[sector_id]["label"])
-        classification["alert_id"] = "desconhecido"
-        classification["alert_label"] = "Nao Identificado"
-        logger.warning(
-            "align_catalog: alert_id '%s' not found in sector '%s' — defaulting to first alert '%s' (%s)",
-            alert_id, sector_id, first_alert["id"], first_alert["label"],
-        )
-        return classification
-
-    # --- Step 6: sector also invalid — pick first sector + first alert ---
-    if catalog:
-        fallback_sector_id = next(iter(catalog))
-        fallback_sector = catalog[fallback_sector_id]
-        first_alert = fallback_sector["alerts"][0]
-        classification["sector_id"] = fallback_sector_id
-        classification["sector_label"] = str(fallback_sector["label"])
-        classification["alert_id"] = first_alert["id"]
-        classification["alert_label"] = first_alert["label"]
-        logger.warning(
-            "align_catalog: nothing matched (sector='%s', alert='%s') — fallback to '%s/%s'",
-            sector_id, alert_id, fallback_sector_id, first_alert["id"],
-        )
-
-    return classification
-
-
-# ── Equivalência de alertas entre setores operacionais (mesmos POPs 4.1.x) ──
-_OPERATIONAL_SECTORS = {"transferencia", "uti", "bas", "distribuicao", "fenix"}
-_OPERATIONAL_ALERT_PREFIXES = {
-    "uti": "UTI",
-    "transferencia": "TRANSFERENCIA",
-    "distribuicao": "DISTRIBUICAO",
-    "fenix": "FENIX",
-    "bas": "BAS",
-}
-
-_LOGISTICA_KIND_ALERTS = {
-    ("VIAGEM-SEM-ESPELHAMENTO", "CLI"): "LOGISTICA-VIAGEM-SEM-ESPELHAMENTO-CLI",
-    ("PERDA-POSICAO", "CLI"): "LOGISTICA-PERDA-POSICAO-CLI",
-    ("PARADA-EXCESSIVA", "MOT"): "LOGISTICA-PARADA-EXCESSIVA-MOT",
-    ("PARADA-EXCESSIVA", "CLI"): "LOGISTICA-PARADA-EXCESSIVA-CLI",
-    ("POSICAO", "CLI"): "LOGISTICA-PERDA-POSICAO-CLI",
-}
-
-
-def _get_catalog_alert(sector_id: str, alert_id: str) -> tuple[str, str, str] | None:
-    """Busca exata do alerta dentro de um setor do catálogo → (sector_id, alert_id, label) ou None."""
-    sector_id = str(sector_id or "").strip().lower()
-    alert_id = str(alert_id or "").strip()
-    for alert in load_audit_criteria_catalog().get(sector_id, {}).get("alerts", []):
-        if alert["id"] == alert_id:
-            return sector_id, alert_id, str(alert["label"])
-    return None
-
-
-def _apply_alert_match(classification: dict, alert_match: tuple[str, str, str]) -> dict:
-    """Aplica (setor, alerta, label) encontrados no catálogo ao dict de classificação."""
-    sector_id, alert_id, alert_label = alert_match
-    catalog = load_audit_criteria_catalog()
-    classification["sector_id"] = sector_id
-    classification["sector_label"] = str(catalog.get(sector_id, {}).get("label") or sector_id)
-    classification["alert_id"] = alert_id
-    classification["alert_label"] = alert_label
-    return classification
-
-
-def _normalize_alert_token(value: str | None) -> str:
-    """Normaliza texto p/ comparação de alertas: MAIÚSCULO, sem acento, separado por '-'."""
-    normalized = unicodedata.normalize("NFD", str(value or "").strip().upper())
-    normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
-    normalized = _re.sub(r"[^A-Z0-9]+", "-", normalized)
-    return normalized.strip("-")
-
-
-def _infer_alert_actor_suffix(*values: str | None) -> str:
-    """Infere quem é o interlocutor do alerta: 'CLI' (cliente/destinatário) ou 'MOT' (motorista, default)."""
-    joined = " ".join(_normalize_alert_token(value) for value in values if value)
-    if "-CLI" in f"-{joined}-" or "CLIENTE" in joined or "DESTINATARIO" in joined or "EMBARCADOR" in joined:
-        return "CLI"
-    return "MOT"
-
-
-def _extract_operational_alert_kind(value: str | None) -> str | None:
-    """Extrai o "tipo" genérico do alerta (PARADA, DESVIO, POSICAO, PRIORITARIO...)
-    de um id/label qualquer — base para achar o equivalente em outro setor."""
-    token = _normalize_alert_token(value)
-    if not token:
-        return None
-    if "ESPELHAMENTO" in token:
-        return "VIAGEM-SEM-ESPELHAMENTO"
-    if "PERDA" in token and ("POSICAO" in token or "SINAL" in token):
-        return "PERDA-POSICAO"
-    if "PARADA" in token and "EXCESSIVA" in token:
-        return "PARADA-EXCESSIVA"
-    if "POLICIA" in token or "POLICIAL" in token:
-        return "PRIORITARIO-POLICIA"
-    if "PONTO-APOIO" in token or ("PONTO" in token and "APOIO" in token):
-        return "PONTO-APOIO"
-    if "PRIORITARIO" in token or "VIOLACAO" in token or "PANICO" in token or "DESENGATE" in token:
-        return "PRIORITARIO"
-    if "POSICAO" in token or "SINAL" in token:
-        return "POSICAO"
-    if "PARADA" in token:
-        return "PARADA"
-    if "DESVIO" in token or "ROTA" in token:
-        return "DESVIO"
-    return None
-
-
-def _operational_alert_suffix(kind: str, actor: str = "MOT") -> str:
-    """Monta o sufixo do alert_id setorial a partir do tipo + ator (ex.: PARADA + CLI → PARADA-CLI)."""
-    kind = _normalize_alert_token(kind)
-    actor = "CLI" if str(actor or "").upper() == "CLI" else "MOT"
-    if kind in {"PRIORITARIO-POLICIA", "PONTO-APOIO"}:
-        return kind
-    if kind in {"PRIORITARIO", "POSICAO", "PARADA", "DESVIO"}:
-        return f"{kind}-{actor}"
-    return kind
-
-
-def _get_equivalent_alert_for_sector(
-    sector_id: str,
-    kind_or_alert_id: str,
-    *,
-    actor: str = "MOT",
-) -> tuple[str, str, str] | None:
-    """Encontra no setor dado o alerta equivalente a um alert_id/tipo de OUTRO setor.
-
-    Ex.: UTI-POSICAO-MOT + sector_id='distribuicao' → DISTRIBUICAO-POSICAO-MOT.
-    Tenta match direto, depois reconstrói pelo tipo (`_extract_operational_alert_kind`)
-    usando o prefixo do setor; logística tem mapa próprio. Retorna None se não houver equivalente.
-    """
-    sector_id = str(sector_id or "").strip().lower()
-    if not sector_id:
-        return None
-
-    direct_match = _get_catalog_alert(sector_id, kind_or_alert_id)
-    if direct_match:
-        return direct_match
-
-    kind = _extract_operational_alert_kind(kind_or_alert_id)
-    if not kind:
-        return None
-
-    if sector_id in _OPERATIONAL_ALERT_PREFIXES:
-        prefix = _OPERATIONAL_ALERT_PREFIXES[sector_id]
-        candidate = f"{prefix}-{_operational_alert_suffix(kind, actor)}"
-        match = _get_catalog_alert(sector_id, candidate)
-        if match:
-            return match
-
-    if sector_id == "logistica":
-        actor = "CLI" if str(actor or "").upper() == "CLI" else "MOT"
-        specific_candidate = _LOGISTICA_KIND_ALERTS.get((kind, actor))
-        if specific_candidate:
-            match = _get_catalog_alert(sector_id, specific_candidate)
-            if match:
-                return match
-        base_kind = kind.split("-", 1)[0]
-        candidate = f"LOGISTICA-{base_kind}"
-        return _get_catalog_alert(sector_id, candidate)
-
-    return None
-
-
+# ── Equivalência de alertas entre setores operacionais ──────────────────────
+# Helpers e constantes em core/classification_alert_equivalence.py (reexportados
+# acima). Esta variante fica aqui porque os testes a monkeypatcham diretamente.
 def _get_equivalent_alert_from_context(
     sector_id: str,
     alert_id: str,
