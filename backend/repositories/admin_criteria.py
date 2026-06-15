@@ -4,16 +4,15 @@ from typing import Optional, Any
 from psycopg2 import sql
 
 from repositories.common import extract_returning_id
+# Primitivas de trilha de auditoria extraídas para admin_criteria_audit_log;
+# reexportadas p/ compat (usadas pelas operações de escrita e por get_audit_log).
+from repositories.admin_criteria_audit_log import (  # noqa: F401
+    _AUDIT_LOG_TABLES,
+    _validate_audit_args,
+    _log_change,
+)
 
 logger = logging.getLogger(__name__)
-
-
-_VALID_ORIGINS = {"ui", "api", "seed", "script", "system", "migration"}
-_AUDIT_LOG_TABLES = {
-    "sector": "audit_sectors_audit_log",
-    "alert": "audit_alerts_audit_log",
-    "criterion": "audit_criteria_audit_log",
-}
 
 
 def _with_row_factory(conn):
@@ -51,55 +50,6 @@ def _safe_select_rows(
             row[column] = None
 
     return rows
-
-
-def _validate_audit_args(alterado_por: str, origem: str, op_label: str) -> bool:
-    """Common validation for the three audit-log args. Returns True iff valid."""
-    if not alterado_por or not str(alterado_por).strip():
-        logger.error("%s rejeitado: alterado_por obrigatorio", op_label)
-        return False
-    if origem not in _VALID_ORIGINS:
-        logger.error("%s rejeitado: origem invalida '%s'", op_label, origem)
-        return False
-    return True
-
-
-def _log_change(
-    cursor: Any,
-    *,
-    entity_type: str,
-    acao: str,
-    entity_id: str,
-    payload_antes: Optional[dict],
-    payload_depois: Optional[dict],
-    alterado_por: str,
-    motivo: str,
-    origem: str,
-) -> None:
-    """INSERT into the appropriate *_audit_log table. Same transaction as caller.
-
-    Idempotent at the call-site sense: caller decides when to log (e.g., skip on
-    no-op updates). entity_id is normalized to TEXT so all 3 tables share schema.
-    """
-    from psycopg2.extras import Json
-
-    table = _AUDIT_LOG_TABLES[entity_type]
-    cursor.execute(
-        f"""
-        INSERT INTO {table}
-            (acao, entity_id, payload_antes, payload_depois, alterado_por, motivo, origem)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """,
-        (
-            acao,
-            str(entity_id),
-            Json(payload_antes) if payload_antes is not None else None,
-            Json(payload_depois) if payload_depois is not None else None,
-            str(alterado_por).strip(),
-            (motivo or "").strip() or None,
-            origem,
-        ),
-    )
 
 
 def get_sectors(db_connection_factory):
