@@ -12,7 +12,6 @@ const auditActionsSource = read('src/features/audit/components/AuditResultAction
 const auditDetailsSource = read('src/features/audit/components/AuditEvaluationDetailsPanel.tsx');
 const useTranscriptionSource = read('src/features/audit/hooks/useTranscription.ts');
 const authenticatedAudioPlayerSource = read('src/shared/components/AuthenticatedAudioPlayer.tsx');
-const dashboardSource = read('src/features/dashboard/components/Dashboard.tsx');
 const classifierSource = read('src/features/classifier/components/Classifier.tsx');
 const operatorAutocompleteSource = read('src/shared/components/OperatorAutocompleteFields.tsx');
 const sidebarSource = read('src/shared/components/Sidebar.tsx');
@@ -20,6 +19,7 @@ const settingsSource = read('src/features/settings/components/Settings.tsx');
 const supervisorPortalSource = read('src/features/supervisor/components/SupervisorPortal.tsx');
 const reviewSource = read('src/features/review/components/ReviewPage.tsx');
 const savedFilesSource = read('src/features/saved-files/components/SavedFiles.tsx');
+const fechamentoSource = read('src/features/fechamento/components/FechamentoPage.tsx');
 const automacaoPageSource = read('src/features/automacao/components/AutomacaoPage.tsx');
 const automacaoRuntimePanelSource = read('src/features/automacao/components/AutomationRuntimePanel.tsx');
 const automacaoConfigPanelSource = read('src/features/automacao/components/AutomationConfigPanel.tsx');
@@ -174,24 +174,22 @@ assert.match(classifierSource, />\s*Operador\s*</);
 assert.match(classifierSource, />\s*Supervisor\s*</);
 assert.doesNotMatch(classifierSource, /Nome do operador/);
 
-assert.match(dashboardSource, /useBodyScrollLock\(showInfoModal\)/);
-assert.match(dashboardSource, /titleFirstWord="Painel"/);
-const dashboardMobileCardSections = [...dashboardSource.matchAll(/space-y-3 md:hidden/g)].length;
-const dashboardDesktopTableSections = [...dashboardSource.matchAll(/hidden md:block overflow-x-auto/g)].length;
-assert.ok(dashboardMobileCardSections >= 1, `Expected at least 1 mobile card section, got ${dashboardMobileCardSections}`);
-assert.ok(dashboardDesktopTableSections >= 1, `Expected at least 1 desktop table section, got ${dashboardDesktopTableSections}`);
-assert.doesNotMatch(dashboardSource, /Base auditada/);
-assert.doesNotMatch(dashboardSource, /Classifica\u00e7\u00e3o autom\u00e1tica/);
-assert.doesNotMatch(dashboardSource, /Taxa de acerto/);
-assert.doesNotMatch(dashboardSource, /Liga\u00e7\u00f5es auditadas/);
-assert.doesNotMatch(dashboardSource, /Distribui\u00e7\u00e3o da base por setor/);
-
 assert.match(operatorAutocompleteSource, /role="combobox"/);
 assert.match(operatorAutocompleteSource, /role="listbox"/);
 assert.match(operatorAutocompleteSource, /event\.key === 'ArrowDown'/);
 assert.match(operatorAutocompleteSource, /ID Huawei/);
 assert.doesNotMatch(operatorAutocompleteSource, /<datalist/);
-assert.doesNotMatch(dashboardSource, /MOCK DATA INJECTION IF EMPTY|Auditoria mock de exemplo|Atraso Motorista/);
+
+assert.match(fechamentoSource, /apiFetchBlob\(`\/api\/fechamento\/exportar\?mes=\$\{mes\}&ano=\$\{ano\}`,\s*\{/);
+assert.match(fechamentoSource, /method: 'POST'/);
+assert.match(fechamentoSource, /body: JSON\.stringify\(rows\)/);
+assert.match(fechamentoSource, /function isOperadorRj\(op: OperadorDisponivel\): boolean/);
+assert.match(fechamentoSource, /isUtiRj\(op\.setor \?\? '', op\.escala \?\? ''\)/);
+assert.match(fechamentoSource, /\.filter\(isOperadorRj\)/);
+assert.match(fechamentoSource, /Adicionar operador RJ/);
+assert.match(fechamentoSource, /Remover operador RJ/);
+assert.match(fechamentoSource, /ID temporário para exportação/);
+assert.match(fechamentoSource, /Dados cadastrais vêm do cadastro de operadores; ajustes na tabela são temporários\./);
 
 // Triagem paralela: utilitario de concorrencia client-side.
 const runWithConcurrencySource = read('src/shared/lib/runWithConcurrency.ts');

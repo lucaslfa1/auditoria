@@ -139,3 +139,29 @@ async def exportar_fechamento(mes: int = Query(...), ano: int = Query(...), _use
     except Exception as e:
         logger.error(f"Erro ao exportar fechamento: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao gerar Excel.")
+
+
+@router.post("/exportar")
+async def exportar_fechamento_tela_atual(
+    mes: int = Query(...),
+    ano: int = Query(...),
+    dados: List[FechamentoRowInput] = Body(...),
+    _user: dict = Depends(require_admin),
+):
+    """Exporta a tela atual sem persistir edições temporárias no banco."""
+    try:
+        from core.export_fechamento import generate_fechamento_excel_from_rows
+
+        rows = [item.dict() for item in dados]
+        excel_bytes = generate_fechamento_excel_from_rows(rows)
+        headers = {
+            'Content-Disposition': f'attachment; filename="fechamento_{ano}_{mes:02d}.xlsx"'
+        }
+        return Response(
+            content=excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers=headers,
+        )
+    except Exception as e:
+        logger.error(f"Erro ao exportar fechamento a partir da tela atual: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao gerar Excel.")

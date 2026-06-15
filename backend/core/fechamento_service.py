@@ -339,29 +339,16 @@ def _format_registered_layout_row(
     mes_str: str,
     apply_overrides: bool,
 ) -> Dict[str, Any]:
-    nome = row.get('nome_override') if apply_overrides and row.get('nome_override') is not None else row.get('nome')
-    matricula = (
-        row.get('matricula_override')
-        if apply_overrides and row.get('matricula_override') is not None
-        else row.get('matricula')
-    )
-    supervisor = (
-        row.get('supervisor_override')
-        if apply_overrides and row.get('supervisor_override') is not None
-        else row.get('supervisor')
-    )
-    setor = row.get('setor_override') if apply_overrides and row.get('setor_override') is not None else row.get('setor')
-    escala = row.get('turno_override') if apply_overrides and row.get('turno_override') is not None else row.get('escala')
-    huawei = row.get('huawei_override') if apply_overrides and row.get('huawei_override') is not None else row.get('id_huawei')
-    weon = row.get('weon_override') if apply_overrides and row.get('weon_override') is not None else row.get('id_weon')
+    nome = row.get('nome')
+    matricula = row.get('matricula')
+    supervisor = row.get('supervisor')
+    setor = row.get('setor')
+    escala = row.get('escala')
+    huawei = row.get('id_huawei')
+    weon = row.get('id_weon')
 
     status_base = _resolve_fechamento_status(row, row.get('status') or 'ATIVO')
-    status = (
-        row.get('status_override')
-        if apply_overrides and row.get('status_override') is not None
-        else status_base
-    )
-    status = _resolve_fechamento_status(row, status)
+    status = _resolve_fechamento_status(row, status_base)
 
     media_auditoria = row.get('media_auditoria')
     is_receptivo = _is_receptive(setor or '', escala or '')
@@ -697,64 +684,21 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
     for raw_row in db_rows:
         row = dict(raw_row) if not isinstance(raw_row, dict) else raw_row
 
-        # Base de nome/matricula/status vem de `colaboradores` (dado vivo);
-        # a copia do layout (planilha de fevereiro) e so fallback. Sem isso,
-        # renomes e inativacoes nao apareciam no fechamento. Overrides do
-        # auditor continuam tendo precedencia sobre tudo.
+        # Campos cadastrais sempre vêm do cadastro vivo. A tela pode simular
+        # alterações, mas `Gravar Cálculo` não deve transformar fechamento em
+        # cadastro paralelo nem reviver nomes/supervisores antigos de override.
         status_base = _resolve_fechamento_status(row, row.get('db_status') or row.get('status_base') or 'ATIVO')
-        status = row.get('layout_status_override') if apply_overrides and row.get('layout_status_override') is not None else None
-        if status is None:
-            status = row.get('status_override') if apply_overrides and row.get('status_override') is not None else status_base
-        status = _resolve_fechamento_status(row, status)
-
-        matricula = row.get('layout_matricula_override') if apply_overrides and row.get('layout_matricula_override') is not None else None
-        if matricula is None:
-            matricula = (
-                row.get('matricula_override')
-                if apply_overrides and row.get('matricula_override') is not None
-                else (row.get('db_matricula') or row.get('layout_matricula'))
-            )
-
-        nome = row.get('layout_nome_override') if apply_overrides and row.get('layout_nome_override') is not None else None
-        if nome is None:
-            nome = (
-                row.get('nome_override')
-                if apply_overrides and row.get('nome_override') is not None
-                else (row.get('db_nome') or row.get('layout_nome'))
-            )
-
-        turno = row.get('layout_turno_override') if apply_overrides and row.get('layout_turno_override') is not None else None
-        if turno is None:
-            turno = row.get('turno_override') if apply_overrides and row.get('turno_override') is not None else row.get('layout_turno')
-
-        # Base = supervisor do cadastro vivo (db_supervisor); o override do
-        # auditor (layout/cadeia) vence, como nos demais campos. O fechamento
-        # e totalmente editavel — o auditor pode trocar qualquer campo (decisao
-        # 2026-06-12). Para linhas que o auditor nao tocar, segue o cadastro,
-        # entao supervisor removido reflete automaticamente.
-        supervisor = row.get('layout_supervisor_override') if apply_overrides and row.get('layout_supervisor_override') is not None else None
-        if supervisor is None:
-            supervisor = (
-                row.get('supervisor_override')
-                if apply_overrides and row.get('supervisor_override') is not None
-                else (row.get('db_supervisor') or row.get('layout_supervisor'))
-            )
-
-        setor = row.get('layout_setor_override') if apply_overrides and row.get('layout_setor_override') is not None else None
-        if setor is None:
-            setor = row.get('setor_override') if apply_overrides and row.get('setor_override') is not None else row.get('layout_setor')
+        status = _resolve_fechamento_status(row, status_base)
+        matricula = row.get('db_matricula') or row.get('layout_matricula')
+        nome = row.get('db_nome') or row.get('layout_nome')
+        turno = row.get('db_escala') or row.get('layout_turno')
+        supervisor = row.get('db_supervisor') or ''
+        setor = row.get('db_setor') or row.get('layout_setor')
 
         huawei_layout = row.get('layout_huawei') or ''
-        huawei_base = huawei_layout if huawei_layout == '-' else (row.get('db_huawei') or huawei_layout or '')
-        huawei = row.get('layout_huawei_override') if apply_overrides and row.get('layout_huawei_override') is not None else None
-        if huawei is None:
-            huawei = row.get('huawei_override') if apply_overrides and row.get('huawei_override') is not None else huawei_base
-
+        huawei = huawei_layout if huawei_layout == '-' else (row.get('db_huawei') or huawei_layout or '')
         weon_layout = row.get('layout_weon') or ''
-        weon_base = weon_layout if weon_layout == '-' else (row.get('db_weon') or weon_layout or '')
-        weon = row.get('layout_weon_override') if apply_overrides and row.get('layout_weon_override') is not None else None
-        if weon is None:
-            weon = row.get('weon_override') if apply_overrides and row.get('weon_override') is not None else weon_base
+        weon = weon_layout if weon_layout == '-' else (row.get('db_weon') or weon_layout or '')
 
         media_auditoria = row.get('media_auditoria')
         nota_coluna = str(row.get('nota_coluna') or 'OPERACIONAL').upper()
@@ -840,14 +784,14 @@ def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides:
     date_start, date_end = _month_bounds(month, year)
 
     if apply_overrides:
-        nome_expr = "COALESCE(f.nome_override, c.nome)"
-        matricula_expr = "COALESCE(f.matricula_override, c.matricula)"
-        supervisor_expr = "COALESCE(NULLIF(f.supervisor_override, ''), NULLIF(c.supervisor, ''), '')"
-        setor_expr = "COALESCE(f.setor_override, c.setor)"
-        escala_expr = "COALESCE(f.turno_override, c.escala)"
-        huawei_expr = "COALESCE(f.huawei_override, c.id_huawei)"
-        weon_expr = "COALESCE(f.weon_override, c.id_weon)"
-        status_expr = "COALESCE(f.status_override, c.status)"
+        nome_expr = "c.nome"
+        matricula_expr = "c.matricula"
+        supervisor_expr = "c.supervisor"
+        setor_expr = "c.setor"
+        escala_expr = "c.escala"
+        huawei_expr = "c.id_huawei"
+        weon_expr = "c.id_weon"
+        status_expr = "c.status"
     else:
         nome_expr = "c.nome"
         matricula_expr = "c.matricula"
@@ -909,7 +853,7 @@ def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides:
     )
       AND c.nome IS NOT NULL
       AND TRIM(c.nome) != ''
-    ORDER BY COALESCE(NULLIF(f.supervisor_override, ''), c.supervisor, '') ASC, COALESCE(f.nome_override, c.nome) ASC
+    ORDER BY COALESCE(c.supervisor, '') ASC, c.nome ASC
     """
     cursor.execute(sql, (list(FECHAMENTO_NOTA_STATUSES), date_start, date_end, month, year))
     db_rows = cursor.fetchall()
@@ -1168,12 +1112,10 @@ def remove_fechamento_layout_operador(conn, *, layout_id: int | None = None, col
 
 
 def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, Any]]):
-    # IMPORTANTE (decisao de produto 2026-06-12): o Fechamento e um modulo de
-    # RESULTADO FINAL. As edicoes do auditor aqui gravam APENAS overrides nas
-    # tabelas `fechamento_layout_overrides` / `fechamento_cadeia_contatos` e
-    # NAO devem alimentar o RAG/aprendizado da IA. O feedback de aprendizado
-    # vive exclusivamente na triagem (`corrigir_classificacao_fila_revisao` ->
-    # `disparar_feedback_rag_background`). NAO ligar este fluxo a ML.
+    # IMPORTANTE: dados cadastrais continuam sendo fonte do cadastro de
+    # colaboradores. Gravar Cálculo persiste só notas/cálculos do fechamento;
+    # edições de nome, supervisor, turno, setor etc. servem para simular/exportar
+    # a tela atual e desaparecem ao recarregar.
     cursor = conn.cursor()
     base_rows = {}
     for base_row in get_fechamento_rows(conn, month, year, apply_overrides=False):
@@ -1229,42 +1171,21 @@ def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, 
                 'nota_pa': row.get('nota_pa', 0),
                 'nota_cli': row.get('nota_cli', 0),
                 'nota_policia': row.get('nota_policia', 0),
-                'matricula': _override_or_none(row.get('matricula'), base_row.get('matricula')),
-                'nome': _override_or_none(row.get('nome'), base_row.get('nome')),
+                'matricula': None,
+                'nome': None,
                 'operacional': _override_or_none(row.get('operacional'), base_row.get('operacional')),
                 'telefonica': _override_or_none(row.get('telefonica'), base_row.get('telefonica')),
                 'desempenho': _override_or_none(row.get('desempenho'), base_row.get('desempenho')),
-                'status': _override_or_none(row.get('status'), base_row.get('status')),
-                'turno': _override_or_none(row.get('turno'), base_row.get('turno')),
-                'supervisor': _override_or_none(row.get('supervisor'), base_row.get('supervisor')),
-                'setor': _override_or_none(row.get('setor'), base_row.get('setor')),
+                'status': None,
+                'turno': None,
+                'supervisor': None,
+                'setor': None,
                 'processo': _override_or_none(row.get('processo'), base_row.get('processo')),
                 'final': _override_or_none(row.get('final'), base_row.get('final')),
-                'huawei': _override_or_none(row.get('huawei'), base_row.get('huawei')),
-                'weon': _override_or_none(row.get('weon'), base_row.get('weon')),
+                'huawei': None,
+                'weon': None,
             }
             cursor.execute(sql, data)
-
-            # Coluna ID e estrutural (vale para todos os meses), nao um
-            # override mensal: edicao na tela persiste direto no layout.
-            try:
-                new_id_visual = int(row.get('id'))
-            except (TypeError, ValueError):
-                new_id_visual = None
-            base_id_visual = base_row.get('id')
-            if (
-                new_id_visual is not None
-                and base_id_visual is not None
-                and int(base_id_visual) != new_id_visual
-            ):
-                cursor.execute(
-                    """
-                    UPDATE fechamento_layout_operadores
-                       SET id_visual = %s, atualizado_em = CURRENT_TIMESTAMP
-                     WHERE id = %s
-                    """,
-                    (new_id_visual, layout_id),
-                )
             continue
 
         if not colab_id:
@@ -1313,19 +1234,19 @@ def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, 
             'nota_pa': row.get('nota_pa', 0),
             'nota_cli': row.get('nota_cli', 0),
             'nota_policia': row.get('nota_policia', 0),
-            'matricula': _override_or_none(row.get('matricula'), base_row.get('matricula')),
-            'nome': _override_or_none(row.get('nome'), base_row.get('nome')),
+            'matricula': None,
+            'nome': None,
             'operacional': _override_or_none(row.get('operacional'), base_row.get('operacional')),
             'telefonica': _override_or_none(row.get('telefonica'), base_row.get('telefonica')),
             'desempenho': _override_or_none(row.get('desempenho'), base_row.get('desempenho')),
-            'status': _override_or_none(row.get('status'), base_row.get('status')),
-            'turno': _override_or_none(row.get('turno'), base_row.get('turno')),
-            'supervisor': _override_or_none(row.get('supervisor'), base_row.get('supervisor')),
-            'setor': _override_or_none(row.get('setor'), base_row.get('setor')),
+            'status': None,
+            'turno': None,
+            'supervisor': None,
+            'setor': None,
             'processo': _override_or_none(row.get('processo'), base_row.get('processo')),
             'final': _override_or_none(row.get('final'), base_row.get('final')),
-            'huawei': _override_or_none(row.get('huawei'), base_row.get('huawei')),
-            'weon': _override_or_none(row.get('weon'), base_row.get('weon')),
+            'huawei': None,
+            'weon': None,
         }
         cursor.execute(sql, data)
     conn.commit()

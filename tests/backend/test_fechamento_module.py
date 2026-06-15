@@ -8,7 +8,7 @@ import openpyxl
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from core.export_fechamento import HEADERS, generate_fechamento_excel
+from core.export_fechamento import HEADERS, generate_fechamento_excel, generate_fechamento_excel_from_rows
 from core.fechamento_service import (
     _load_layout_seed,
     _is_receptive,
@@ -119,8 +119,9 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertEqual(rows[0]["operacional"], "8.0")
         self.assertIn("COALESCE(audit_date, timestamp)::TIMESTAMP >= %s", cursor.sql)
         self.assertIn("COALESCE(audit_date, timestamp)::TIMESTAMP < %s", cursor.sql)
-        # Supervisor editavel: base no cadastro vivo, override do auditor vence.
-        self.assertIn("NULLIF(f.supervisor_override, ''), NULLIF(c.supervisor, '')", cursor.sql)
+        # Campos cadastrais do fechamento sempre vêm do cadastro vivo.
+        self.assertIn("c.supervisor as supervisor", cursor.sql)
+        self.assertNotIn("NULLIF(f.supervisor_override", cursor.sql)
         self.assertNotIn("EXTRACT(MONTH", cursor.sql)
         self.assertEqual(cursor.params, (list(FECHAMENTO_NOTA_STATUSES), "2026-04-01", "2026-05-01", 4, 2026))
 
@@ -206,33 +207,36 @@ class TestFechamentoModule(unittest.TestCase):
             [
                 {
                     "colab_id": 10,
-                    "matricula": "123",
-                    "nome": "Ana Souza",
-                    "operacional": "8.0",
-                    "telefonica": "",
-                    "desempenho": "BOM",
-                    "status": "ATIVO",
-                    "turno": "Verde",
+                    "matricula": "999",
+                    "nome": "Ana Temporaria",
+                    "operacional": "9.0",
+                    "telefonica": "7.5",
+                    "desempenho": "RUIM",
+                    "status": "INATIVO",
+                    "turno": "Noite",
                     "supervisor": "Sup B",
-                    "setor": "uti",
+                    "setor": "UTI RJ",
                     "nota_mot": 0,
                     "nota_pa": 0,
                     "nota_cli": 0,
                     "nota_policia": 0,
-                    "processo": "70%",
-                    "final": "-4%",
-                    "huawei": "HW-1",
+                    "processo": "90%",
+                    "final": "2%",
+                    "huawei": "HW-TEMP",
+                    "weon": "WEON-TEMP",
                 }
             ],
         )
 
         saved = insert_cursor.params
         self.assertTrue(conn.committed)
-        self.assertIsNone(saved["matricula"])
-        self.assertIsNone(saved["nome"])
-        self.assertIsNone(saved["operacional"])
-        # Supervisor editavel: input "Sup B" difere da base "Sup A" -> persiste.
-        self.assertEqual(saved["supervisor"], "Sup B")
+        for field in ("matricula", "nome", "status", "turno", "supervisor", "setor", "huawei", "weon"):
+            self.assertIsNone(saved[field])
+        self.assertEqual(saved["operacional"], "9.0")
+        self.assertEqual(saved["telefonica"], "7.5")
+        self.assertEqual(saved["desempenho"], "RUIM")
+        self.assertEqual(saved["processo"], "90%")
+        self.assertEqual(saved["final"], "2%")
 
     def test_runtime_schema_creates_colaboradores_before_fechamento_fk(self):
         source = inspect.getsource(ensure_runtime_schema)
@@ -305,9 +309,9 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertEqual(rows[0]["supervisor"], "Sup Atual")
         self.assertEqual(rows[0]["status"], "INATIVO")
 
-    def test_supervisor_override_do_auditor_vence_a_base_do_cadastro(self):
-        # Decisao 2026-06-12 (v1.3.139): supervisor e editavel no fechamento.
-        # Base = cadastro vivo (db_supervisor); override do auditor vence.
+    def test_supervisor_override_nao_vence_a_base_do_cadastro(self):
+        # O usuario pode editar supervisor na tela para simular/exportar, mas
+        # a carga do fechamento sempre reidrata o valor vivo do cadastro.
         layout_cursor = _FakeCursor(rows=[{
             "layout_id": 7,
             "id_visual": 3,
@@ -337,6 +341,7 @@ class TestFechamentoModule(unittest.TestCase):
             "nota_cli": 0,
             "nota_policia": 0,
             "layout_supervisor_override": "Sup Escolhido Pelo Auditor",
+            "supervisor_override": "Sup Fechamento Antigo",
             "media_auditoria": None,
         }])
         conn = _FakeConnection([
@@ -347,7 +352,7 @@ class TestFechamentoModule(unittest.TestCase):
 
         rows = get_fechamento_rows(conn, 4, 2026)
 
-        self.assertEqual(rows[0]["supervisor"], "Sup Escolhido Pelo Auditor")
+        self.assertEqual(rows[0]["supervisor"], "Sup Cadastro")
 
     def test_layout_relink_recovers_rows_without_matricula_by_nome(self):
         # O re-vinculo a cada carga tem fallback por nome para linhas sem
@@ -483,8 +488,9 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertIn("NOT EXISTS", extra_cursor.sql)
         self.assertIn("lx.colaborador_id = c.id", extra_cursor.sql)
 
-    def test_save_persiste_id_visual_editado_em_linha_do_layout(self):
-        # Coluna ID editavel (item 3): mudou na tela -> UPDATE no layout.
+    def test_save_nao_persiste_id_visual_editado_em_linha_do_layout(self):
+        # ID pode ser editado temporariamente na tela/exportacao, mas o layout
+        # oficial continua sendo a fonte ao recarregar.
         layout_base_row = {
             "layout_id": 7,
             "id_visual": 3,
@@ -542,7 +548,7 @@ class TestFechamentoModule(unittest.TestCase):
         }])
 
         id_updates = [sql for sql, _ in write_cursor.executions if "SET id_visual" in sql]
-        self.assertEqual(len(id_updates), 1)
+        self.assertEqual(len(id_updates), 0)
 
     def test_uti_rj_detection_distinguishes_from_plain_uti(self):
         self.assertTrue(_is_uti_rj("UTI RJ", ""))
@@ -680,6 +686,35 @@ class TestFechamentoModule(unittest.TestCase):
         self.assertEqual(ws["L2"].number_format, "0%")
         self.assertEqual(ws["M2"].value, 0.04)
         self.assertEqual(ws["M2"].number_format, "0%")
+
+    def test_export_from_rows_uses_temporary_screen_values(self):
+        workbook_bytes = generate_fechamento_excel_from_rows([{
+            "id": 99,
+            "mes_str": "ABR",
+            "matricula": "TEMP-1",
+            "nome": "Nome Temporario",
+            "operacional": "9.5",
+            "telefonica": "8.0",
+            "desempenho": "BOM",
+            "status": "ATIVO",
+            "turno": "RJ",
+            "supervisor": "Sup Temporario",
+            "setor": "UTI RJ",
+            "processo": "90%",
+            "final": "2%",
+            "huawei": "HW-TEMP",
+            "weon": "WEON-TEMP",
+        }])
+
+        wb = openpyxl.load_workbook(BytesIO(workbook_bytes), data_only=True)
+        ws = wb["Planilha1"]
+
+        self.assertEqual(ws["A2"].value, 99)
+        self.assertEqual(ws["C2"].value, "TEMP-1")
+        self.assertEqual(ws["D2"].value, "Nome Temporario")
+        self.assertEqual(ws["J2"].value, "Sup Temporario")
+        self.assertEqual(ws["L2"].value, 0.9)
+        self.assertEqual(ws["M2"].value, 0.02)
 
 
 if __name__ == "__main__":

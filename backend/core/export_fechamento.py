@@ -37,13 +37,7 @@ def _parse_percent(value) -> float | None:
         return None
 
 
-def generate_fechamento_excel(get_connection, month: int, year: int) -> bytes:
-    conn = get_connection()
-    try:
-        rows = get_fechamento_rows(conn, month, year)
-    finally:
-        conn.close()
-
+def generate_fechamento_excel_from_rows(rows) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Planilha1"
@@ -119,3 +113,13 @@ def generate_fechamento_excel(get_connection, month: int, year: int) -> bytes:
     wb.save(output)
     output.seek(0)
     return output.getvalue()
+
+
+def generate_fechamento_excel(get_connection, month: int, year: int) -> bytes:
+    conn = get_connection()
+    try:
+        rows = get_fechamento_rows(conn, month, year)
+    finally:
+        conn.close()
+
+    return generate_fechamento_excel_from_rows(rows)

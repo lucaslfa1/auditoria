@@ -85,6 +85,10 @@ function isCadeiaApplicable(row: FechamentoRow): boolean {
   return isUtiRj(row.setor, row.turno) || isUti(row.setor, row.turno);
 }
 
+function isOperadorRj(op: OperadorDisponivel): boolean {
+  return isUtiRj(op.setor ?? '', op.escala ?? '');
+}
+
 function processoPercentForSum(sum: number): number {
   const rounded = Math.round(sum * 100) / 100;
   if (rounded >= 4) return 110;
@@ -219,8 +223,12 @@ export default function FechamentoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rows)
       });
-      showToast({ title: 'Cálculo gravado com sucesso!', variant: 'success' });
-      fetchDados(); // Reload to reflect any recalculations
+      showToast({
+        title: 'Cálculo gravado com sucesso!',
+        description: 'Dados cadastrais editados na tela continuam vindo do cadastro ao recarregar.',
+        variant: 'success',
+      });
+      fetchDados();
     } catch (error) {
       showToast({
         title: 'Erro ao gravar cálculo',
@@ -257,7 +265,7 @@ export default function FechamentoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ colaborador_id: colaboradorId }),
       });
-      showToast({ title: 'Operador adicionado ao fechamento!', variant: 'success' });
+      showToast({ title: 'Operador RJ adicionado ao fechamento!', variant: 'success' });
       setShowAddOperador(false);
       setBuscaOperador('');
       fetchDados();
@@ -277,7 +285,11 @@ export default function FechamentoPage() {
       showToast({ title: 'Linha sem vínculo — não é possível remover.', variant: 'error' });
       return;
     }
-    if (!window.confirm(`Remover "${row.nome}" do fechamento? A remoção vale para todos os meses e pode ser desfeita adicionando o operador de novo.`)) {
+    if (!isUtiRj(row.setor, row.turno)) {
+      showToast({ title: 'A remoção rápida é apenas para operador RJ.', variant: 'error' });
+      return;
+    }
+    if (!window.confirm(`Remover operador RJ "${row.nome}" do fechamento? A remoção vale para todos os meses e pode ser desfeita adicionando o operador de novo.`)) {
       return;
     }
     const rowKey = `${row.layout_id ?? 'c'}-${row.colab_id}-${idx}`;
@@ -291,7 +303,7 @@ export default function FechamentoPage() {
           colaborador_id: row.colab_id || null,
         }),
       });
-      showToast({ title: 'Operador removido do fechamento.', variant: 'success' });
+      showToast({ title: 'Operador RJ removido do fechamento.', variant: 'success' });
       fetchDados();
     } catch (error) {
       showToast({
@@ -307,7 +319,11 @@ export default function FechamentoPage() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const blob = await apiFetchBlob(`/api/fechamento/exportar?mes=${mes}&ano=${ano}`);
+      const blob = await apiFetchBlob(`/api/fechamento/exportar?mes=${mes}&ano=${ano}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rows),
+      });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -316,7 +332,11 @@ export default function FechamentoPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      showToast({ title: 'Planilha exportada com sucesso!', variant: 'success' });
+      showToast({
+        title: 'Planilha exportada com sucesso!',
+        description: 'O Excel usou a tela atual; edições cadastrais não foram gravadas.',
+        variant: 'success',
+      });
     } catch (error) {
       showToast({
         title: 'Erro ao exportar planilha',
@@ -341,8 +361,8 @@ export default function FechamentoPage() {
     supervisores.forEach(supervisor => {
       if (supervisor.trim()) options.add(supervisor.trim());
     });
-    // Inclui tambem os supervisores ja presentes nas linhas (ex.: override do
-    // auditor ou supervisor fora da lista de ativos) para serem selecionaveis.
+    // Mantem o supervisor atual da linha visivel mesmo se o cadastro de usuarios
+    // supervisores estiver incompleto; a origem segue sendo o cadastro do operador.
     rows.forEach(row => {
       if (row.supervisor.trim()) options.add(row.supervisor.trim());
     });
@@ -356,6 +376,7 @@ export default function FechamentoPage() {
   const operadoresFiltrados = useMemo(() => {
     const busca = stripAccents(buscaOperador.trim());
     return operadoresDisponiveis
+      .filter(isOperadorRj)
       .filter(op => !colabIdsNaPlanilha.has(op.id))
       .filter(op => !busca || stripAccents(`${op.nome} ${op.matricula ?? ''} ${op.setor ?? ''} ${op.escala ?? ''} ${op.supervisor ?? ''}`).includes(busca))
       .slice(0, 30);
@@ -409,8 +430,8 @@ export default function FechamentoPage() {
         storageKey="instructions:fechamento"
         steps={[
           'Escolha o mês e o ano e carregue os dados.',
-          'Confira e ajuste os registros antes de exportar.',
-          'Baixe o Excel no formato oficial consumido pelo BI.',
+          'Dados cadastrais vêm do cadastro de operadores; ajustes na tabela são temporários.',
+          'Baixe o Excel no formato oficial usando a tela atual.',
         ]}
       />
 
@@ -423,7 +444,7 @@ export default function FechamentoPage() {
               className="btn-secondary flex items-center gap-2 px-4 py-2"
             >
               <UserPlus size={18} />
-              {showAddOperador ? 'Fechar' : 'Adicionar Operador'}
+              {showAddOperador ? 'Fechar' : 'Adicionar operador RJ'}
             </button>
             <button
               onClick={handleSave}
@@ -443,7 +464,7 @@ export default function FechamentoPage() {
                 type="text"
                 value={buscaOperador}
                 onChange={e => setBuscaOperador(e.target.value)}
-                placeholder="Buscar colaborador por nome, matrícula, setor ou supervisor..."
+                placeholder="Buscar operador RJ por nome, matrícula, setor ou supervisor..."
                 className="input-field flex-1 bg-slate-900/60 border-slate-700 text-sm"
                 autoFocus
               />
@@ -453,7 +474,7 @@ export default function FechamentoPage() {
             </div>
             <div className="max-h-48 overflow-y-auto custom-scrollbar divide-y divide-white/5">
               {operadoresFiltrados.length === 0 ? (
-                <p className="text-xs text-slate-500 py-2">Nenhum colaborador disponível fora da planilha.</p>
+                <p className="text-xs text-slate-500 py-2">Nenhum operador RJ disponível fora da planilha.</p>
               ) : (
                 operadoresFiltrados.map(op => (
                   <button
@@ -467,7 +488,7 @@ export default function FechamentoPage() {
                       {[op.matricula, op.escala || op.setor, op.supervisor].filter(Boolean).join(' · ')}
                     </span>
                     <span className="text-primary-400 whitespace-nowrap">
-                      {addingOperadorId === op.id ? 'Adicionando...' : '+ Adicionar'}
+                      {addingOperadorId === op.id ? 'Adicionando...' : '+ Adicionar RJ'}
                     </span>
                   </button>
                 ))
@@ -571,11 +592,15 @@ export default function FechamentoPage() {
                   <th className="py-2 px-3 border-r border-white/5 whitespace-nowrap min-w-[80px]">FINAL</th>
                   <th className="py-2 px-3 border-r border-white/5 whitespace-nowrap min-w-[90px]">HUAWEI</th>
                   <th className="py-2 px-3 border-r border-white/5 whitespace-nowrap min-w-[90px]">WEON</th>
-                  <th className="py-2 px-3 whitespace-nowrap w-10" title="Remover operador do fechamento"></th>
+                  <th className="py-2 px-3 whitespace-nowrap w-10" title="Remover operador RJ do fechamento"></th>
                 </tr>
               </thead>
               <tbody className="text-xs">
-                {rows.map((row, idx) => (
+                {rows.map((row, idx) => {
+                  const rowKey = `${row.layout_id ?? 'c'}-${row.colab_id}-${idx}`;
+                  const isRjRow = isUtiRj(row.setor, row.turno);
+
+                  return (
                   <tr key={`${row.layout_id ?? row.colab_id}-${idx}`} className="border-b border-white/5 hover:bg-primary-500/10 transition-colors">
                     <td className="py-1 px-1 border-r border-white/5">
                       {row.layout_id ? (
@@ -584,7 +609,7 @@ export default function FechamentoPage() {
                           value={row.id}
                           onChange={e => handleCellChange(idx, 'id', parseInt(e.target.value) || 0)}
                           className="w-14 text-center bg-transparent border-none focus:ring-1 focus:ring-primary-500 px-1 py-1 rounded text-slate-400"
-                          title="ID da planilha (persistido ao Gravar Cálculo)"
+                          title="ID temporário para exportação; não é salvo pelo Gravar Cálculo"
                         />
                       ) : (
                         <span className="block text-center text-slate-500 px-2 py-1">{row.id}</span>
@@ -705,15 +730,16 @@ export default function FechamentoPage() {
                     <td className="py-1 px-1 text-center">
                       <button
                         onClick={() => handleRemoveRow(row, idx)}
-                        disabled={removingRowKey !== null}
+                        disabled={removingRowKey !== null || !isRjRow}
                         className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
-                        title={`Remover ${row.nome} do fechamento`}
+                        title={isRjRow ? `Remover operador RJ ${row.nome} do fechamento` : 'Remoção rápida disponível apenas para operador RJ'}
                       >
-                        <Trash2 size={14} className={removingRowKey === `${row.layout_id ?? 'c'}-${row.colab_id}-${idx}` ? 'animate-pulse' : ''} />
+                        <Trash2 size={14} className={removingRowKey === rowKey ? 'animate-pulse' : ''} />
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
