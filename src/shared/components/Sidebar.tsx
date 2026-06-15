@@ -13,9 +13,7 @@ import {
   FileText,
   LayoutDashboard,
   Lightbulb,
-  Link,
   LogOut,
-  MessageSquare,
   PhoneCall,
   Scale,
   Settings,
@@ -227,12 +225,12 @@ export function Sidebar({
                   setAiMenuOpen(!aiMenuOpen);
                 }
               }}
-              className={navItemClass(['ia', 'admin-aliases', 'admin-prompts'].includes(view), collapsed)}
+              className={navItemClass(view === 'ia', collapsed)}
               title={collapsed ? 'Inteligência Artificial' : ''}
               aria-expanded={aiMenuOpen}
               aria-controls="ai-submenu"
             >
-              <Brain size={20} className={navIconClass(['ia', 'admin-aliases', 'admin-prompts'].includes(view))} />
+              <Brain size={20} className={navIconClass(view === 'ia')} />
               {!collapsed && (
                 <>
                   <span className="truncate flex-1 text-left hidden md:block lg:block">Inteligência Artificial</span>
@@ -249,6 +247,10 @@ export function Sidebar({
                 aria-label="Submenu Inteligência Artificial"
                 className="flex flex-col gap-1 pr-2 py-1 mt-1 border-l-2 border-white/5 ml-5 pl-4 theme-light:border-slate-200"
               >
+                {/* "Nomes de Setor" (admin-aliases) e "Prompts de IA"
+                    (admin-prompts) foram ocultados do menu em 2026-06-12 a
+                    pedido do produto. As rotas/telas continuam existindo, mas
+                    sem ponto de entrada na navegacao. */}
                 <button
                   onClick={() => handleViewChange('ia')}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
@@ -259,30 +261,6 @@ export function Sidebar({
                 >
                   <Lightbulb size={16} className="shrink-0" />
                   <span className="truncate">Aprendizado da IA</span>
-                </button>
-
-                <button
-                  onClick={() => handleViewChange('admin-aliases')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
-                    view === 'admin-aliases'
-                      ? 'bg-slate-800 text-primary-300 theme-light:bg-slate-100 theme-light:text-primary-600 font-semibold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 theme-light:text-slate-600 theme-light:hover:text-slate-800 theme-light:hover:bg-slate-50'
-                  }`}
-                >
-                  <Link size={16} className="shrink-0" />
-                  <span className="truncate">Nomes de Setor</span>
-                </button>
-
-                <button
-                  onClick={() => handleViewChange('admin-prompts')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
-                    view === 'admin-prompts'
-                      ? 'bg-slate-800 text-primary-300 theme-light:bg-slate-100 theme-light:text-primary-600 font-semibold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 theme-light:text-slate-600 theme-light:hover:text-slate-800 theme-light:hover:bg-slate-50'
-                  }`}
-                >
-                  <MessageSquare size={16} className="shrink-0" />
-                  <span className="truncate">Prompts de IA</span>
                 </button>
               </div>
             )}

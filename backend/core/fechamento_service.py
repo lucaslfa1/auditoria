@@ -1168,6 +1168,12 @@ def remove_fechamento_layout_operador(conn, *, layout_id: int | None = None, col
 
 
 def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, Any]]):
+    # IMPORTANTE (decisao de produto 2026-06-12): o Fechamento e um modulo de
+    # RESULTADO FINAL. As edicoes do auditor aqui gravam APENAS overrides nas
+    # tabelas `fechamento_layout_overrides` / `fechamento_cadeia_contatos` e
+    # NAO devem alimentar o RAG/aprendizado da IA. O feedback de aprendizado
+    # vive exclusivamente na triagem (`corrigir_classificacao_fila_revisao` ->
+    # `disparar_feedback_rag_background`). NAO ligar este fluxo a ML.
     cursor = conn.cursor()
     base_rows = {}
     for base_row in get_fechamento_rows(conn, month, year, apply_overrides=False):
