@@ -50,7 +50,7 @@ export function AuditEvaluationDetailsPanel({
 
       {isEditingResult ? (
         <div className="mb-4 rounded-xl border border-primary-500/20 bg-primary-500/10 px-4 py-3 text-sm text-primary-200 theme-light:bg-slate-100 theme-light:text-slate-700 theme-light:border-slate-300">
-          Ao aplicar correções, os critérios alterados são registrados como aprendizado para as próximas avaliações da IA.
+          Ao aplicar correções, os critérios alterados são registrados como referência para as próximas avaliações da IA.
         </div>
       ) : null}
 

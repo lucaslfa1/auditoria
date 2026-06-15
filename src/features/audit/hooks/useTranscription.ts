@@ -409,7 +409,7 @@ export const useTranscription = () => {
             return true;
         } catch (err) {
             console.error('Erro ao registrar correções para IA:', err);
-            setActionError('As correções foram aplicadas, mas não foi possível registrar o aprendizado da IA.');
+            setActionError('As correções foram aplicadas, mas não foi possível registrar a referência da IA.');
             return false;
         }
     };

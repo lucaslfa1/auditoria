@@ -12,7 +12,6 @@ import {
   Eye,
   FileText,
   LayoutDashboard,
-  Lightbulb,
   LogOut,
   PhoneCall,
   Scale,
@@ -45,7 +44,6 @@ export function Sidebar({
   const drawerRef = React.useRef<HTMLElement | null>(null);
   const [userPanelOpen, setUserPanelOpen] = React.useState(true);
   const [isCollapsedState, setIsCollapsedState] = React.useState(() => localStorage.getItem('nstech-sidebar-collapsed') === 'true');
-  const [aiMenuOpen, setAiMenuOpen] = React.useState(false);
 
   useDialogFocusTrap(drawerRef, mobileOpen, {
     onDismiss: onCloseMobile,
@@ -215,56 +213,11 @@ export function Sidebar({
 
         {/* --- SEÇÃO INTELIGÊNCIA ARTIFICIAL (Admin Only) --- */}
         {isAdmin && (
-          <div className="flex flex-col gap-1">
-            <button
-              onClick={() => {
-                if (collapsed) {
-                  toggleCollapse();
-                  setAiMenuOpen(true);
-                } else {
-                  setAiMenuOpen(!aiMenuOpen);
-                }
-              }}
-              className={navItemClass(view === 'ia', collapsed)}
-              title={collapsed ? 'Inteligência Artificial' : ''}
-              aria-expanded={aiMenuOpen}
-              aria-controls="ai-submenu"
-            >
-              <Brain size={20} className={navIconClass(view === 'ia')} />
-              {!collapsed && (
-                <>
-                  <span className="truncate flex-1 text-left hidden md:block lg:block">Inteligência Artificial</span>
-                  <span className="md:hidden block flex-1 text-left">Inteligência Artificial</span>
-                  {aiMenuOpen ? <ChevronUp size={16} className="opacity-50" /> : <ChevronDown size={16} className="opacity-50" />}
-                </>
-              )}
-            </button>
-
-            {aiMenuOpen && !collapsed && (
-              <div
-                id="ai-submenu"
-                role="group"
-                aria-label="Submenu Inteligência Artificial"
-                className="flex flex-col gap-1 pr-2 py-1 mt-1 border-l-2 border-white/5 ml-5 pl-4 theme-light:border-slate-200"
-              >
-                {/* "Nomes de Setor" (admin-aliases) e "Prompts de IA"
-                    (admin-prompts) foram ocultados do menu em 2026-06-12 a
-                    pedido do produto. As rotas/telas continuam existindo, mas
-                    sem ponto de entrada na navegacao. */}
-                <button
-                  onClick={() => handleViewChange('ia')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 ${
-                    view === 'ia'
-                      ? 'bg-slate-800 text-primary-300 theme-light:bg-slate-100 theme-light:text-primary-600 font-semibold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 theme-light:text-slate-600 theme-light:hover:text-slate-800 theme-light:hover:bg-slate-50'
-                  }`}
-                >
-                  <Lightbulb size={16} className="shrink-0" />
-                  <span className="truncate">Aprendizado da IA</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <button onClick={() => handleViewChange('ia')} className={navItemClass(view === 'ia', collapsed)} title={collapsed ? 'Inteligência Artificial' : ''}>
+            <Brain size={20} className={navIconClass(view === 'ia')} />
+            {!collapsed && <span className="truncate flex-1 text-left hidden md:block lg:block">Inteligência Artificial</span>}
+            {!collapsed && <span className="md:hidden block flex-1 text-left">Inteligência Artificial</span>}
+          </button>
         )}
 
         {/* --- SEÇÃO VISÃO & RELATÓRIOS (Admin, Supervisor) --- */}

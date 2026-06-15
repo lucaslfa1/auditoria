@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Brain, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
-    AlertCircle, Check, X, Lightbulb, Shield, Tag, BookOpen, Filter, List, FlaskConical,
-    MessageSquare, Send, Sparkles
+    AlertCircle, Check, X, Lightbulb, Shield, Tag, BookOpen, Filter, List
 } from 'lucide-react';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { ModuleInstructions } from '../../../shared/components/ModuleInstructions';
 import { useAuditCriteria } from '../../../contexts/AuditCriteriaContext';
-import { GoldenDatasetPlayground } from './GoldenDatasetPlayground';
 
 interface Feedback {
     id: number;
@@ -64,19 +62,7 @@ const EMPTY_FORM: FormData = {
     blocks: [{ ...EMPTY_BLOCK }],
 };
 
-type TabId = 'nova' | 'chat' | 'cadastradas' | 'playground';
-
-interface ChatMessage {
-    role: 'assistant' | 'user';
-    content: string;
-}
-
-const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
-    {
-        role: 'assistant',
-        content: 'Me diga o que a IA errou ou qual orientação você quer registrar. Depois eu vou pedir o escopo e o limite da regra para transformar isso em aprendizado ativo.',
-    },
-];
+type TabId = 'nova' | 'cadastradas';
 
 export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
     const [items, setItems] = useState<Feedback[]>([]);
@@ -88,13 +74,6 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
     const [filterTipo, setFilterTipo] = useState<string>('');
     const [filterSetor, setFilterSetor] = useState<string>('');
     const [activeTab, setActiveTab] = useState<TabId>('nova');
-    const [chatMessages, setChatMessages] = useState<ChatMessage[]>(INITIAL_CHAT_MESSAGES);
-    const [chatDraft, setChatDraft] = useState('');
-    const [chatTipo, setChatTipo] = useState('regra_geral');
-    const [chatSetor, setChatSetor] = useState('');
-    const [chatCriterioId, setChatCriterioId] = useState('');
-    const [chatExample, setChatExample] = useState('');
-    const [savingChat, setSavingChat] = useState(false);
 
     const { data: auditCriteriaData } = useAuditCriteria();
     const SETOR_OPTIONS = (auditCriteriaData?.sectors || []).map(s => ({ id: s.id, label: s.label }));
@@ -145,10 +124,10 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
             return;
         }
 
-        // RAG validation: classification instructions MUST have a transcription example for vector embedding
+        // RAG validation: classification instructions MUST have a transcription example for vector embedding.
         const missingTranscription = validBlocks.some(b => !b.exemplo_transcricao.trim());
         if (form.tipo === 'classificacao' && missingTranscription) {
-            setError('Para instruções de Classificação, o "Exemplo de transcrição" é obrigatório para a IA gerar o vetor de aprendizado.');
+            setError('Para instruções de Classificação, o "Exemplo de transcrição" é obrigatório para a IA gerar o vetor de referência.');
             return;
         }
 
@@ -232,62 +211,6 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
         }
     };
 
-    const handleSendChat = () => {
-        const message = chatDraft.trim();
-        if (!message) return;
-        const userMessages = chatMessages.filter(item => item.role === 'user').length + 1;
-        const nextAssistant =
-            userMessages === 1
-                ? 'Entendi. Essa orientação vale para um setor/alerta específico ou deve ser global? Se houver exceção, descreva também.'
-                : userMessages === 2
-                    ? 'Agora diga qual é o sinal concreto na ligação ou na transcrição que eu devo procurar antes de aplicar essa orientação.'
-                    : 'Com isso já consigo salvar uma orientação. Revise o escopo e clique em "Salvar como orientação ativa" quando estiver objetivo.';
-        setChatMessages(prev => [
-            ...prev,
-            { role: 'user', content: message },
-            { role: 'assistant', content: nextAssistant },
-        ]);
-        setChatDraft('');
-    };
-
-    const handleSaveChatInstruction = async () => {
-        const userMessages = chatMessages.filter(item => item.role === 'user').map(item => item.content.trim()).filter(Boolean);
-        if (userMessages.length === 0) {
-            setError('Converse com a IA antes de salvar uma orientação.');
-            return;
-        }
-        if (chatTipo === 'classificacao' && !chatExample.trim()) {
-            setError('Para orientações de Classificação, informe um trecho de exemplo para a IA comparar casos semelhantes.');
-            return;
-        }
-        setSavingChat(true);
-        setError(null);
-        try {
-            await apiFetchJson('/api/ai-feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tipo: chatTipo,
-                    setor: chatSetor || null,
-                    criterio_id: chatCriterioId || null,
-                    situacao: `Orientação registrada em conversa com o auditor: ${userMessages[0]}`,
-                    correcao: userMessages.join('\n'),
-                    justificativa: 'Orientação operacional fornecida pelo auditor no chat de aprendizado. Aplicar somente quando o caso for semelhante e sem conflito com critérios oficiais.',
-                    exemplo_transcricao: chatExample || null,
-                }),
-            });
-            setChatMessages(INITIAL_CHAT_MESSAGES);
-            setChatDraft('');
-            setChatExample('');
-            setActiveTab('cadastradas');
-            await fetchItems();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erro ao salvar orientação do chat');
-        } finally {
-            setSavingChat(false);
-        }
-    };
-
     const getTipoMeta = (tipo: string) => TIPO_OPTIONS.find(t => t.id === tipo) || TIPO_OPTIONS[0];
 
     const tabClass = (tab: TabId) =>
@@ -305,8 +228,8 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
             <div className="space-y-6 pb-10">
                 <PageHeader
                     eyebrow="nstech | Inteligência Artificial"
-                    titleFirstWord="Aprendizado"
-                    titleRest="da IA"
+                    titleFirstWord="Inteligência"
+                    titleRest="Artificial"
                     subtitle="Oriente a IA com correções, exemplos e regras operacionais que serão usadas nas próximas classificações e auditorias."
                 />
 
@@ -359,9 +282,6 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
                     <button onClick={() => { setActiveTab('nova'); setEditingId(null); setForm(EMPTY_FORM); }} className={tabClass('nova')}>
                         <Plus size={16} /> Orientar IA
                     </button>
-                    <button onClick={() => setActiveTab('chat')} className={tabClass('chat')}>
-                        <MessageSquare size={16} /> Conversar com a IA
-                    </button>
                     <button onClick={() => setActiveTab('cadastradas')} className={tabClass('cadastradas')}>
                         <List size={16} /> Orientações ativas
                         {items.length > 0 && (
@@ -370,9 +290,6 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
                             </span>
                         )}
                     </button>
-                    <button onClick={() => setActiveTab('playground')} className={tabClass('playground')}>
-                        <FlaskConical size={16} /> Exemplos de Treinamento
-                    </button>
                 </div>
 
                 {error && (
@@ -380,96 +297,6 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
                         <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                         <span className="text-red-400 text-sm">{error}</span>
                         <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-300"><X size={14} /></button>
-                    </div>
-                )}
-
-                {activeTab === 'playground' && (
-                    <div className="animate-fade-in">
-                        <GoldenDatasetPlayground isDark={isDark} />
-                    </div>
-                )}
-
-                {activeTab === 'chat' && (
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.8fr)] animate-fade-in">
-                        <div className={`rounded-xl border p-4 ${isDark ? 'border-white/10 bg-slate-900/50' : 'border-slate-200 bg-white'}`}>
-                            <div className="mb-4 flex items-center gap-2">
-                                <Sparkles size={18} className="text-primary-400" />
-                                <h3 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Conversa de aprendizado</h3>
-                            </div>
-                            <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-                                {chatMessages.map((message, index) => (
-                                    <div key={`${message.role}-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[84%] rounded-xl border px-4 py-3 text-sm leading-relaxed ${
-                                            message.role === 'user'
-                                                ? 'border-primary-500/25 bg-primary-500/15 text-primary-100 theme-light:text-primary-900'
-                                                : isDark
-                                                    ? 'border-white/10 bg-slate-800/80 text-slate-200'
-                                                    : 'border-slate-200 bg-slate-50 text-slate-700'
-                                        }`}>
-                                            {message.content}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-4 flex gap-2">
-                                <textarea
-                                    value={chatDraft}
-                                    onChange={event => setChatDraft(event.target.value)}
-                                    onKeyDown={event => {
-                                        if (event.key === 'Enter' && !event.shiftKey) {
-                                            event.preventDefault();
-                                            handleSendChat();
-                                        }
-                                    }}
-                                    rows={2}
-                                    placeholder="Explique a correção ou a orientação que a IA deve seguir..."
-                                    className={`min-h-[3rem] flex-1 resize-none rounded-lg border px-3 py-2.5 text-sm ${inputClass}`}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={handleSendChat}
-                                    className="btn-primary self-stretch px-4"
-                                    title="Enviar mensagem"
-                                >
-                                    <Send size={16} />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className={`rounded-xl border p-4 ${isDark ? 'border-white/10 bg-slate-900/50' : 'border-slate-200 bg-white'}`}>
-                            <h3 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Salvar como orientação ativa</h3>
-                            <div className="mt-4 space-y-3">
-                                <div>
-                                    <label className={`block text-[10px] uppercase tracking-wider font-semibold mb-1.5 ${labelClass}`}>Tipo</label>
-                                    <select value={chatTipo} onChange={e => setChatTipo(e.target.value)} className={`w-full text-sm rounded-lg border px-3 py-2.5 ${inputClass}`}>
-                                        {TIPO_OPTIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={`block text-[10px] uppercase tracking-wider font-semibold mb-1.5 ${labelClass}`}>Setor</label>
-                                    <select value={chatSetor} onChange={e => setChatSetor(e.target.value)} className={`w-full text-sm rounded-lg border px-3 py-2.5 ${inputClass}`}>
-                                        <option value="">Global</option>
-                                        {SETOR_OPTIONS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={`block text-[10px] uppercase tracking-wider font-semibold mb-1.5 ${labelClass}`}>Critério ID</label>
-                                    <input value={chatCriterioId} onChange={e => setChatCriterioId(e.target.value)} className={`w-full text-sm rounded-lg border px-3 py-2.5 ${inputClass}`} placeholder="opcional" />
-                                </div>
-                                <div>
-                                    <label className={`block text-[10px] uppercase tracking-wider font-semibold mb-1.5 ${labelClass}`}>Trecho de exemplo</label>
-                                    <textarea value={chatExample} onChange={e => setChatExample(e.target.value)} rows={4} className={`w-full text-sm rounded-lg border px-3 py-2.5 resize-none ${inputClass}`} placeholder="Opcional: cole um trecho da transcrição." />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleSaveChatInstruction}
-                                    disabled={savingChat}
-                                    className="btn-primary w-full px-4 py-2.5 text-sm font-semibold"
-                                >
-                                    {savingChat ? 'Salvando...' : 'Salvar como orientação ativa'}
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 )}
 
@@ -656,7 +483,7 @@ export function AIFeedbackPage({ theme = 'dark' }: AIFeedbackPageProps) {
                                     Nenhuma orientação cadastrada
                                 </p>
                                 <p className={`text-sm ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
-                                    Crie orientações na aba "Orientar IA" ou pelo chat de aprendizado.
+                                    Crie orientações na aba "Orientar IA".
                                 </p>
                             </div>
                         ) : (
