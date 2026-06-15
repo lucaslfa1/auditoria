@@ -118,7 +118,10 @@ def list_arquivos_salvos(
                 SELECT
                     CASE
                         WHEN COALESCE(TRIM(a.metadata_json), '') = '' THEN '{}'::jsonb
-                        ELSE a.metadata_json::jsonb
+                        -- jsonb nao aceita o escape de NUL no JSON; remover (chr(92)+'u0000'
+                        -- = a sequencia \\u0000) evita que 1 linha corrompida derrube a lista
+                        -- inteira (incidente prod 2026-06-15, arquivo_salvo id=206).
+                        ELSE replace(a.metadata_json, chr(92) || 'u0000', '')::jsonb
                     END AS metadata
             ) meta ON TRUE
         """
