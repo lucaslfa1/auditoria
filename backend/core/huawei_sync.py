@@ -87,75 +87,35 @@ from repositories.common import json_loads, normalize_huawei_agent_id
 
 logger = logging.getLogger(__name__)
 _HUAWEI_SYNC_LOCK_KEY = 2026042202
-DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT = 20
-DEFAULT_HUAWEI_SYNC_MIN_DURATION_SECONDS = 120
-DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS = 0
-DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY = 5
-DEFAULT_HUAWEI_SYNC_CLASSIFY_CONCURRENCY = 5
-DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD = 0.90
+# Config/credenciais/tuning de runtime do sync: extraído para
+# core/huawei/automation_config.py (v1.3.169); reexportado p/ compat (callers
+# internos, sync_classification via hs.<nome>, huawei_d_minus_1 e scripts que
+# importam from core.huawei_sync import _load_config).
+from core.huawei.automation_config import (  # noqa: E402,F401
+    DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT,
+    DEFAULT_HUAWEI_SYNC_MIN_DURATION_SECONDS,
+    DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS,
+    DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY,
+    DEFAULT_HUAWEI_SYNC_CLASSIFY_CONCURRENCY,
+    DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD,
+    _ensure_enabled,
+    _load_config,
+    _missing_credentials,
+    _coerce_int,
+    _coerce_float,
+    _runtime_int_config,
+    _runtime_float_config,
+    _effective_download_attempt_limit,
+    _get_huawei_auto_audit_confidence_threshold,
+    _env_flag,
+    _should_run_auto_classification_after_sync,
+    _get_duration_limits_for_sector,
+)
 _AUDIO_DIRECTION_GATE_SECTORS = OUTBOUND_ONLY_RISK_SECTORS
 _NON_TELEFONIA_SECTORS = NON_TELEFONIA_SECTORS
 _AUTOMATION_CONFIDENCE_REVIEW_REASON = "confianca_insuficiente_automacao"
 # Timeout generoso o bastante para download via FS (audios podem ter ate 50MB).
 _OBS_HTTP_TIMEOUT = 120.0
-
-def _ensure_enabled() -> bool:
-    return (os.getenv("ENABLE_HUAWEI_SYNC", "false") or "").strip().lower() == "true"
-
-def _load_config() -> Dict[str, Any]:
-    """Le AK/SK/CCID/VDN/App Key da tabela configuracoes.
-
-    Env vars funcionam como override local (`HUAWEI_AK`, etc.).
-    """
-
-    def read(key: str) -> str:
-        env_key = f"HUAWEI_{key.upper()}"
-        if os.getenv(env_key):
-            return str(os.getenv(env_key)).strip()
-        return str(database.get_config_value(f"huawei_{key}", "") or "").strip()
-
-    cfg = {
-        "cms_url": read("cms_url") or read("portal_url"),
-        "fs_url": read("fs_url"),
-        "cc_id": read("ccid") or read("cc_id"),
-        "vdn": read("vdn"),
-        "ak": read("ak"),
-        "sk": read("sk"),
-        "app_key": read("app_key"),
-        "app_secret": read("app_secret"),
-        "proxy_url": read("proxy_url"),
-        "auth_mode": read("auth_mode"),
-        # OAuth direct (modo `oauth_direct`): credenciais isoladas do proxy
-        # Teledata para o tokenByAkSk + cabecalho X-TenantSpaceID.
-        "auth_base_url": read("auth_base_url"),
-        "tenant_space_id": read("tenant_space_id"),
-        "direct_app_key": read("direct_app_key"),
-        "direct_app_secret": read("direct_app_secret"),
-        # Credenciais OBS (fallback direto no bucket quando CC-FS retorna 0300012).
-        # Lidas do mesmo padrao: env HUAWEI_OBS_* ou tabela configuracoes huawei_obs_*.
-        "obs_ak": read("obs_ak"),
-        "obs_sk": read("obs_sk"),
-        "obs_bucket": read("obs_bucket"),
-        "obs_endpoint": read("obs_endpoint"),
-    }
-        
-    return cfg
-
-def _missing_credentials(cfg: Dict[str, Any]) -> List[str]:
-    auth_mode = str(cfg.get("auth_mode") or "proxy").strip().lower()
-    if auth_mode in OAUTH_DIRECT_MODES:
-        obrigatorios = ["cc_id", "vdn", "direct_app_key", "direct_app_secret"]
-    else:
-        obrigatorios = ["ak", "sk", "cc_id", "vdn"]
-    return [k for k in obrigatorios if not cfg.get(k)]
-
-
-
-
-
-
-
-
 
 _DURATION_KEYS = (
     "duration",
@@ -319,118 +279,6 @@ def _should_skip_receptive_risk_call(interacao: dict, operador: dict) -> bool:
     """Compatibilidade com callers antigos; a regra atual usa _should_skip_call."""
     return _should_skip_call(interacao, operador) is not None
 
-def _get_duration_limits_for_sector(
-    raw_setor: str,
-    default_min: int,
-    default_max: int = DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS,
-) -> tuple[int, int]:
-    # A coleta de ligacoes deve ser ampla; setor nao deve bloquear download.
-    _ = raw_setor
-    return max(0, default_min), max(0, default_max)
-
-def _coerce_int(value: Any, default: int = 0) -> int:
-    try:
-        return int(float(str(value).strip()))
-    except (TypeError, ValueError):
-        return default
-
-
-def _coerce_float(value: Any, default: float = 0.0) -> float:
-    try:
-        return float(str(value).strip())
-    except (TypeError, ValueError):
-        return default
-
-def _runtime_int_config(env_key: str, db_keys: tuple[str, ...], default: int) -> int:
-    raw = os.getenv(env_key)
-    if raw not in (None, ""):
-        return _coerce_int(raw, default)
-
-    for key in db_keys:
-        try:
-            raw = database.get_config_value(key, "")
-        except Exception as exc:
-            logger.debug("Sync Huawei: falha ao ler config %s: %s", key, exc)
-            continue
-        if raw not in (None, ""):
-            return _coerce_int(raw, default)
-
-    return default
-
-
-def _effective_download_attempt_limit() -> int:
-    explicit_download_limit = os.getenv("HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS")
-    if explicit_download_limit not in (None, ""):
-        return max(
-            1,
-            _coerce_int(explicit_download_limit, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT),
-        )
-
-    # Opção 1 (downloads = meta): o número de downloads por ciclo passa a ser a
-    # própria meta de auditorias. O antigo `huawei_d1_limite_ligacoes` deixou de
-    # ser um controle separado — era redundante, pois o efetivo já era
-    # max(limite_downloads, meta). Agora vale só a meta (1:1).
-    raw_audit_target = os.getenv("AUTOMATION_AUDIT_TARGET_COUNT") or os.getenv("AUTOMATION_AUDIT_BATCH_SIZE")
-    if raw_audit_target in (None, ""):
-        raw_audit_target = ""
-        for key in ("automacao_audit_target_count", "automacao_audit_batch_size"):
-            try:
-                raw_audit_target = database.get_config_value(key, "")
-            except Exception as exc:
-                logger.debug("Sync Huawei: falha ao ler config %s: %s", key, exc)
-                continue
-            if raw_audit_target not in (None, ""):
-                break
-    return max(1, _coerce_int(raw_audit_target, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT))
-
-
-def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float) -> float:
-    raw = os.getenv(env_key)
-    if raw not in (None, ""):
-        return _coerce_float(raw, default)
-
-    for key in db_keys:
-        try:
-            raw = database.get_config_value(key, "")
-        except Exception as exc:
-            logger.debug("Sync Huawei: falha ao ler config %s: %s", key, exc)
-            continue
-        if raw not in (None, ""):
-            return _coerce_float(raw, default)
-
-    return default
-
-
-def _get_huawei_auto_audit_confidence_threshold() -> float:
-    threshold = _runtime_float_config(
-        "HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD",
-        ("huawei_auto_audit_confidence_threshold",),
-        DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD,
-    )
-    return min(1.0, max(0.0, threshold))
-
-def _env_flag(name: str, default: Optional[bool] = None) -> Optional[bool]:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
-
-def _should_run_auto_classification_after_sync() -> bool:
-    """Controls the expensive Telefonia-side alert classifier.
-
-    Default is disabled: Huawei sync should download/enqueue and let the
-    triage module classify alerts. Legacy HUAWEI_SYNC_SKIP_CLASSIFY is still
-    honored when explicitly set so existing deployments can roll back quickly.
-    """
-    explicit_enable = _env_flag("HUAWEI_SYNC_ENABLE_CLASSIFY", None)
-    if explicit_enable is not None:
-        return explicit_enable
-
-    legacy_skip = _env_flag("HUAWEI_SYNC_SKIP_CLASSIFY", None)
-    if legacy_skip is not None:
-        return not legacy_skip
-
-    return False
 
 def _cancel_requested(should_cancel: Optional[Callable[[], bool]]) -> bool:
     if should_cancel is None:
