@@ -1,3 +1,20 @@
+"""Router de endpoints de sistema, configuração e dashboard (prefixo /api).
+
+Papel no fluxo: agrupa as rotas HTTP "transversais" do backend — healthcheck,
+versão de release, logs do frontend, leitura/escrita de `configuracoes`, tema da
+UI, estatísticas/histórico do dashboard, listagem de ligações auditadas e da fila
+de revisão, e os endpoints que salvam/atualizam/enviam auditorias para o supervisor
+("Arquivos Salvos" → fila do supervisor).
+
+Autenticação: a maioria exige admin (require_admin); leituras de dashboard/tema
+exigem apenas usuário autenticado (require_authenticated_user); /api/health e
+/api/system/client-logs são públicos.
+
+CUSTO DE API: nenhum endpoint deste módulo chama Azure OpenAI/Speech. Sem custo de
+API — apenas acesso a banco (PostgreSQL) e CPU. O Sentry é opcional e só é acionado
+para encaminhar erros do frontend.
+"""
+
 import json
 import logging
 import os
@@ -32,12 +49,16 @@ router = APIRouter(tags=["system"])
 
 
 class ConfigUpdateRequest(BaseModel):
+    """Corpo de POST /api/configuracoes: chave/valor a persistir e motivo opcional da mudança (vai para a trilha de auditoria)."""
+
     chave: str
     valor: str
     motivo: str | None = None
 
 
 class ClientLogRequest(BaseModel):
+    """Corpo de POST /api/system/client-logs: erro/log capturado no frontend e encaminhado ao backend (limites de tamanho por campo)."""
+
     level: str = Field(..., max_length=16)
     message: str = Field(..., max_length=2000)
     stack: str | None = Field(default=None, max_length=12000)
@@ -77,6 +98,11 @@ def _sanitize_client_url(raw_url: str | None) -> str | None:
 
 
 def _capture_client_log_in_sentry(req: ClientLogRequest, sentry_level: str) -> None:
+    """Encaminha o log do frontend ao Sentry (só warning/error/fatal), com tags/extras de origem e URL sanitizada.
+
+    No-op se o Sentry não estiver instalado. Nunca propaga exceção: falha de
+    encaminhamento é apenas logada.
+    """
     if sentry_sdk is None or sentry_level not in {"warning", "error", "fatal"}:
         return
     try:
@@ -142,6 +168,11 @@ def _read_latest_log_version(root: Path) -> str | None:
 
 @lru_cache(maxsize=1)
 def _resolve_app_version() -> str | None:
+    """Resolve a versão da aplicação (cache de 1 entrada).
+
+    Precedência: env APP_VERSION; senão escolhe o maior semver entre
+    package.json e o último arquivo em logs/versions/. Lê arquivos do projeto.
+    """
     env_version = (os.getenv("APP_VERSION") or "").strip()
     if env_version:
         return env_version
@@ -189,6 +220,10 @@ def _normalize_ui_theme_preset(raw_value: str | None) -> str:
 
 @router.post("/api/system/client-logs")
 async def receive_client_logs(req: ClientLogRequest):
+    """Recebe um log/erro do frontend, registra no logger do backend e (se configurado) encaminha ao Sentry.
+
+    Endpoint público (sem auth). Sempre retorna {"status": "ok"}.
+    """
     log_level, sentry_level = _normalize_client_log_level(req.level)
     console_log_level = logging.WARNING if log_level >= logging.ERROR else log_level
     logger.log(
@@ -210,10 +245,16 @@ async def check_network_connectivity(
     port: int = 28443, 
     _user: dict = Depends(require_admin)
 ) -> dict:
+    """Testa conectividade TCP até um host:port (default = endpoint Huawei), com timeout de 3s.
+
+    Diagnóstico de rede só para admin. Faz uma conexão de saída (rede) e mede
+    a latência; retorna {success, target, latency_ms|error, message}. Não levanta
+    erro: falha vira success=False.
+    """
     import asyncio
     import socket
     import time
-    
+
     start = time.time()
     try:
         # Tenta abrir uma conexão TCP básica com timeout curto
@@ -240,6 +281,7 @@ async def check_network_connectivity(
 
 @router.get("/api/health")
 def health_check() -> dict:
+    """Healthcheck público: retorna status online e info de release (versão, revisão, commit, ambiente)."""
     return {
         "status": "online",
         "division": "NSTECH",
@@ -249,6 +291,7 @@ def health_check() -> dict:
 
 @router.get("/api/configuracoes")
 def get_configuracoes(_user: dict = Depends(require_admin)) -> dict:
+    """Retorna todas as configurações (admin). Chaves marcadas is_secret voltam MASCARADAS por padrão do repositório."""
     # mask_secrets=True por default no repositorio: chaves com is_secret=true
     # voltam mascaradas. Para obter o valor real, use os getters internos.
     return database.get_all_configs()
@@ -256,6 +299,7 @@ def get_configuracoes(_user: dict = Depends(require_admin)) -> dict:
 
 @router.post("/api/configuracoes")
 def update_configuracao(req: ConfigUpdateRequest, user: dict = Depends(require_admin)) -> dict:
+    """Atualiza uma config no banco (admin), registrando autor/motivo/origem na trilha. HTTP 500 se a persistência falhar."""
     sucesso = database.update_config(
         req.chave,
         req.valor,
@@ -288,6 +332,7 @@ def list_configuracoes_audit_log(
 
 @router.get("/api/ui/theme")
 def get_ui_theme(_user: dict = Depends(require_authenticated_user)) -> dict:
+    """Retorna o preset de tema visual atual (config `tema_visual`, normalizado para um valor válido)."""
     return {
         "preset": _normalize_ui_theme_preset(database.get_config_value("tema_visual", "corporativo")),
     }
@@ -295,16 +340,19 @@ def get_ui_theme(_user: dict = Depends(require_authenticated_user)) -> dict:
 
 @router.get("/api/dashboard/stats")
 def get_dashboard_stats(_user: dict = Depends(require_authenticated_user)) -> dict:
+    """Retorna as estatísticas agregadas do dashboard (delegado a database.get_stats)."""
     return database.get_stats()
 
 
 @router.get("/api/dashboard/history")
 def get_dashboard_history(_user: dict = Depends(require_authenticated_user)) -> list:
+    """Retorna o histórico de auditorias para o dashboard (delegado a database.get_history)."""
     return database.get_history()
 
 
 @router.get("/api/sectors")
 def get_sectors(_user: dict = Depends(require_authenticated_user)) -> list:
+    """Lista os setores cadastrados (delegado a database.get_sectors)."""
     return database.get_sectors()
 
 
@@ -314,6 +362,7 @@ def get_dashboard_ligacoes_auditadas_resumo(
     setor: str = None,
     _user: dict = Depends(require_authenticated_user),
 ) -> dict:
+    """Resumo das ligações auditadas, filtrável por setor (`sector_id` tem precedência sobre `setor`)."""
     return database.get_resumo_ligacoes_auditadas(sector_id or setor)
 
 
@@ -325,6 +374,7 @@ def get_dashboard_ligacoes_auditadas(
     sector_id: str = None,
     _user: dict = Depends(require_authenticated_user),
 ) -> list:
+    """Lista ligações auditadas com filtros opcionais por qualidade e setor. `limit` é clampado entre 1 e 1000."""
     limit = max(1, min(limit, 1000))
     return database.listar_ligacoes_auditadas(limit=limit, qualidade=qualidade, setor=sector_id or setor)
 
@@ -336,6 +386,7 @@ def get_dashboard_classificacao_revisao(
     sector_id: str = None,
     _user: dict = Depends(require_authenticated_user),
 ) -> list:
+    """Lista a fila de revisão de classificação, filtrável por status (default = DEFAULT_REVIEW_QUEUE_STATUS) e setor."""
     return database.listar_fila_revisao_classificacao(limit=limit, status=status, sector_id=sector_id)
 
 
@@ -347,6 +398,7 @@ def list_report_exports(
     operator_name: str = None,
     _user: dict = Depends(require_authenticated_user),
 ) -> list:
+    """Lista os exports de relatórios gerados, filtráveis por tipo/formato/operador. `limit` clampado entre 1 e 1000."""
     limit = max(1, min(limit, 1000))
     return database.list_report_exports(
         limit=limit,
@@ -367,6 +419,14 @@ def save_to_dashboard(
     ai_feedback: str = None,
     audio_date: str = None,
 ) -> dict:
+    """Arquiva uma auditoria em "Arquivos Salvos" e a enfileira para revisão do supervisor (admin).
+
+    Se já existe auditoria com o mesmo `input_hash`, atualiza o resultado (e o
+    operator_id, se mudou) preservando o status de revisão; senão cria uma nova com
+    status `awaiting_pair`. Calcula `input_hash` por sha256 do resumo/score/timestamp
+    quando o result não traz um. Efeitos: escreve no banco (audits + fila). HTTP 500
+    em falha de enfileiramento. Sem custo de API (a auditoria já foi avaliada antes).
+    """
     import hashlib
 
     input_hash = str(getattr(result, "input_hash", "") or "").strip()
@@ -451,6 +511,7 @@ def update_saved_audit(
     result: AuditResult,
     _user: dict = Depends(require_admin),
 ) -> dict:
+    """Atualiza uma auditoria salva pelo id (admin). HTTP 404 se não existir; escreve no banco."""
     try:
         outcome = database.update_audit_by_id(
             audit_id,
@@ -472,6 +533,13 @@ def force_send_to_supervisor(
     force: bool = False,
     _user: dict = Depends(require_admin),
 ) -> dict:
+    """Promove uma auditoria `awaiting_pair` para a fila do supervisor (`pending_approval`), admin.
+
+    Valida a cota mensal de auditorias por operador no painel do supervisor; ao
+    atingir o limite, retorna HTTP 429 — a menos que `force=True`, que ignora o
+    aviso. Idempotente se já estiver `pending_approval`. HTTP 404 se não existir,
+    409 se o status atual não permitir o envio. Escreve no banco.
+    """
     try:
         from db.domain_constants import (
             AUDIT_STATUS_AWAITING_PAIR,

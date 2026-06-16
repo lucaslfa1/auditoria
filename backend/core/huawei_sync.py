@@ -696,7 +696,40 @@ async def executar_sync_huawei(
     progress_callback: Optional[Callable[[str, int, int], None]] = None,
     is_manual: bool = False,
 ) -> Dict[str, Any]:
-    """Funcao principal que baixa, tria e enfileira as ligacoes na revisao."""
+    """Funcao principal que baixa, tria e enfileira as ligacoes na revisao.
+
+    Orquestra um ciclo completo de sincronizacao: adquire o lock de execucao,
+    valida que o sync esta habilitado e que ha credenciais, descobre chamadas
+    (VDN + manifesto OBS), filtra por elegibilidade/cota/duracao, baixa o audio
+    (cadeia OBS/FS/URL) com concorrencia limitada e enfileira na fila de
+    triagem. Opcionalmente roda a classificacao automatica (Fase 2) se
+    habilitada por env.
+
+    Params:
+    - horas_retroativas: janela retroativa (em horas) quando nao ha intervalo
+      explicito; default 1.0.
+    - should_cancel / should_pause: callbacks opcionais consultados ao longo do
+      loop para cancelar ou pausar a coleta.
+    - begin_time_ms / end_time_ms: intervalo manual explicito em epoch ms;
+      quando ambos sao informados o modo vira "manual_interval" (limite de
+      30 dias) em vez de "retroactive".
+    - obs_only: forca descoberta apenas pelo manifesto OBS (tambem ativavel via
+      env HUAWEI_DISCOVERY_OBS_ONLY).
+    - prefetched_obs_client: reaproveita um `HuaweiOBSClient` ja criado.
+    - progress_callback: callback (fase, atual, total) para reportar progresso.
+    - is_manual: marca os itens enfileirados como originados de acao manual.
+
+    Retorna um dict de contadores/estatisticas do ciclo (status, baixadas,
+    enfileiradas, duplicadas, ignoradas por varios motivos, etc.).
+
+    Custo de API: o download em si nao chama Azure. A descoberta de direcao usa
+    a consulta VDN (sem custo de IA). A Fase 2 de classificacao automatica, SE
+    habilitada, dispara transcricao + GPT (chamadas pagas a Azure) — por padrao
+    fica desligada. Sempre faz I/O de rede (Huawei/OBS) e banco (logs/fila).
+
+    Efeitos colaterais: lock em `configuracoes`, gravacao de midia, registros em
+    `huawei_sync_logs` e itens na fila de triagem.
+    """
     sync_lock = _HuaweiSyncExecutionLock()
     if not sync_lock.acquire():
         logger.info("Sync Huawei ignorado porque outra execucao ja esta em andamento.")

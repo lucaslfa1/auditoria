@@ -1,3 +1,26 @@
+"""Pool de conexoes PostgreSQL do backend (psycopg2).
+
+Gerencia um `ThreadedConnectionPool` process-local apontando para o Postgres
+da aplicacao (Neon canonico em producao; fallback localhost so em
+desenvolvimento). Expoe `get_connection`/`create_connection` que devolvem um
+`PooledConnectionContext` — um wrapper compativel com codigo legado que chama
+`conn.close()` diretamente: o close devolve a conexao ao pool em vez de
+fecha-la de fato.
+
+Recursos principais:
+- DSN resolvido por `get_database_url` (exige DATABASE_URL em producao;
+  injeta sslmode=require quando aplicavel).
+- Limites/timeouts de pool e de sessao configuraveis por env (DB_POOL_*,
+  DB_*_TIMEOUT_*), aplicados via SET SESSION apos o checkout (compat. com
+  poolers Neon/Supabase que rejeitam `options` no startup).
+- Semaforo proprio (`_pool_semaphore`) que limita checkouts concorrentes e
+  espera ate DB_POOL_WAIT_SECONDS antes de estourar PoolError.
+- Validacao opcional da conexao no checkout (SELECT 1) e descarte de conexoes
+  com SSL quebrado.
+
+Sem custo de API (apenas acesso a banco; nao chama Azure).
+"""
+
 import logging
 import os
 from threading import BoundedSemaphore, Lock
@@ -198,6 +221,15 @@ class PooledConnectionContext:
         self._dirty = False
 
     def close(self):
+        """Devolve a conexao ao pool (nao fecha de fato) e libera o slot.
+
+        Idempotente apos o primeiro close. Faz `rollback()` apenas quando ha
+        trabalho nao-commitado (`_dirty`), para nao reverter dados ja gravados
+        por uma facade de conexao compartilhada. Conexoes com SSL quebrado sao
+        descartadas (close=True) em vez de reaproveitadas; se o `putconn`
+        falhar, fecha a conexao nativa diretamente para nao vazar o recurso.
+        Sempre libera o slot do semaforo no final.
+        """
         global _db_pool
         if self._conn is None:
             return
@@ -230,17 +262,24 @@ class PooledConnectionContext:
             _release_pool_slot()
 
     def cursor(self, *args, **kwargs):
+        """Abre um cursor na conexao subjacente e marca a conexao como suja.
+
+        Marcar `_dirty=True` aqui garante que o close fara rollback do trabalho
+        nao-commitado. Levanta RuntimeError se a conexao ja foi devolvida.
+        """
         if self._conn is None:
             raise RuntimeError("Tentativa de chamar cursor() em uma conexao do pool ja liberada.")
         self._dirty = True
         return self._conn.cursor(*args, **kwargs)
 
     def commit(self):
+        """Faz commit na conexao subjacente e limpa o flag `_dirty`."""
         if self._conn:
             self._conn.commit()
             self._dirty = False
 
     def rollback(self):
+        """Faz rollback na conexao subjacente e limpa o flag `_dirty`."""
         if self._conn:
             self._conn.rollback()
             self._dirty = False
@@ -298,6 +337,7 @@ def get_connection():
 
 
 def is_production_environment() -> bool:
+    """True quando a env ENVIRONMENT (default 'development') vale 'production'."""
     return (os.getenv("ENVIRONMENT", "development") or "").strip().lower() == "production"
 
 

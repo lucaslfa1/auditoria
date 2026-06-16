@@ -50,6 +50,13 @@ def list_feedback(
     setor: Optional[str] = None,
     ativo_only: bool = False,
 ) -> list[dict]:
+    """Lista feedbacks da tabela ``ai_feedback`` (mais recentes primeiro).
+
+    Filtros opcionais: ``tipo`` (exato), ``setor`` (casa o setor OU registros
+    globais com ``setor IS NULL``) e ``ativo_only`` (só ``ativo = 1``).
+    Retorna lista de dicts com as colunas públicas (``PUBLIC_FEEDBACK_COLUMNS``).
+    Efeito colateral: leitura no banco (abre e fecha conexão).
+    """
     conn = _get_connection()
     try:
         cursor = conn.cursor()
@@ -74,6 +81,10 @@ def list_feedback(
 
 
 def get_feedback_by_id(feedback_id: int) -> Optional[dict]:
+    """Busca um feedback pelo id; retorna o dict (colunas públicas) ou ``None``.
+
+    Efeito colateral: leitura no banco (abre e fecha conexão).
+    """
     conn = _get_connection()
     try:
         cursor = conn.cursor()
@@ -98,6 +109,18 @@ def add_feedback(
     exemplo_transcricao: Optional[str] = None,
     transcricao_embedding: Optional[list[float]] = None,
 ) -> dict:
+    """Insere um novo feedback de auditor em ``ai_feedback``.
+
+    Valida ``tipo`` contra ``VALID_TIPOS`` (levanta ``ValueError`` se inválido).
+    Quando há ``exemplo_transcricao`` mas não foi passado ``transcricao_embedding``,
+    tenta gerar o embedding via ``core.rag_triagem.gerar_embedding`` (CUSTO DE API:
+    chamada paga de embedding ao Azure OpenAI; falha só gera warning e segue sem
+    embedding). O embedding só é persistido se a coluna ``transcricao_embedding``
+    (pgvector) existir no schema; senão é ignorado.
+
+    Efeitos colaterais: INSERT + commit no banco. Retorna ``{"id": <novo_id>,
+    "created": True}``.
+    """
     if tipo not in VALID_TIPOS:
         raise ValueError(f"Tipo inválido: {tipo}. Válidos: {VALID_TIPOS}")
 
@@ -163,6 +186,14 @@ def update_feedback(
     criterio_id: Optional[str] = None,
     exemplo_transcricao: Optional[str] = None,
 ) -> bool:
+    """Atualiza campos de um feedback existente (merge: ``None`` mantém o valor atual).
+
+    Retorna ``False`` se o id não existir. Se ``exemplo_transcricao`` mudou e a
+    coluna pgvector existe, regenera o embedding via ``core.rag_triagem.gerar_embedding``
+    (CUSTO DE API: chamada paga ao Azure OpenAI; falha só gera warning).
+
+    Efeitos colaterais: UPDATE + commit no banco; atualiza ``atualizado_em``.
+    """
     conn = _get_connection()
     try:
         cursor = conn.cursor()
@@ -227,6 +258,11 @@ def update_feedback(
 
 
 def toggle_feedback(feedback_id: int) -> Optional[bool]:
+    """Alterna o flag ``ativo`` (0<->1) de um feedback.
+
+    Retorna o novo estado como bool, ou ``None`` se o id não existir.
+    Efeitos colaterais: UPDATE + commit no banco; atualiza ``atualizado_em``.
+    """
     conn = _get_connection()
     try:
         cursor = conn.cursor()
@@ -247,6 +283,11 @@ def toggle_feedback(feedback_id: int) -> Optional[bool]:
 
 
 def delete_feedback(feedback_id: int) -> bool:
+    """Remove definitivamente um feedback (DELETE físico).
+
+    Retorna ``True`` se algo foi removido, ``False`` se o id não existia.
+    Efeitos colaterais: DELETE + commit no banco.
+    """
     conn = _get_connection()
     try:
         cursor = conn.cursor()

@@ -11,11 +11,30 @@ métodos (igual ao original) para não acoplar o boot.
 
 
 class _HuaweiSyncExecutionLock:
+    """Lock cooperativo (singleton lógico) que serializa o sync Huawei.
+
+    Usa a linha `chave='sync_lock'` da tabela `configuracoes` como mutex
+    distribuído: enquanto `valor='true'` nenhuma outra instância consegue
+    adquirir o lock. Não é um lock de banco nativo (advisory/row lock); é um
+    flag persistido, então mantém a sua própria conexão aberta entre
+    `acquire()` e `release()`. Sem custo de API (só acesso a banco).
+    """
+
     def __init__(self) -> None:
         self._conn = None
         self.acquired = False
 
     def acquire(self) -> bool:
+        """Tenta adquirir o lock; devolve True se conseguiu, False caso contrário.
+
+        Efeitos colaterais (banco): abre uma conexão (guardada em `self._conn`),
+        primeiro libera locks presos há mais de 30 minutos (UPDATE de
+        `sync_lock` para 'false') e então faz um INSERT ... ON CONFLICT que só
+        marca 'true' quando o valor atual é 'false'/NULL. Em sucesso seta
+        `self.acquired=True` e mantém a conexão aberta para o `release()`. Em
+        erro faz rollback, loga e retorna False (a conexão pode ficar pendente
+        e ser fechada por GC). Não levanta exceção.
+        """
         import db.database as database
         self._conn = database.get_connection()
         try:
@@ -54,6 +73,14 @@ class _HuaweiSyncExecutionLock:
             return False
 
     def release(self) -> None:
+        """Libera o lock e fecha a conexão. Idempotente / seguro chamar sempre.
+
+        Efeitos colaterais (banco): se o lock foi de fato adquirido, marca
+        `sync_lock='false'` e faz commit; ao final sempre zera `self.acquired`
+        e fecha a conexão (`self._conn=None`). Engole exceções (só loga
+        warning) para nunca quebrar o `finally` do chamador. No-op se nenhuma
+        conexão estiver aberta.
+        """
         if self._conn is None:
             return
         try:

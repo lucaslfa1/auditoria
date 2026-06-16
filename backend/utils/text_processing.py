@@ -1,10 +1,27 @@
-from __future__ import annotations
 """
 Text Processing Module
 
 Normalization, hallucination filtering, deduplication, and speaker prefix
 handling for transcription segments.
+
+Papel no sistema: utilitários de pós-processamento de TEXTO de transcrição
+(saída do ASR). Cobre quatro frentes: (1) limpeza/anti-alucinação (remoção de
+emojis, loops de palavras repetidas, vazamentos de system prompt, marcadores de
+fim/silêncio e termos sabidamente alucinados); (2) normalização (correção
+fonética de nomes de empresa, normalização para deduplicação); (3) deduplicação
+de segmentos vizinhos quase idênticos; (4) normalização de prefixos de falante
+(operador/motorista/Telefonia) e detecção de URA por palavras-chave.
+
+Regras de negócio (blacklist, substituições, prefixos de falante, palavras-chave
+de URA, correções fonéticas) vêm de `config/text_corrections.json`, lido UMA vez
+no import — editar o JSON muda o comportamento sem alterar código. Regexes da
+blacklist e das substituições são pré-compiladas no boot para evitar recompilação
+a cada chamada.
+
+Sem custo de API: opera só em strings já transcritas, em CPU; não chama
+Azure OpenAI/Speech nem acessa banco/rede.
 """
+from __future__ import annotations
 
 
 import json
@@ -27,6 +44,11 @@ _CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 
 
 def _load_text_corrections() -> dict:
+    """Carrega `config/text_corrections.json` (UTF-8 com BOM) ou {} se ausente.
+
+    Efeito colateral: leitura de arquivo. Chamado uma vez no import para popular
+    `TEXT_CORRECTIONS_CONFIG`.
+    """
     path = _CONFIG_DIR / "text_corrections.json"
     if path.exists():
         with open(path, "r", encoding="utf-8-sig") as f:
@@ -71,6 +93,10 @@ EMOJI_PATTERN = re.compile(
 
 
 def remove_emojis(text: str) -> str:
+    """Remove emojis, variation selectors e ZWJ; colapsa espaços e faz strip.
+
+    Retorna "" para entrada vazia/falsy. Opera só em string (sem efeitos colaterais).
+    """
     if not text:
         return ""
     cleaned = EMOJI_PATTERN.sub("", text)
@@ -112,6 +138,12 @@ def filter_hallucinations(text: str) -> str:
 
 
 def normalize_text_for_dedupe(text: str) -> str:
+    """Gera uma forma canônica do texto para comparação na deduplicação.
+
+    Remove emojis, baixa para minúsculas, troca tudo que não é palavra/espaço/`:`
+    por espaço e colapsa espaços. Mantém `:` de propósito para preservar o prefixo
+    de falante na comparação. Não persiste nada; retorna a string normalizada.
+    """
     cleaned = remove_emojis(text).lower()
     cleaned = re.sub(r"[^\w\s:]", " ", cleaned)
     return re.sub(r"\s+", " ", cleaned).strip()
@@ -131,6 +163,24 @@ def normalize_company_name(text: str) -> str:
 
 
 def deduplicate_transcription_segments(segments: list[dict]) -> list[dict]:
+    """Remove segmentos vizinhos repetidos/redundantes da transcrição.
+
+    Percorre `segments` (cada item é um dict com ao menos `start`, `end`, `text`)
+    comparando cada segmento apenas com o ANTERIOR mantido, usando a forma
+    canônica de `normalize_text_for_dedupe` e o falante extraído por
+    `extract_segment_speaker`. Casos tratados:
+      - Mesma janela de tempo (`start`/`end` iguais): mantém só a versão mais longa
+        do texto, a menos que os falantes detectados sejam diferentes (aí mantém os
+        dois, pois é troca de turno legítima).
+      - Frase repetida idêntica (>= 4 palavras) do mesmo falante: descarta a cópia.
+      - Mesmo `start` com texto que é prefixo/extensão do anterior, do mesmo
+        falante e com tamanho mínimo (>= 12 chars): mantém a versão mais completa.
+    Segmentos não-dict, ou com texto vazio após limpeza, são ignorados.
+
+    Não muta os dicts de entrada (usa `clone_transcription_segment` para copiar com
+    `start`/`end`/`text` ajustados). Retorna uma nova lista deduplicada. Sem efeitos
+    colaterais externos (CPU/memória apenas).
+    """
     deduped: list[dict] = []
     previous_normalized = ""
     previous_start = ""

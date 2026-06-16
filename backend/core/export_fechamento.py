@@ -1,3 +1,17 @@
+"""Exportação do Fechamento mensal no formato da planilha "Qualidade Final".
+
+Gera o arquivo Excel consumido pelo BI a partir das linhas já consolidadas por
+``core.fechamento_service.get_fechamento_rows``. O contrato (ordem/labels das colunas
+em ``HEADERS``, larguras e formatação) é fixo e replica a planilha de referência — o
+BI depende exatamente desse layout, então NÃO é para alterar labels nem ordem.
+
+Colunas ``OPERACIONAL``/``TELEFÔNICA`` saem como número com 2 casas; ``PROCESSO`` e
+``FINAL`` saem como percentual nativo do Excel quando numéricos (valores textuais
+como "Adeus"/"Adeus" permanecem texto).
+
+Sem custo de API: só leitura de banco (via ``get_fechamento_rows``) e geração local
+do .xlsx (CPU/memória).
+"""
 import io
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -38,6 +52,17 @@ def _parse_percent(value) -> float | None:
 
 
 def generate_fechamento_excel_from_rows(rows) -> bytes:
+    """Monta o .xlsx do Fechamento a partir de linhas já consolidadas.
+
+    ``rows`` é a lista de dicts vinda de ``get_fechamento_rows`` (chaves ``id``,
+    ``mes_str``, ``matricula``, ``nome``, ``operacional``, ``telefonica``,
+    ``desempenho``, ``status``, ``turno``, ``supervisor``, ``setor``, ``processo``,
+    ``final``, ``huawei`` e o opcional ``weon``). Aplica cabeçalho, larguras e a
+    formatação numérica/percentual do contrato.
+
+    Retorna os bytes do arquivo Excel. Sem efeitos colaterais (não toca banco/rede;
+    apenas escreve em memória).
+    """
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Planilha1"
@@ -116,6 +141,15 @@ def generate_fechamento_excel_from_rows(rows) -> bytes:
 
 
 def generate_fechamento_excel(get_connection, month: int, year: int) -> bytes:
+    """Gera o .xlsx do Fechamento de um mês/ano consultando o banco.
+
+    Abre uma conexão via ``get_connection``, busca as linhas consolidadas do mês com
+    ``get_fechamento_rows(conn, month, year)`` (fecha a conexão em ``finally``) e
+    delega a montagem do arquivo a ``generate_fechamento_excel_from_rows``.
+
+    Efeito colateral: leitura no banco (e fechamento da conexão). Retorna os bytes do
+    Excel. Sem custo de API.
+    """
     conn = get_connection()
     try:
         rows = get_fechamento_rows(conn, month, year)

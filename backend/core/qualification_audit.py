@@ -1,3 +1,15 @@
+"""Override de auditoria para o critério de "Qualificação do Atendimento".
+
+Em setores que NÃO são de risco, o motivo registrado pela telefonia Huawei
+(ex.: ``huawei_call_reason``) já comprova a qualificação do atendimento.
+Este módulo detecta critérios de qualificação na checklist e, quando há um
+motivo Huawei presente, aplica benevolência: marca o critério como ``pass``
+com evidência do motivo externo, sem penalizar o operador (resultado
+persistido é binário).
+
+Não chama a IA: trabalha sobre metadata já disponível e a lista de critérios.
+Sem custo de API (só CPU).
+"""
 from __future__ import annotations
 
 import re
@@ -10,6 +22,12 @@ from schemas import AuditAlert, AuditCriterion
 
 @dataclass(frozen=True)
 class QualificationEvaluation:
+    """Resultado de uma avaliação de qualificação por motivo Huawei.
+
+    Campos: ``comment`` (texto pronto para o auditor), ``huawei_reason``
+    (motivo cru extraído da metadata) e ``expected_terms`` (termos esperados
+    do motivo, vindos da regra casada ou dos alvos de motivo do setor).
+    Imutável (frozen)."""
     comment: str
     huawei_reason: str
     expected_terms: list[str]
@@ -73,6 +91,9 @@ def _contains_phrase(text: str, phrase: str) -> bool:
 
 
 def is_qualification_criterion(criterion: AuditCriterion) -> bool:
+    """Retorna ``True`` se o critério é o de "Qualificação do Atendimento",
+    identificado pelo label normalizado conter tanto "qualificacao" quanto
+    "atendimento"."""
     label = _normalize_text(getattr(criterion, "label", ""))
     return "qualificacao" in label and "atendimento" in label
 
@@ -171,6 +192,16 @@ def evaluate_qualification(
     audio_quality: Optional[dict[str, Any]],
     sector_id: Optional[str],
 ) -> Optional[QualificationEvaluation]:
+    """Decide se a qualificação do atendimento pode ser validada pelo motivo
+    Huawei e, em caso afirmativo, devolve a avaliação.
+
+    Retorna ``None`` (sem override) quando: não há critério de qualificação na
+    checklist; o setor é de risco (``_is_risk_sector``); ou não há motivo Huawei
+    na metadata. Caso contrário, casa o alerta com uma regra
+    (``_QUALIFICATION_RULES``) para derivar os termos esperados (ou cai nos
+    alvos de motivo do setor) e monta o comentário. Parâmetros keyword-only.
+    Sem efeitos colaterais.
+    """
     if not _qualification_criterion_ids(criteria_list):
         return None
     if _is_risk_sector(sector_id):
@@ -210,6 +241,16 @@ def apply_qualification_result_override(
     audio_quality: Optional[dict[str, Any]],
     sector_id: Optional[str],
 ) -> dict[str, Any]:
+    """Aplica o override de qualificação ao payload de resultado da auditoria.
+
+    Chama ``evaluate_qualification``; se não houver avaliação, devolve o
+    ``payload`` inalterado. Caso haja, retorna uma CÓPIA do payload com a lista
+    ``details`` ajustada: cada critério de qualificação vira ``status=pass`` com
+    evidência do motivo Huawei (método ``external_metadata``), e critérios de
+    qualificação ausentes em ``details`` são adicionados. Não muta o payload
+    original. Parâmetros ``alert``/``audio_quality``/``sector_id`` são
+    keyword-only. Sem efeitos colaterais externos.
+    """
     evaluation = evaluate_qualification(
         criteria_list=criteria_list,
         alert=alert,

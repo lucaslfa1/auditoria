@@ -1,3 +1,20 @@
+"""Repositório de configurações dinâmicas (tabela `configuracoes` + audit log).
+
+Camada de acesso ao key-value de configuração em runtime do sistema (flags de
+automação, parâmetros Huawei, segredos, etc.), parte do plano de migração
+"DB-first". Toda escrita (`update_config`) é transacional e registra trilha em
+`configuracoes_audit_log` (quem mudou, valor antes/depois, motivo, origem).
+
+Pontos de cuidado embutidos aqui:
+- Segredos (`is_secret=true`) são mascarados na leitura (`get_all_configs`) e
+  protegidos contra round-trip da UI na escrita (não sobrescrevem o real com o
+  valor mascarado).
+- Chaves booleanas conhecidas (`_BOOLEAN_KEYS`) têm o valor normalizado para
+  "true"/"false" para evitar divergência (ex.: "1" vs "true").
+
+Sem custo de API (apenas acesso a banco/CPU).
+"""
+
 import logging
 from typing import Callable, Any, Optional
 
@@ -26,6 +43,12 @@ _BOOL_FALSE_TOKENS = frozenset({"false", "0", "no", "off", "nao", "não", "f"})
 
 
 def _normalize_boolean_value(chave: str, valor: str) -> str:
+    """Coage `valor` para "true"/"false" quando `chave` é uma flag booleana conhecida.
+
+    No-op para chaves fora de `_BOOLEAN_KEYS` ou tokens não reconhecidos (retorna
+    `valor` original). Evita o bug histórico de gravar "1" onde o backend espera
+    "true".
+    """
     if chave not in _BOOLEAN_KEYS:
         return valor
     token = valor.strip().lower()
@@ -177,6 +200,12 @@ def update_config(
 
 
 def get_config_value(get_connection: ConnectionFactory, chave: str, default: str = "") -> str:
+    """Retorna o valor bruto de uma única chave de configuração.
+
+    NÃO mascara segredos — retorna o valor real armazenado; use com cuidado.
+    Retorna `default` se a chave não existir ou em caso de erro de banco (fail-soft).
+    Efeito colateral: leitura no banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()

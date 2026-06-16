@@ -1,3 +1,17 @@
+"""Router de autenticacao e as dependencias de autorizacao do backend.
+
+Implementa login por usuario/senha (bcrypt contra a tabela `users` no Neon), sessao
+via cookie HttpOnly assinado com HMAC-SHA256 (sem armazenamento server-side: o token
+carrega `sub`/`exp`/`nonce` e e validado pela assinatura), rate limit de tentativas de
+login por IP+usuario, e as dependencias FastAPI reutilizadas pelos demais routers:
+`require_authenticated_user`, `require_admin`, `require_supervisor_or_admin`.
+
+Sem custo de API (Azure): so banco (lookup de usuario), CPU (bcrypt/HMAC) e estado em
+memoria (rate limit). O segredo de assinatura vem de `SESSION_SECRET`; em producao a
+ausencia dele e erro fatal (evita forjar tokens com fallback previsivel), fora de
+producao um segredo efemero por processo e gerado.
+"""
+
 from collections import defaultdict, deque
 from threading import Lock
 import base64
@@ -122,6 +136,12 @@ def _decode_payload(encoded_payload: str) -> dict:
 
 
 def _resolve_request_ip(request: Request) -> str:
+    """Extrai o IP real do cliente, priorizando o primeiro `X-Forwarded-For`.
+
+    No Cloud Run o trafego passa pelo Load Balancer, entao `request.client.host` so
+    veria o IP do LB; o cabecalho X-Forwarded-For carrega o IP de origem. Cai para o
+    host do client e por fim 'unknown'.
+    """
     # Cloud Run: o trafego passa pelo Load Balancer do Google, entao
     # request.client.host sempre retorna o IP do LB. Precisamos do
     # X-Forwarded-For para obter o IP real do usuario.
@@ -157,6 +177,12 @@ def _gc_login_attempts_locked(now: float, window_seconds: int) -> None:
 
 
 def _enforce_login_rate_limit(request: Request, username: str) -> None:
+    """Bloqueia o login quando ha tentativas demais por IP+usuario na janela.
+
+    No-op se o rate limit estiver desligado. Conta as tentativas falhas recentes
+    (dentro de `window_seconds`) e, ao atingir `max_attempts`, levanta HTTP 429 com o
+    header `Retry-After`. Acessa o estado compartilhado em memoria sob lock.
+    """
     enabled, max_attempts, window_seconds = _get_login_rate_limit_settings()
     if not enabled:
         return
@@ -202,6 +228,12 @@ def _clear_login_rate_limit(request: Request, username: str) -> None:
 
 
 def create_session_token(username: str) -> str:
+    """Cria um token de sessao assinado (`payload_base64.assinatura_hmac`).
+
+    O payload carrega `sub` (username), `exp` (agora + `SESSION_TTL_SECONDS`) e um
+    `nonce` aleatorio, codificado em base64url e assinado com HMAC-SHA256 sobre
+    `SESSION_SECRET`. Stateless: nao grava nada no servidor.
+    """
     payload = {
         "sub": username,
         "exp": int(time.time()) + SESSION_TTL_SECONDS,
@@ -213,6 +245,11 @@ def create_session_token(username: str) -> str:
 
 
 def validate_session_token(token: str) -> str | None:
+    """Valida um token de sessao e devolve o username, ou None se invalido.
+
+    Confere a assinatura HMAC (comparacao em tempo constante), decodifica o payload e
+    rejeita tokens malformados, com `sub` vazio ou expirados (`exp` no passado).
+    """
     try:
         encoded_payload, provided_signature = token.split(".", 1)
     except ValueError:
@@ -262,6 +299,12 @@ def _resolve_authenticated_user(request: Request) -> dict | None:
 
 
 def require_authenticated_user(request: Request) -> dict:
+    """Dependencia FastAPI: exige sessao valida e devolve o dict do usuario.
+
+    Le o cookie de sessao, valida o token e busca o usuario no banco. Levanta HTTP 401
+    se nao autenticado. Em sucesso, associa o usuario ao Sentry (se disponivel) e
+    retorna `{"username", "role", "supervisor_name"}`.
+    """
     try:
         user = _resolve_authenticated_user(request)
         if not user:
@@ -280,6 +323,10 @@ def require_authenticated_user(request: Request) -> dict:
 
 
 def require_admin(request: Request) -> dict:
+    """Dependencia FastAPI: exige usuario autenticado com role 'admin'.
+
+    Levanta HTTP 401 se nao autenticado e HTTP 403 se nao for admin.
+    """
     user = require_authenticated_user(request)
     if user["role"] != "admin":
         raise HTTPException(
@@ -290,6 +337,10 @@ def require_admin(request: Request) -> dict:
 
 
 def require_supervisor_or_admin(request: Request) -> dict:
+    """Dependencia FastAPI: exige usuario autenticado com role 'admin' ou 'supervisor'.
+
+    Levanta HTTP 401 se nao autenticado e HTTP 403 para qualquer outro role.
+    """
     user = require_authenticated_user(request)
     if user["role"] not in ("admin", "supervisor"):
         raise HTTPException(
@@ -301,6 +352,13 @@ def require_supervisor_or_admin(request: Request) -> dict:
 
 @router.post("/login", response_model=AuthUserResponse)
 def auth_login(payload: LoginRequest, response: Response, request: Request) -> dict:
+    """Autentica usuario/senha e, em sucesso, grava o cookie de sessao.
+
+    Normaliza o username (trim + lowercase), aplica rate limit (HTTP 429 se excedido),
+    busca o usuario no banco e confere a senha com bcrypt. Em falha (usuario inexistente
+    ou senha errada) registra a tentativa e retorna HTTP 401 generico. Em sucesso, gera
+    o token, limpa o rate limit e seta o cookie HttpOnly. Retorna `{"username", "role"}`.
+    """
     normalized_username = payload.username.strip().lower()
     _enforce_login_rate_limit(request, normalized_username)
     logger.info("Tentativa de login: '%s'", normalized_username)
@@ -337,6 +395,12 @@ def auth_login(payload: LoginRequest, response: Response, request: Request) -> d
 
 @router.get("/me", response_model=AuthSessionResponse)
 def auth_me(request: Request, response: Response) -> dict:
+    """Retorna o estado de autenticacao da sessao atual.
+
+    Se a sessao for valida, devolve `{authenticated: True, username, role}`. Caso
+    contrario limpa o cookie e devolve `authenticated: False`. Nao levanta 401 —
+    serve para o frontend checar o estado de login.
+    """
     user = _resolve_authenticated_user(request)
     if not user:
         _clear_session_cookie(response)
@@ -346,6 +410,7 @@ def auth_me(request: Request, response: Response) -> dict:
 
 @router.post("/logout", response_model=AuthStatusResponse)
 def auth_logout(response: Response) -> dict:
+    """Encerra a sessao removendo o cookie. Retorna `{"success": True}`."""
     _clear_session_cookie(response)
     return {"success": True}
 

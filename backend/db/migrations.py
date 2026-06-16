@@ -1,3 +1,13 @@
+"""Runner de migracoes de schema (estilo Alembic, descoberta automatica).
+
+Descobre cada modulo de migracao em `backend/db/migration_steps` (modulos cujo
+nome comeca com "m"), exige `MIGRATION_NAME` + funcao `apply(cursor)` em cada um,
+ordena por `MIGRATION_NAME` e aplica em sequencia apenas as ainda nao registradas
+na tabela de controle `schema_migrations`. Cada migracao e commitada
+individualmente (atomica por step). Chamado no bootstrap do banco.
+
+Sem custo de API (apenas DDL/DML no PostgreSQL).
+"""
 from importlib import import_module
 from pkgutil import iter_modules
 from typing import Callable
@@ -7,6 +17,11 @@ from .schema_tools import set_schema_metadata
 
 
 def ensure_schema_migrations_table(cursor) -> None:
+    """Cria a tabela de controle `schema_migrations` se ainda nao existir.
+
+    Idempotente. Guarda o nome de cada migracao ja aplicada (PK) e o instante.
+    Efeito colateral: DDL no DB.
+    """
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -18,6 +33,11 @@ def ensure_schema_migrations_table(cursor) -> None:
 
 
 def get_applied_migration_names(cursor) -> set[str]:
+    """Retorna o conjunto de nomes de migracoes ja aplicadas.
+
+    Garante a tabela de controle antes de consultar. Read-only sobre os dados
+    (mas pode executar o DDL idempotente de criacao da tabela).
+    """
     ensure_schema_migrations_table(cursor)
     cursor.execute("SELECT name FROM schema_migrations")
     return {str(row[0]) for row in cursor.fetchall()}
@@ -37,6 +57,14 @@ def _mark_migration_applied(cursor, name: str) -> None:
 
 
 def _discover_migrations() -> list[tuple[str, Callable]]:
+    """Varre `migration_steps` e devolve [(MIGRATION_NAME, apply), ...] ordenado.
+
+    Importa cada modulo cujo nome comeca com "m" (ignora subpacotes), exige que
+    exponha `MIGRATION_NAME` (str) e `apply` (callable) — levanta RuntimeError se
+    faltar — e tambem se houver nomes de migracao duplicados. Ordena por
+    MIGRATION_NAME para garantir aplicacao deterministica. Executado uma vez no
+    import do modulo (popula a constante `MIGRATIONS`).
+    """
     discovered: list[tuple[str, Callable]] = []
     package_prefix = f"{migration_steps.__name__}."
 
@@ -78,6 +106,16 @@ def _commit_migration_step(cursor) -> None:
 
 
 def run_pending_migrations(cursor) -> list[str]:
+    """Aplica, em ordem, todas as migracoes ainda nao registradas e retorna seus nomes.
+
+    Para cada migracao pendente: roda `apply(cursor)`, marca como aplicada em
+    `schema_migrations` e commita o step (ver `_commit_migration_step`). Ao final,
+    grava em `schema_metadata` os metadados `migration.latest_known` (ultima
+    conhecida) e, se algo foi aplicado, `migration.last_applied`.
+
+    Efeitos colaterais: DDL/DML e commits no DB. Retorna a lista de nomes
+    efetivamente executados nesta chamada (vazia se o banco ja estava em dia).
+    """
     ensure_schema_migrations_table(cursor)
     applied = get_applied_migration_names(cursor)
     executed: list[str] = []

@@ -1,3 +1,22 @@
+"""Router da triagem/classificação de ligações (módulo de pré-auditoria).
+
+Expõe os endpoints sob ``/api/classify`` usados pela tela de Triagem do frontend:
+
+- ``POST /api/classify``: recebe vários áudios, classifica setor/alerta/operador
+  via IA, detecta duplicatas (no batch e contra a fila/auditorias já existentes),
+  guarda o áudio classificado para auditoria em lote e sincroniza a fila de
+  revisão de classificação.
+- ``POST /api/classify/clear-cache``: invalida os caches dos critérios.
+- ``PATCH /api/classify/{input_hash}``: correção manual de setor/alerta de um
+  item da fila de triagem.
+
+CUSTO DE API: ``POST /api/classify`` aciona ``classify_multiple_audios``, que faz
+chamadas pagas ao Azure (transcrição + GPT-4o de classificação) para cada arquivo
+NÃO duplicado. Itens detectados como duplicata são respondidos sem reprocessar
+(sem custo). Os demais endpoints (clear-cache, PATCH) só tocam cache/banco e não
+têm custo de API.
+"""
+
 import hashlib
 import logging
 import os
@@ -21,6 +40,12 @@ router = APIRouter(tags=["classifier"])
 
 
 class ClassificationCorrectionPayload(BaseModel):
+    """Corpo do PATCH de correção manual de classificação na triagem.
+
+    ``sector_id`` e ``alert_id`` são obrigatórios; os demais campos (operador,
+    supervisor, escala) são opcionais e usados só para enriquecer o registro.
+    """
+
     sector_id: str
     alert_id: str
     operator_name: Optional[str] = None
@@ -30,6 +55,12 @@ class ClassificationCorrectionPayload(BaseModel):
 
 
 def _get_classify_multiple_audios_runner():
+    """Resolve a função de classificação, respeitando monkeypatch em ``main``.
+
+    Se ``main``/``backend.main`` tiver um ``classify_multiple_audios`` injetado
+    (ex.: testes que monkeypatcham o módulo principal), usa esse; senão usa a
+    importação direta. Permite que os testes substituam a chamada de IA.
+    """
     main_module = sys.modules.get("main") or sys.modules.get("backend.main")
     if main_module is not None:
         patched_runner = getattr(main_module, "classify_multiple_audios", None)
@@ -39,6 +70,12 @@ def _get_classify_multiple_audios_runner():
 
 
 def _duplicate_payload(reason: str) -> dict:
+    """Monta o trecho de payload que marca um item como duplicata na resposta.
+
+    ``reason`` é o motivo da duplicação (ex.: "duplicate_in_batch",
+    "already_in_queue", "already_audited"). ``duplicate_label`` é o rótulo fixo
+    exibido na UI.
+    """
     return {
         "duplicate": True,
         "duplicate_reason": reason,
@@ -47,6 +84,15 @@ def _duplicate_payload(reason: str) -> dict:
 
 
 def _queue_item_to_classification_payload(item: dict, *, duplicate_reason: str) -> dict:
+    """Converte um item da fila de revisão de classificação no payload de resposta.
+
+    Recebe a linha existente da ``fila_revisao_classificacao`` (``item``) e a
+    formata no mesmo shape que a UI espera para um resultado de classificação,
+    resolvendo os labels de setor/alerta pelo catálogo de critérios e marcando-o
+    como duplicata com o ``duplicate_reason`` informado.
+
+    Não tem efeito colateral além de ler o catálogo (cacheado).
+    """
     catalog = load_audit_criteria_catalog()
     sector_id = item.get("setor_previsto") or "desconhecido"
     alert_id = item.get("alerta_previsto") or "desconhecido"
@@ -90,6 +136,28 @@ async def classify_audios(
     files: list[UploadFile] = File(...),
     force_reclassify: bool = Form(False),
 ):
+    """Classifica um lote de áudios na triagem (setor/alerta/operador via IA).
+
+    Para cada arquivo: valida o formato (só áudio, ``allow_pdf=False``), calcula o
+    hash SHA-256 e detecta duplicatas em três níveis — (1) repetido dentro do
+    próprio batch, (2) já presente na fila de revisão de classificação, (3) já
+    auditado em ``audits``. Quando ``force_reclassify=False``, itens duplicados não
+    são reclassificados (economiza chamada de IA) e voltam com o payload existente.
+
+    Os arquivos novos são classificados em lote por ``classify_multiple_audios``
+    (CUSTO DE API: Azure transcrição + GPT-4o). Para cada um, persiste o áudio
+    classificado em storage, sincroniza a fila de revisão e registra o resultado
+    de classificação (com acerto vs. referência, quando há gabarito). Por fim
+    enriquece cada resultado com dados de RH do operador (busca em colaboradores).
+
+    Params:
+        files: lista de uploads de áudio (limite ``MAX_FILES_PER_REQUEST``).
+        force_reclassify: se True, reprocessa mesmo itens já vistos/auditados.
+
+    Retorno: ``{"results": [...]}`` com um item por arquivo enviado (na ordem).
+    Efeitos colaterais: leitura/escrita no banco, escrita de áudio em storage,
+    chamadas pagas à IA. Erros de validação viram HTTP 400; falhas internas, 500.
+    """
     if len(files) > MAX_FILES_PER_REQUEST:
         raise HTTPException(
             status_code=400,
@@ -288,6 +356,18 @@ async def correct_classification(
     payload: ClassificationCorrectionPayload,
     user: dict = Depends(require_authenticated_user),
 ):
+    """Corrige manualmente o setor/alerta de um item da fila de triagem.
+
+    Valida que ``input_hash``, ``sector_id`` e ``alert_id`` foram informados e que
+    o par setor/alerta existe no catálogo de critérios (senão HTTP 400). Atualiza
+    a linha na fila de revisão de classificação (HTTP 404 se não existir) marcando
+    o revisor (username/sub/email do usuário autenticado). Quando há ligação de
+    referência (gabarito) pelo hash, também registra o resultado de classificação
+    manual (``modelo="manual_triage"``).
+
+    Sem custo de API (correção humana, só banco). Retorna ``{"result": {...}}`` com
+    o item já corrigido. Efeito colateral: escrita no banco.
+    """
     sector_id = str(payload.sector_id or "").strip().lower()
     alert_id = str(payload.alert_id or "").strip()
     if not input_hash or not sector_id or not alert_id:

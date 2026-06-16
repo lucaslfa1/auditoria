@@ -1,3 +1,18 @@
+"""Router da Revisão Técnica da auditoria (camada acima do supervisor).
+
+Endpoints sob ``/api/revisao`` (somente admin) usados pela tela de Revisão:
+
+- Listar contestações pendentes de revisão técnica.
+- Listar e limpar a fila de triagem manual de classificação.
+- Detalhar uma auditoria (com disponibilidade/URL de áudio).
+- Registrar o veredito técnico de uma contestação.
+
+É a instância que decide as contestações abertas pelos supervisores e administra
+a fila de triagem manual.
+
+Sem custo de API paga (só PostgreSQL).
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -16,6 +31,13 @@ router = APIRouter(tags=["review"])
 
 
 class ContestationVerdictRequest(BaseModel):
+    """Corpo do veredito técnico de uma contestação.
+
+    ``verdict`` é a decisão (ex.: aceita/rejeitada), ``defense`` é o texto da
+    justificativa técnica e ``updated_details`` (opcional) traz os critérios
+    eventualmente revisados pela revisão técnica.
+    """
+
     verdict: str
     defense: str
     updated_details: list[dict] | None = None
@@ -31,8 +53,18 @@ def list_review_contestations(
     operator_name: str = None,
     _user: dict = Depends(require_admin),
 ):
+    """Lista as contestações aguardando revisão técnica, com filtros opcionais.
+
+    Filtra por mês/ano/setor/supervisor/operador e restringe ao status
+    ``contestation_pending_review``. Ordena por timestamp (mais recente primeiro)
+    e aplica ``limit`` (saturado entre 1 e 500). Cada item ganha ``audio_url`` se
+    houver áudio disponível. Só admin. Efeito: leitura no banco.
+
+    Retorno: ``{"total": <int>, "contestacoes": [...]}`` (total é o nº antes do
+    corte por ``limit``).
+    """
     limit = max(1, min(limit, 500))
-    export_audits = audits.get_audits_for_export(database.get_connection, 
+    export_audits = audits.get_audits_for_export(database.get_connection,
         month=month,
         year=year,
         supervisor=supervisor,
@@ -64,6 +96,12 @@ def list_review_classification_queue(
     sector_id: str = None,
     _user: dict = Depends(require_admin),
 ):
+    """Lista a fila de revisão de classificação (triagem manual).
+
+    Filtra por ``status`` (padrão: pendente) e ``sector_id`` opcional; ``limit``
+    opcional. Só admin. Em caso de erro retorna HTTP 500 com a mensagem e o
+    traceback no corpo JSON (para diagnóstico). Efeito: leitura no banco.
+    """
     try:
         return classification_review.listar_fila_revisao_classificacao(database.get_connection, limit=limit, status=status, sector_id=sector_id)
     except Exception as e:
@@ -73,7 +111,20 @@ def list_review_classification_queue(
 
 @router.delete("/api/revisao/classificacao/pendentes")
 def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
-    """Limpa todas as ligações retidas na fila de triagem manual."""
+    """Limpa as ligações retidas na fila de triagem manual.
+
+    Varre os itens nos status de triagem manual e remove apenas os elegíveis,
+    preservando intencionalmente:
+      - itens arquivados (``metadata.archived``);
+      - itens vindos da Telefonia/Huawei (``origem == huawei_sync``) que ainda NÃO
+        foram classificados pela IA e não foram enviados manualmente à triagem
+        (i.e. ``classification_status != done`` e não ``is_manual``).
+    Para os itens removidos, também apaga os logs Huawei correspondentes
+    (``huawei_sync_logs`` por ``call_id``). Só admin.
+
+    Efeito: DELETE em ``fila_revisao_classificacao`` e ``huawei_sync_logs`` (commit
+    único). HTTP 500 em falha. Retorna a contagem de itens removidos.
+    """
     conn = database.get_connection()
     try:
         cursor = conn.cursor()
@@ -142,6 +193,13 @@ def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
 
 @router.get("/api/revisao/auditorias/{audit_id}")
 def get_review_audit_detail(audit_id: int, _user: dict = Depends(require_admin)):
+    """Detalha uma auditoria para a revisão técnica, com áudio se disponível.
+
+    Lê a auditoria (HTTP 404 se inexistente) e resolve o registro de mídia; se não
+    houver áudio no storage, tenta recuperá-lo da fila de classificação. Acrescenta
+    ``audio_available`` e ``audio_url``. Só admin. Efeito: leitura no banco (e
+    possível recuperação de mídia).
+    """
     audit = audits.get_audit_by_id(database.get_connection, audit_id)
     if audit is None:
         raise HTTPException(status_code=404, detail="Auditoria não encontrada.")
@@ -159,8 +217,15 @@ def finalize_review_contestation(
     payload: ContestationVerdictRequest,
     user: dict = Depends(require_admin),
 ):
+    """Registra o veredito técnico final de uma contestação.
+
+    Aplica o veredito (decisão + defesa + detalhes revisados) via
+    ``finalize_contestation_review``, atribuindo o revisor (username do usuário ou
+    "Auditoria"). Só admin. Erros de validação viram HTTP 400. Efeito: escrita no
+    banco (muda o status da auditoria). Retorna ``{"success", "message", ...result}``.
+    """
     try:
-        result = audits.finalize_contestation_review(database.get_connection, 
+        result = audits.finalize_contestation_review(database.get_connection,
             audit_id,
             verdict=payload.verdict,
             defense=payload.defense,

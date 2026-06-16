@@ -1,5 +1,15 @@
-"""
-Automation Router — Endpoints para automação de auditoria em lote.
+"""Automation Router — endpoints para a automacao de auditoria em lote.
+
+Controla o motor de automacao hibrida: liga/desliga, consulta status, dispara um
+ciclo manualmente (UI) ou via Cloud Scheduler (cron), e oferece operacoes de
+manutencao (cancel/pause/resume, flush de itens presos em `awaiting_pair`). As rotas
+de gestao exigem perfil admin; a rota de cron e autorizada por bearer token
+(`CRON_SECRET_TOKEN`), nao por sessao.
+
+CUSTO DE API (Azure): rodar um ciclo (`/run-now`, `/cron/run`, `/audit-all`)
+dispara o pipeline de auditoria, que faz chamadas pagas de transcricao (Azure Speech)
+e avaliacao (Azure OpenAI) para cada item processado. Status/toggle/flush/cancel nao
+tem custo de API.
 """
 
 import asyncio
@@ -22,6 +32,12 @@ _manual_cycle_task: asyncio.Task | None = None
 
 
 def _clear_manual_cycle_task(task: asyncio.Task) -> None:
+    """Callback de conclusao do ciclo manual: limpa a referencia e loga o resultado.
+
+    Zera `_manual_cycle_task` quando a task que terminou e a registrada, e consome o
+    resultado para registrar (sem propagar) cancelamento, o caso "ja em andamento" ou
+    qualquer falha do ciclo.
+    """
     global _manual_cycle_task
 
     if _manual_cycle_task is task:
@@ -41,6 +57,12 @@ def _clear_manual_cycle_task(task: asyncio.Task) -> None:
 
 
 def _require_cron_token(request: Request) -> None:
+    """Autoriza chamadas do Cloud Scheduler via bearer token.
+
+    Compara o header `Authorization` com `Bearer <CRON_SECRET_TOKEN>`. Levanta HTTP 403
+    se o token nao estiver configurado ou nao bater. As rotas de cron usam esta guarda
+    no lugar da autenticacao por sessao.
+    """
     expected_token = (os.getenv("CRON_SECRET_TOKEN") or "").strip()
     auth_header = (request.headers.get("Authorization") or "").strip()
     if not expected_token or auth_header != f"Bearer {expected_token}":

@@ -1,3 +1,16 @@
+"""Router dos Arquivos Salvos (``/api/salvos``) — CRUD de itens salvos da auditoria.
+
+Gerencia os "arquivos salvos" que o auditor guarda para revisar/promover depois:
+podem ser conteúdo livre OU uma auditoria vinculada (``tipo == "auditoria"`` com
+``audit_id``). Quando o item está vinculado a uma auditoria, o PUT propaga as
+alterações para a própria auditoria (em ``audits``) em vez de só atualizar o item
+salvo.
+
+Todos os endpoints exigem admin. Sem custo de API paga em linha: o save é só banco;
+o feedback RAG (que faz embedding pago no Azure) é disparado em BackgroundTasks
+DEPOIS da resposta HTTP, para não travar o PUT (v1.3.90).
+"""
+
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -31,6 +44,13 @@ router = APIRouter(prefix="/api/salvos", tags=["saved-files"])
 
 
 class ArquivoSalvoRequest(BaseModel):
+    """Payload de criação de um arquivo salvo.
+
+    ``tipo`` classifica o item (ex.: "auditoria"); ``audit_id`` vincula a uma
+    auditoria existente quando aplicável. Os demais campos são metadados
+    descritivos (operador, setor, alerta, score) e o conteúdo em si.
+    """
+
     tipo: str
     conteudo: str
     arquivo: str = ""
@@ -43,6 +63,8 @@ class ArquivoSalvoRequest(BaseModel):
 
 
 class ArquivoSalvoUpdate(BaseModel):
+    """Payload de atualização de um arquivo salvo (conteúdo, score e metadados)."""
+
     conteudo: str
     score: float | None = None
     metadata: dict | None = None
@@ -82,6 +104,17 @@ def _build_audit_result_from_saved_update(
     audit: dict,
     payload: ArquivoSalvoUpdate,
 ) -> AuditResult:
+    """Reconstrói um ``AuditResult`` mesclando a auditoria atual com a edição salva.
+
+    Usado no PUT de um arquivo salvo vinculado a uma auditoria: cada campo é
+    resolvido dando precedência ao que veio no ``payload.metadata`` (details,
+    transcription, summary, score, operador, etc.), caindo para os valores já
+    persistidos em ``audit`` quando o metadata não traz o campo. Transcrições com
+    texto vazio são descartadas e o ``source_type`` é normalizado.
+
+    Pode levantar ValueError/ValidationError do Pydantic se os dados forem
+    inválidos. Sem efeito colateral (só constrói o objeto).
+    """
     metadata = payload.metadata if isinstance(payload.metadata, dict) else {}
     raw_details = metadata.get("details") if isinstance(metadata.get("details"), list) else audit.get("details") or []
     raw_transcription = (
@@ -123,6 +156,11 @@ def _build_audit_result_from_saved_update(
 
 @router.post("")
 def salvar_arquivo(payload: ArquivoSalvoRequest, user: dict = Depends(require_admin)):
+    """Cria um novo arquivo salvo e retorna o id gerado.
+
+    Persiste via ``database.save_arquivo`` registrando o autor (username). Só
+    admin. Efeito: escrita no banco. Retorna ``{"id", "message"}``.
+    """
     new_id = database.save_arquivo(
         tipo=payload.tipo,
         conteudo=payload.conteudo,
@@ -146,6 +184,13 @@ def listar_salvos(
     include_audits: bool = True,
     _user: dict = Depends(require_admin),
 ):
+    """Lista os arquivos salvos paginados, com total.
+
+    Filtra por ``tipo`` opcional e, quando ``include_audits=True``, inclui as
+    auditorias vinculadas. Só admin. Em caso de erro retorna HTTP 500 com mensagem
+    e traceback no corpo JSON. Efeito: leitura no banco. Retorna
+    ``{"items": [...], "total": <int>}``.
+    """
     try:
         items = database.list_arquivos_salvos(
             limit=limit,
@@ -162,6 +207,7 @@ def listar_salvos(
 
 @router.get("/{arquivo_id}")
 def buscar_salvo(arquivo_id: int, _user: dict = Depends(require_admin)):
+    """Busca um arquivo salvo pelo id (HTTP 404 se não existir). Só admin."""
     item = database.get_arquivo_salvo(arquivo_id)
     if not item:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
@@ -175,6 +221,17 @@ def atualizar_salvo(
     background_tasks: BackgroundTasks,
     _user: dict = Depends(require_admin),
 ):
+    """Atualiza um arquivo salvo; se vinculado a auditoria, propaga para ela.
+
+    Carrega o item (HTTP 404 se inexistente). Para item vinculado a auditoria
+    (``tipo == "auditoria"`` com ``audit_id``): reconstrói o ``AuditResult`` a
+    partir da edição e atualiza a auditoria em ``audits`` (HTTP 400 em dados
+    inválidos; HTTP 404 se a auditoria sumiu); o feedback RAG resultante é agendado
+    em BackgroundTasks (embedding pago no Azure, fora do caminho da resposta).
+    Para item comum: atualiza só conteúdo/score/metadata do arquivo salvo.
+
+    Só admin. Efeito: escrita no banco (+ possível chamada paga de RAG em background).
+    """
     item = database.get_arquivo_salvo(arquivo_id)
     if not item:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
@@ -214,6 +271,10 @@ def atualizar_salvo(
 
 @router.delete("/{arquivo_id}")
 def deletar_salvo(arquivo_id: int, _user: dict = Depends(require_admin)):
+    """Exclui um arquivo salvo pelo id (HTTP 404 se não existir).
+
+    Só admin. Efeito: DELETE no banco.
+    """
     deleted = database.delete_arquivo_salvo(arquivo_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")

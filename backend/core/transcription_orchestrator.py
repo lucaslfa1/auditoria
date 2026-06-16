@@ -1,3 +1,17 @@
+"""Orquestracao pura (sem I/O) do pipeline de transcricao multi-estrategia.
+
+Papel no fluxo: concentra a logica deterministica que decide COMO transcrever um
+audio — em que ordem tentar as estrategias (fast / whisper / gpt4o_diarize / sdk
+/ hybrid_dual), se um resultado e "valido o suficiente" e como prepara o audio
+para o Azure. As chamadas pagas (Azure OpenAI / Speech) ficam encapsuladas nos
+callbacks injetados (`execute_strategy`, `convert_to_mp3`, etc.) — este modulo em
+si NAO faz rede/disco diretamente, so coordena.
+
+CUSTO DE API: indireto. Este modulo nao chama Azure por conta propria, mas
+`run_transcription_pipeline` invoca o callback `execute_strategy`, que tipicamente
+dispara a transcricao paga (Azure Fast Transcription / Whisper / GPT-4o-transcribe
+/ Speech SDK). O custo depende de quantas estrategias da ordem sao tentadas.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,11 +34,20 @@ WavConverter = Callable[[bytes], bytes]
 
 @dataclass(frozen=True)
 class PreparedAudio:
+    """Audio pronto para envio ao Azure: bytes ja convertidos + MIME efetivo."""
+
     audio_file: bytes
     mime_type: str
 
 
 def infer_interlocutor_label(alert: Optional[AuditAlert], explicit_label: Optional[str] = None) -> str:
+    """Deduz o rotulo do interlocutor (segundo falante) a partir do alerta.
+
+    Se `explicit_label` for fornecido, vence sempre. Caso contrario, casa
+    palavras-chave no id/label/contexto do alerta e mapeia para um rotulo de
+    negocio ("Ponto de Apoio", "Policia", "Transportadora", "Cliente", etc.).
+    Default "Motorista" quando nada casa. Sem efeitos colaterais.
+    """
     if explicit_label:
         return explicit_label
 
@@ -46,6 +69,11 @@ def infer_interlocutor_label(alert: Optional[AuditAlert], explicit_label: Option
 
 
 def _parse_timestamp_seconds(value: str) -> Optional[float]:
+    """Converte timestamp em string para segundos (float).
+
+    Aceita "HH:MM:SS", "MM:SS" ou um numero puro de segundos; tolera colchetes
+    em volta (ex.: "[00:12]"). Retorna None quando nao consegue parsear.
+    """
     raw = str(value or "").strip().strip("[]")
     if not raw:
         return None
@@ -67,6 +95,14 @@ def transcription_looks_valid(
     segments: TranscriptionSegments,
     normalize_for_dedupe: TextNormalizer,
 ) -> bool:
+    """Heuristica de "validacao forte": True quando a transcricao parece util.
+
+    Aplica varios filtros anti-lixo: rejeita resultados vazios ou curtos demais
+    (<=2 segmentos e <180 chars), com repeticao dominante (>=70% de um mesmo
+    texto normalizado, sinal de alucinacao em loop) ou com timestamps degenerados
+    (poucos starts distintos / maioria perto de zero). `normalize_for_dedupe` e
+    o normalizador de texto injetado, usado na deteccao de repeticao. Funcao pura.
+    """
     if not isinstance(segments, list) or not segments:
         return False
 
@@ -114,6 +150,12 @@ def transcription_looks_valid(
 
 
 def score_transcription_segments(segments: TranscriptionSegments) -> int:
+    """Pontua segmentos para escolher o "melhor candidato" entre estrategias.
+
+    Score = total de caracteres de texto + (numero de starts distintos * 20).
+    Quanto maior, melhor. Usado como criterio de desempate quando nenhuma
+    estrategia passa na validacao forte. Funcao pura.
+    """
     if not isinstance(segments, list):
         return 0
     total_chars = 0
@@ -143,6 +185,19 @@ def prepare_audio_for_azure(
     accepted_mime_types: set[str],
     log: LogFn = None,
 ) -> PreparedAudio:
+    """Prepara o audio para o Azure: pre-processa e garante MIME aceito.
+
+    Quando o pre-processamento esta ligado e `should_preprocess_audio` aprova,
+    tenta converter para MP3 via `convert_to_mp3` (so adota o resultado se ficou
+    MENOR que o original). Se o MIME resultante nao estiver em
+    `accepted_mime_types`, faz fallback convertendo para WAV via `convert_to_wav`.
+
+    Toda conversao real (e seu eventual custo de CPU) acontece nos callbacks
+    injetados; este modulo so decide quando aplica-los. `log` recebe mensagens de
+    progresso (default: logger do modulo). Retorna `PreparedAudio` com os bytes e
+    o MIME efetivos. Falhas no pre-processamento sao logadas e ignoradas (mantem
+    o audio original).
+    """
     azure_mime = (mime_type or "audio/wav").strip().lower() or "audio/wav"
     azure_audio = audio_file
     log_fn = log if log else logger.info
@@ -175,6 +230,15 @@ def build_strategy_order(
     include_whisper: bool,
     include_gpt4o_diarize: bool,
 ) -> list[str]:
+    """Monta a ordem de estrategias a tentar, conforme a engine configurada.
+
+    `engine` ("fast", "sdk", "gpt4o_diarize", "whisper", "hybrid_dual" ou outro)
+    define a preferencia; o default atual do sistema e "fast". As flags
+    `include_*` removem estrategias indisponiveis (dependencia ausente, recurso
+    desligado). "hybrid_dual" so entra se gpt4o_diarize E whisper estiverem
+    disponiveis. Retorna a lista de estrategias deduplicada, na ordem de tentativa.
+    Funcao pura.
+    """
     if engine == "hybrid_dual":
         preferred_order = ["hybrid_dual"]
     elif engine == "sdk":
@@ -214,6 +278,26 @@ def run_transcription_pipeline(
     return_metadata: bool = False,
     allow_best_candidate_fallback: bool = False,
 ) -> TranscriptionSegments | tuple[TranscriptionSegments, dict[str, Any]]:
+    """Executa as estrategias de `run_order` em sequencia ate uma ser valida.
+
+    Para cada estrategia chama `execute_strategy` (que faz a transcricao real, em
+    geral chamada paga ao Azure), depois `deduplicate_segments`, pontua com
+    `score_segments` e valida com `looks_valid`. Retorna o primeiro resultado que
+    passa na validacao forte. Erros por estrategia (ImportError = dependencia
+    ausente; demais excecoes) sao capturados e registrados em `attempts`, sem
+    interromper as proximas tentativas.
+
+    Params/efeitos:
+    - log: callback de log (default `print`).
+    - return_metadata: quando True, retorna `(segments, metadata)` com a
+      estrategia escolhida, o provedor e a lista de `attempts`; quando False,
+      retorna so os segmentos.
+    - allow_best_candidate_fallback: quando True e nenhuma estrategia passa na
+      validacao forte, devolve o candidato de maior score em vez de falhar.
+
+    Levanta RuntimeError quando nenhuma estrategia produz resultado aceitavel e o
+    fallback de melhor candidato esta desligado (ou nao ha candidatos).
+    """
     strategy_messages = {
         "sdk": "Speech SDK ConversationTranscriber",
         "whisper": "Azure Whisper",

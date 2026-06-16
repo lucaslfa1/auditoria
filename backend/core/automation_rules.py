@@ -161,6 +161,8 @@ _DURATION_KEYS = (
 
 
 def get_call_reason_text(chamada: dict) -> str:
+    """Extrai o texto de motivo/tabulação da chamada, testando os nomes de campo
+    conhecidos da Huawei em ordem. Retorna '' se nenhum estiver preenchido. Só CPU."""
     for key in (
         "callReason",
         "talkReason",
@@ -175,6 +177,14 @@ def get_call_reason_text(chamada: dict) -> str:
 
 
 def get_call_duration_seconds(chamada: dict) -> int:
+    """Calcula a duração da chamada em segundos.
+
+    Primeiro tenta os campos de duração explícitos (`_DURATION_KEYS`); se nenhum
+    existir, deriva da diferença entre os timestamps de início (callBegin/
+    beginTime/ackBegin/waitBegin) e fim (callEnd/endTime/logDate), coagidos a
+    epoch ms. Retorna 0 quando não dá para determinar (faltam timestamps ou fim
+    anterior ao início). Só CPU.
+    """
     for key in _DURATION_KEYS:
         explicit_duration = _coerce_numeric(chamada.get(key))
         if explicit_duration is not None and explicit_duration >= 0:
@@ -197,7 +207,17 @@ def get_call_duration_seconds(chamada: dict) -> int:
 
 
 def filtrar_chamadas(chamadas: list[dict], regra: dict) -> list[dict]:
-    """Aplica `motivos_alvo`, `motivos_excluir` e filtros de duracao."""
+    """Aplica `motivos_alvo`, `motivos_excluir` e filtros de duracao.
+
+    Para cada chamada: o motivo (texto livre) é comparado, em maiúsculas, contra
+    `motivos_alvo` (precisa casar uma substring) e `motivos_excluir` (descarta se
+    casar). Quando a regra usa `use_llm_triage`, chamadas sem motivo legível são
+    mantidas (a triagem por IA decide depois). Em seguida filtra por
+    `duracao_min_segundos`/`duracao_max_segundos`. As chamadas aprovadas são
+    COPIADAS (sem mutar a original) e anotadas com `duration`/`duracao`,
+    `callReason` e, quando havia `motivos_alvo`, `native_reason_match` e
+    `native_reason_targets`. Só CPU; não toca em banco/rede.
+    """
     motivos_alvo = [m.upper() for m in regra.get("motivos_alvo", [])]
     motivos_excluir = [m.upper() for m in regra.get("motivos_excluir", [])]
     dur_min = regra.get("duracao_min_segundos")

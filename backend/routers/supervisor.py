@@ -1,3 +1,24 @@
+"""Router do Portal do Supervisor/Gestor da auditoria.
+
+Atende o portal usado por supervisores (e admins) para revisar as auditorias dos
+seus operadores. Principais grupos de endpoints:
+
+- Exportações de relatório por operador/mês: gestores (Excel e PDF) e planejamento
+  (Excel e PDF), além do report de config de export.
+- Decisão do supervisor sobre uma auditoria: aprovar ou contestar.
+- Listagem do painel (``GET /api/gestores/auditorias``) com KPIs e injeção de
+  "Ligação não encontrada" para dar visibilidade total dos operadores ativos.
+- Detalhe de auditoria, feedback do gestor (salvar/ler) e serviço do HTML do portal.
+
+Autorização: supervisores só enxergam/agem sobre auditorias do seu próprio nome
+(via ``get_supervisor_audit_for_user`` / ``resolve_user_supervisor_name``); admins
+veem tudo. Regra de negócio: no painel, no máximo 2 auditorias por operador
+(``MAX_AUDITS_PER_OPERATOR_SUPERVISOR``).
+
+CUSTO DE API: nenhum direto. As exportações geram Excel/PDF em CPU e leem o banco;
+não há chamadas pagas a Azure neste módulo.
+"""
+
 import json
 import os
 
@@ -38,11 +59,23 @@ APPROVAL_THRESHOLD_PERCENT = AUDIT_PASS_THRESHOLD * 100
 from typing import Any
 
 class AuditActionRequest(BaseModel):
+    """Corpo das ações do supervisor sobre uma auditoria (aprovar/contestar).
+
+    ``reason`` é o motivo (obrigatório só na contestação) e ``contested_criteria``
+    é a lista opcional de critérios contestados.
+    """
+
     reason: str = None
     contested_criteria: list[Any] | None = None
 
 
 class GestorFeedbackRequest(BaseModel):
+    """Corpo do feedback do gestor sobre uma auditoria.
+
+    Inclui o id da auditoria, o nome do gestor, o texto do feedback e os pontos de
+    melhoria.
+    """
+
     audit_id: int
     gestor_nome: str
     feedback_texto: str
@@ -72,6 +105,15 @@ def export_gestores(
     sector_id: str = None,
     user: dict = Depends(require_authenticated_user),
 ):
+    """Exporta a "consulta de gestores" de uma auditoria em Excel (download).
+
+    Se ``audit_id`` for informado, usa a auditoria persistida (após checar o acesso
+    do supervisor) e o feedback do gestor; senão monta o relatório a partir do
+    ``AuditResult`` recebido no corpo. Gera o ``.xlsx`` via ``generate_gestores_excel``,
+    registra a exportação na trilha (best-effort) e devolve como streaming.
+
+    Efeito: leitura no banco e log da exportação. Sem custo de API paga.
+    """
     from core.export_gestores import generate_gestores_excel
 
     stored_audit = None
@@ -153,6 +195,14 @@ def export_gestores_pdf(
     sector_id: str = None,
     user: dict = Depends(require_authenticated_user),
 ):
+    """Exporta a "consulta de gestores" de uma auditoria em PDF (download).
+
+    Versão PDF de ``export_gestores``: usa a auditoria persistida quando ``audit_id``
+    é dado (com checagem de acesso do supervisor) ou o ``AuditResult`` do corpo,
+    gera o PDF via ``generate_gestores_pdf``, loga a exportação e devolve streaming.
+
+    Efeito: leitura no banco e log da exportação. Sem custo de API paga.
+    """
     from core.export_gestores_pdf import generate_gestores_pdf
 
     stored_audit = None
@@ -220,6 +270,11 @@ def export_gestores_pdf(
 
 @router.get("/api/export/gestores/config")
 def export_gestores_config(user: dict = Depends(require_authenticated_user)):
+    """Retorna o relatório de configuração do export de gestores.
+
+    Útil para diagnosticar como o export está parametrizado. Loga o acesso na
+    trilha de exportações (best-effort). Retorna ``{"report": <texto>}``.
+    """
     from core.export_gestores import get_export_config_report
 
     report = get_export_config_report()
@@ -316,6 +371,12 @@ def export_planejamento_pdf(
 
 @router.post("/api/gestores/auditorias/{audit_id}/approve")
 def approve_audit(audit_id: int, user: dict = Depends(require_supervisor_or_admin)):
+    """Aprova uma auditoria que está aguardando decisão do supervisor.
+
+    Checa o acesso do supervisor e exige que o status seja
+    ``pending_approval`` (senão HTTP 400). Muda o status para ``approved``. Erros
+    de transição de status viram HTTP 400. Efeito: escrita no banco.
+    """
     audit = get_supervisor_audit_for_user(user, audit_id)
     if audit.get("status") != AUDIT_STATUS_PENDING_APPROVAL:
         raise HTTPException(
@@ -335,6 +396,13 @@ def contest_audit(
     payload: AuditActionRequest,
     user: dict = Depends(require_supervisor_or_admin),
 ):
+    """Abre uma contestação do supervisor sobre uma auditoria.
+
+    Checa o acesso, exige ``reason`` não vazio (senão HTTP 400) e move a auditoria
+    para ``contestation_pending_review`` (revisão técnica), serializando os
+    ``contested_criteria`` em JSON. Erros de transição viram HTTP 400. Efeito:
+    escrita no banco.
+    """
     get_supervisor_audit_for_user(user, audit_id)
     if not payload.reason or not payload.reason.strip():
         raise HTTPException(status_code=400, detail="Motivo da contestação é obrigatório.")
@@ -363,6 +431,21 @@ def get_gestores_auditorias(
     escala: str = None,
     user: dict = Depends(require_supervisor_or_admin),
 ):
+    """Monta o painel do supervisor: auditorias visíveis + KPIs do período.
+
+    Para supervisores, força o filtro pelo próprio nome (ignora o ``supervisor``
+    da query); admins podem filtrar livremente. Pagina no banco com teto de
+    ``MAX_AUDITS_PER_OPERATOR_SUPERVISOR`` (2) auditorias por operador (via
+    ROW_NUMBER) e limita aos status visíveis (``_SUPERVISOR_VISIBLE_STATUSES``).
+
+    Em seguida injeta linhas-fantasma "Ligação não encontrada" (ids negativos,
+    ``is_missing=True``) para cada operador ATIVO/auditável que ainda não atingiu a
+    cota de 2, garantindo visibilidade total no painel. Os KPIs (total, nota média
+    ponderada, taxa de aprovação) vêm de funções analíticas independentes da
+    paginação e contam apenas auditorias ``approved``.
+
+    Efeito: várias leituras no banco. Retorna ``{"kpis": {...}, "auditorias": [...]}``.
+    """
     effective_supervisor = supervisor
 
     if user["role"] == "supervisor":
@@ -496,6 +579,13 @@ def get_gestores_auditorias(
 
 @router.get("/api/gestores/auditorias/{audit_id}")
 def get_gestor_auditoria_detail(audit_id: int, user: dict = Depends(require_supervisor_or_admin)):
+    """Detalha uma auditoria para o painel do gestor (com feedback e áudio).
+
+    Checa o acesso do supervisor, carrega a auditoria (HTTP 404 se inexistente),
+    anexa o feedback do gestor e resolve o áudio (recuperando da fila de
+    classificação se não estiver no storage), expondo ``audio_available`` e
+    ``audio_url``. Efeito: leitura no banco (e possível recuperação de mídia).
+    """
     get_supervisor_audit_for_user(user, audit_id)
     audit = audits.get_audit_by_id(database.get_connection, audit_id)
     if audit is None:
@@ -512,6 +602,11 @@ def get_gestor_auditoria_detail(audit_id: int, user: dict = Depends(require_supe
 
 @router.post("/api/gestores/feedback")
 def save_feedback(req: GestorFeedbackRequest, user: dict = Depends(require_supervisor_or_admin)):
+    """Salva o feedback do gestor para uma auditoria.
+
+    Checa o acesso do supervisor à auditoria e persiste nome/feedback/pontos de
+    melhoria. HTTP 500 se a gravação falhar. Efeito: escrita no banco.
+    """
     get_supervisor_audit_for_user(user, req.audit_id)
     success = database.save_gestor_feedback(
         req.audit_id,
@@ -526,6 +621,11 @@ def save_feedback(req: GestorFeedbackRequest, user: dict = Depends(require_super
 
 @router.get("/api/gestores/feedback/{audit_id}")
 def get_feedback(audit_id: int, user: dict = Depends(require_supervisor_or_admin)):
+    """Lê o feedback do gestor de uma auditoria.
+
+    Checa o acesso do supervisor; HTTP 404 se não houver feedback. Efeito: leitura
+    no banco.
+    """
     get_supervisor_audit_for_user(user, audit_id)
     feedback = database.get_gestor_feedback(audit_id)
     if not feedback:
@@ -535,6 +635,12 @@ def get_feedback(audit_id: int, user: dict = Depends(require_supervisor_or_admin
 
 @router.get("/gestores")
 def serve_gestores_portal():
+    """Serve o HTML estático do portal dos gestores.
+
+    Lê ``gestores_portal.html`` do diretório do backend e devolve como HTML. HTTP
+    404 se o arquivo não existir. Rota pública (sem dependência de auth). Efeito:
+    leitura de arquivo no disco.
+    """
     portal_path = os.path.join(os.path.dirname(__file__), "..", "gestores_portal.html")
     portal_path = os.path.abspath(portal_path)
     if not os.path.exists(portal_path):
@@ -545,6 +651,11 @@ def serve_gestores_portal():
 
 @router.get("/api/rh/supervisores")
 def get_rh_supervisores(user: dict = Depends(require_supervisor_or_admin)):
+    """Retorna o mapa supervisor -> escalas a partir do cadastro de RH.
+
+    Para supervisores, filtra o retorno apenas ao seu próprio nome (lookup
+    normalizado); admins recebem todos. Efeito: leitura no banco.
+    """
     all_data = operators.get_supervisores_e_escalas(database.get_connection)
 
     if user["role"] == "supervisor":

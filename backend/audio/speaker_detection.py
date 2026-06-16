@@ -1,3 +1,18 @@
+"""Fachada da detecção/diarização de speakers (operador x interlocutor).
+
+Reúne, sob a classe `SpeakerDetectionService`, as constantes e funções
+espalhadas pelos módulos de coesão (`speaker_constants`, `speaker_heuristics`,
+`speaker_normalization`, `speaker_identification`). É o ponto de entrada estável
+para o resto do backend: o código consumidor chama
+`SpeakerDetectionService.<nome>` sem depender de onde cada peça vive.
+
+A maioria das funções é heurística/CPU pura. A exceção é o mapeamento de
+speakers via LLM (`_tentar_mapear_speakers_com_llm`, exposto indiretamente por
+`mapear_speakers_por_id`/`analisar_diarizacao_por_ids`), que PODE chamar o Azure
+OpenAI (custo de API) quando há mais de um speaker_id e as credenciais estão
+configuradas; caso contrário cai na heurística.
+"""
+
 from audio.speaker_models import RawPhrase, SegmentoFormatado, SpeakerStats, DiarizationAnalysis
 import audio.speaker_constants as constants
 import audio.speaker_heuristics as heuristics
@@ -5,6 +20,14 @@ import audio.speaker_normalization as normalization
 import audio.speaker_identification as identification
 
 class SpeakerDetectionService:
+    """Fachada estática que reexporta o toolkit de diarização de speakers.
+
+    Todos os atributos são constantes ou `staticmethod` que apontam para as
+    funções dos módulos de coesão. Não há estado de instância nem necessidade de
+    instanciar a classe; use os membros diretamente (ex.:
+    `SpeakerDetectionService.classificar_speakers(...)`). Mantida para preservar
+    os import paths antigos durante a refatoração por coesão.
+    """
     SPEAKER_OPERADOR = constants.SPEAKER_OPERADOR
     SPEAKER_MOTORISTA = constants.SPEAKER_MOTORISTA
     PERGUNTA_PREFIXOS = constants.PERGUNTA_PREFIXOS

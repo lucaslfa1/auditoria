@@ -1,3 +1,22 @@
+"""Gatekeeper de elegibilidade do download no Sync da Huawei.
+
+Decide, ANTES de baixar uma ligacao recem-descoberta na Huawei, se ela deve
+ser processada ou ignorada (quando ignorada, o sync grava `status=skipped`
+com o motivo). A decisao e modelada como um pipeline de regras (Strategy +
+Chain of Responsibility): a primeira regra que falhar define o `skip_reason`.
+
+Regras aplicadas, na ordem:
+1. `HuaweiRegistrationRule` — operador sem ID Huawei registrado.
+2. `MondelezExclusionRule` — setor Mondelez (regra de negocio do cliente).
+3. `TestOperatorRule` — usuarios/ramais de teste interno.
+4. `UnregisteredOperatorRule` — operador desativado para auditoria.
+5. `SectorDirectionRule` — setor nao-telefonia e compatibilidade de direcao
+   (inbound/outbound) com as AUTOMATION_RULES e setores de risco.
+
+Sem custo de API (so logica/leitura de cadastro em memoria via
+`operators`; nao chama Azure nem a rede da Huawei).
+"""
+
 from typing import Optional, Dict, Any, List
 import logging
 from abc import ABC, abstractmethod
@@ -53,6 +72,9 @@ class HuaweiRegistrationRule(BaseSyncRule):
     Evita processar chamadas de usuários que não existem no nosso banco (Painel).
     """
     def check(self, interacao: Dict[str, Any], operador: Dict[str, Any]) -> Optional[str]:
+        """Retorna "operator_huawei_not_registered" se o operador nao tem ID
+        Huawei (`id_huawei`/`idHuawei`) ou `huawei_registered` nao e True;
+        caso contrario None."""
         if not _operator_field(operador, "id_huawei", "idHuawei"):
             return "operator_huawei_not_registered"
         if operador.get("huawei_registered") is not True:
@@ -66,6 +88,8 @@ class MondelezExclusionRule(BaseSyncRule):
     Regra de negócio explícita exigida pelo cliente.
     """
     def check(self, interacao: Dict[str, Any], operador: Dict[str, Any]) -> Optional[str]:
+        """Retorna "mondelez" se algum campo de setor do operador contiver
+        "mondelez" (apos normalizar acentos/caixa); caso contrario None."""
         sector_text = " ".join(
             str(operador.get(key) or "")
             for key in ("setor", "sectorId", "displaySector", "sector", "escala")
@@ -80,6 +104,8 @@ class TestOperatorRule(BaseSyncRule):
     Filtra usuários ou ramais usados para testes internos (ex: 'Teste URA', 'OP VALIDO').
     """
     def check(self, interacao: Dict[str, Any], operador: Dict[str, Any]) -> Optional[str]:
+        """Retorna "test_operator" se o nome resolvido contiver "teste" ou
+        "op valido" (caixa-insensivel); caso contrario None."""
         nome = _resolve_operator_name_from_interacao(interacao, operador)
         nome_lower = str(nome or "").lower()
         if "teste" in nome_lower or "op valido" in nome_lower:
@@ -93,6 +119,9 @@ class UnregisteredOperatorRule(BaseSyncRule):
     (auditavel_db = False) no painel de gestão.
     """
     def check(self, interacao: Dict[str, Any], operador: Dict[str, Any]) -> Optional[str]:
+        """Retorna "operator_not_registered" quando `auditavel_db` e
+        explicitamente False (operador desativado para auditoria); caso
+        contrario None."""
         if operador.get("auditavel_db") is False:
             return "operator_not_registered"
         return None
@@ -107,6 +136,14 @@ class SectorDirectionRule(BaseSyncRule):
         self.automation_rules = automation_rules
 
     def _operator_sector_id(self, operador: Dict[str, Any]) -> str:
+        """Resolve o slug de setor canonico do operador.
+
+        Usa o setor cru (varios aliases de chave) e, se ele ja for um setor de
+        risco ou nao-telefonia conhecido, devolve direto. Caso contrario tenta
+        mapear via `operators.map_db_sector_to_classification_sector` (usando
+        escala/supervisor) e normaliza com `normalize_huawei_sector`. Retorna
+        string vazia quando nao resolve.
+        """
         raw_setor = str(
             operador.get("setor")
             or operador.get("sectorId")
@@ -133,8 +170,22 @@ class SectorDirectionRule(BaseSyncRule):
         return normalize_huawei_sector(mapped_sector or raw_setor)
 
     def check(self, interacao: Dict[str, Any], operador: Dict[str, Any]) -> Optional[str]:
+        """Avalia setor e direcao da chamada e devolve o motivo de skip, ou None.
+
+        Possiveis retornos:
+        - "non_telefonia_sector": setor nao e de telefonia.
+        - "direction_unknown": setor de risco / AUTOMATION_RULES com direcao
+          fixa, mas a direcao da chamada nao pode ser determinada.
+        - "risk_inbound": setor exclusivamente ativo (OUTBOUND_ONLY_RISK) que
+          recebeu uma chamada receptiva.
+        - "direction_mismatch": direcao da chamada diverge da exigida pela
+          AUTOMATION_RULE do setor.
+        - "receptiva_setor_desconhecido": setor desconhecido + chamada
+          receptiva (fail-safe; ativas/URA passam para cair na triagem).
+        - None: chamada aprovada para download.
+        """
         sector_slug = self._operator_sector_id(operador)
-        
+
         if sector_slug in NON_TELEFONIA_SECTORS:
             return "non_telefonia_sector"
 

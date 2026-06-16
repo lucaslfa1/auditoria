@@ -1,3 +1,28 @@
+"""Repositório de colaboradores/operadores (tabela `colaboradores`).
+
+Fonte de verdade do cadastro de operadores auditáveis. Cobre o CRUD de
+colaboradores, a importação/upsert vinda do RH e da telefonia (Huawei), e a
+resolução de qual operador é elegível para auditoria a partir de nome/id/setor.
+
+Regras de negócio centrais aplicadas nas consultas:
+- "Auditável" exige status ATIVO e flag `auditavel` (ver `_is_auditable_row`);
+  linhas técnicas de telefonia e operadores removidos são filtrados
+  (`_is_technical_telephony_row`, `_is_removed_operator_row`).
+- O setor é resolvido/canonicalizado a partir de setor+escala+organização
+  (`_normalize_operator_sector`, `map_db_sector_to_classification_sector` e o
+  mapeamento de aliases em `operator_sector_mapping`).
+- ids Huawei e de telefonia são coeridos/normalizados antes de gravar ou comparar
+  (`_coerce_huawei_and_telefonia_ids`, `normalize_huawei_agent_id`).
+- Mutações (create/update/delete) registram trilha de auditoria via
+  `colaboradores_audit_log` (`_snapshot_colaborador` + `_log_colaborador_audit`).
+
+Helpers puros foram extraídos para `operator_normalization`,
+`operator_sector_mapping` e `colaboradores_audit_log` e são reexportados aqui
+(`operators.<helper>`) para manter compatibilidade de imports e monkeypatch.
+
+Sem custo de API (apenas acesso a banco/CPU).
+"""
+
 import contextlib
 import json
 from typing import Callable, Optional, Any
@@ -56,6 +81,17 @@ def ensure_colaborador_exists(
     id_telefonia: str,
     sector_id: str = None,
 ) -> dict:
+    """Garante o vínculo de um colaborador já existente com um `id_telefonia`.
+
+    NÃO cria colaborador novo — o operador precisa já existir no cadastro. Procura
+    por nome normalizado; se achar e o colaborador ainda não tem `id_telefonia`,
+    preenche-o (UPDATE + commit).
+
+    Retorna um dict de resultado descrevendo a ação tomada (chaves `action`/`reason`/
+    `id`): "skipped" (nome vazio), "updated" (telefonia preenchida), "already_linked"
+    (já tinha vínculo) ou "not_found" (nome não cadastrado). Efeito colateral:
+    possível UPDATE em `colaboradores`.
+    """
     normalized_name = _normalize_lookup_text(nome)
     id_telefonia = normalize_huawei_agent_id(id_telefonia)
     if not normalized_name:
@@ -98,6 +134,15 @@ def upsert_colaborador(
     id_weon: str = "",
     id_huawei: str = "",
 ):
+    """Insere ou atualiza um colaborador a partir de dados do cadastro de RH.
+
+    Casa por `matricula` OU por `nome` (não-vazio). Se já existe, faz UPDATE
+    preservando o `auditavel` atual quando presente; senão deriva `auditavel` do
+    `status` (`_default_auditavel_from_status`) e faz INSERT. Nome é formatado em
+    PT-BR, setor é canonicalizado (setor+escala) e `id_huawei` é normalizado antes
+    de gravar. Não retorna valor. Efeito colateral: INSERT/UPDATE em `colaboradores`
+    + commit.
+    """
     nome = format_pt_br_name(nome.strip())
     setor = _normalize_operator_sector(setor, escala)
     id_huawei = normalize_huawei_agent_id(id_huawei)
@@ -146,6 +191,17 @@ def upsert_colaborador_telefonia(
     tipo_agente: str = "",
     status_telefonia: str = "",
 ):
+    """Insere ou atualiza um colaborador a partir de dados da telefonia (Huawei).
+
+    Casa o registro em ordem de prioridade: `id_telefonia`, depois
+    `softphone_number`, depois nome normalizado. Mapeia organização -> setor e
+    status de telefonia -> status interno. Se a linha for de operação excluída ou
+    técnica (`is_excluded_operation_values`/`is_technical_telephony_values`), marca
+    o colaborador existente como INATIVO/não-auditável e retorna sem inserir.
+    Caso contrário faz UPDATE preservando campos já preenchidos, ou INSERT de uma
+    linha INATIVA/não-auditável quando o operador é novo na base. Não retorna valor.
+    Efeito colateral: INSERT/UPDATE em `colaboradores` + commit.
+    """
     nome = format_pt_br_name(nome.strip())
     conn = get_connection()
     try:
@@ -286,6 +342,12 @@ def upsert_colaborador_telefonia(
 
 
 def get_supervisores_e_escalas(get_connection: ConnectionFactory) -> dict:
+    """Mapeia supervisores ativos para a lista de escalas que eles supervisionam.
+
+    Considera apenas colaboradores ATIVOS com supervisor preenchido, ignorando
+    linhas de operadores removidos. Escala vazia vira "Sem Escala".
+    Retorna `{supervisor: [escala, ...]}`. Efeito colateral: leitura no banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -318,10 +380,24 @@ def get_supervisores_e_escalas(get_connection: ConnectionFactory) -> dict:
 
 
 def list_supervisores(get_connection: ConnectionFactory) -> list[str]:
+    """Retorna a lista ordenada de supervisores ativos (chaves de
+    `get_supervisores_e_escalas`). Efeito colateral: leitura no banco.
+    """
     return sorted(get_supervisores_e_escalas(get_connection).keys())
 
 
 def buscar_colaborador_por_nome(get_connection: ConnectionFactory, nome: str) -> Optional[dict]:
+    """Busca um colaborador auditável por nome, com fallback de match aproximado.
+
+    Primeiro tenta match exato por nome normalizado entre colaboradores ATIVOS e
+    auditáveis. Não achando, faz um match heurístico: exige o mesmo primeiro nome
+    (>= 3 chars) e pontua pela sobreposição de partes do nome, escolhendo o de maior
+    score. Linhas técnicas/removidas são ignoradas.
+
+    Retorna um dict com chaves em camelCase para a UI (`name`, `preferredId`,
+    `supervisor`, `setor`, `escala`, `matricula`, `idHuawei`, `idTelefonia`, ...) ou
+    None se nada casar. Efeito colateral: leitura no banco.
+    """
     if not nome or not nome.strip():
         return None
     normalized_target = _normalize_lookup_text(nome)
@@ -444,7 +520,13 @@ def buscar_colaborador_por_nome(get_connection: ConnectionFactory, nome: str) ->
 
 
 def buscar_colaborador_por_matricula(get_connection: ConnectionFactory, matricula: str) -> Optional[dict]:
-    """Look up a collaborator by their matricula."""
+    """Busca um colaborador auditável pela `matricula` (match exato).
+
+    Considera apenas colaboradores com `auditavel = TRUE` e `excluido = FALSE`.
+    Retorna o dict montado por `_dict_from_colaborador_row` ou None se não houver
+    correspondência (ou em caso de erro, que é logado). Efeito colateral: leitura
+    no banco.
+    """
     if not matricula or not str(matricula).strip():
         return None
     target_matricula = str(matricula).strip()
@@ -475,7 +557,13 @@ def buscar_colaborador_por_matricula(get_connection: ConnectionFactory, matricul
     return None
 
 def buscar_colaborador_por_id_huawei(get_connection: ConnectionFactory, id_huawei: str) -> Optional[dict]:
-    """Look up a collaborator by their Huawei agent ID."""
+    """Busca um colaborador auditável pelo id de agente Huawei (match exato).
+
+    Normaliza `id_huawei` antes de consultar; considera apenas ATIVO + auditável.
+    Retorna um dict camelCase para a UI (mesmo formato de `buscar_colaborador_por_nome`,
+    acrescido de `huawei_registered: True`) ou None se não casar ou a linha for
+    técnica/removida. Efeito colateral: leitura no banco.
+    """
     target_id = normalize_huawei_agent_id(id_huawei)
     if not target_id:
         return None
@@ -616,6 +704,14 @@ def resolve_auditable_colaborador(
 
 
 def list_colaboradores(get_connection: ConnectionFactory) -> list:
+    """Lista todos os colaboradores (não-removidos) já deduplicados e normalizados.
+
+    A ordenação prioriza o titular ATUAL em casos de id_huawei duplicado (ex.:
+    handover de ramal): ATIVO antes de INATIVO, auditável antes de não-auditável,
+    `atualizado_em` DESC como desempate (ver BUG-025). Cada linha é deduplicada por
+    id_huawei -> matricula -> nome, e tem ids/ setor/ flag `auditavel` normalizados
+    antes de retornar. Efeito colateral: leitura no banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -760,6 +856,16 @@ def create_colaborador(
     motivo: Optional[str] = None,
     origem: str = "api",
 ) -> int:
+    """Cria um colaborador novo e registra a criação no audit log.
+
+    Formata nome (PT-BR), canonicaliza setor e coage ids Huawei/telefonia antes do
+    INSERT. `auditavel` é derivado de `auditavel`/`status` via `_coerce_auditavel`.
+    Os parâmetros keyword-only `alterado_por`/`motivo`/`origem` alimentam a trilha em
+    `colaboradores_audit_log`.
+
+    Retorna o id do novo colaborador. Efeito colateral: INSERT em `colaboradores`,
+    INSERT no audit log e commit.
+    """
     nome = format_pt_br_name(nome.strip())
     setor = _normalize_operator_sector(setor, escala, organizacao_telefonia)
     id_huawei, id_telefonia = _coerce_huawei_and_telefonia_ids(id_huawei, id_telefonia)
@@ -837,6 +943,16 @@ def update_colaborador(
     motivo: Optional[str] = None,
     origem: str = "api",
 ) -> bool:
+    """Atualiza um colaborador existente pelo `colaborador_id` e registra a mudança.
+
+    Sobrescreve todos os campos do cadastro (formata nome, canonicaliza setor, coage
+    ids e deriva `auditavel`). A trilha em `colaboradores_audit_log` só é gravada se
+    o snapshot antes/depois realmente mudou (evita ruído em re-saves idênticos).
+    Os keyword-only `alterado_por`/`motivo`/`origem` identificam a origem da mudança.
+
+    Retorna True se a linha foi atualizada (rowcount > 0), False caso contrário.
+    Efeito colateral: UPDATE em `colaboradores`, possível INSERT no audit log e commit.
+    """
     nome = format_pt_br_name(nome.strip())
     setor = _normalize_operator_sector(setor, escala, organizacao_telefonia)
     id_huawei, id_telefonia = _coerce_huawei_and_telefonia_ids(id_huawei, id_telefonia)
@@ -903,6 +1019,17 @@ def delete_colaborador(
     motivo: Optional[str] = None,
     origem: str = "api",
 ) -> bool:
+    """Remove um colaborador e todos os dados dependentes, em cascata transacional.
+
+    Apaga em cadeia tudo que aponta para o operador: arquivos salvos, feedbacks de
+    gestor e audits vinculados, cadeia de contatos do fechamento, e desvincula
+    (`colaborador_id = NULL`) o layout de operadores do fechamento. Por fim deleta a
+    linha de `colaboradores` e registra a remoção no audit log (com o snapshot
+    anterior). Os keyword-only `alterado_por`/`motivo`/`origem` identificam a origem.
+
+    Retorna True se o colaborador foi deletado. Em erro faz rollback, loga e
+    relança. Efeito colateral: múltiplos DELETE/UPDATE + commit (ou rollback).
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -965,6 +1092,16 @@ def bulk_apply_colaborador_action(
     colaborador_ids: list[int],
     action: str,
 ) -> int:
+    """Aplica uma ação em lote (status/auditável) a vários colaboradores de uma vez.
+
+    `action` deve ser uma de: "activate"/"enable_audit" (ATIVO + auditável) ou
+    "inactivate"/"disable_audit" (INATIVO + não-auditável); qualquer outro valor
+    levanta `ValueError`. Ids são deduplicados e filtrados (> 0); lista vazia retorna
+    0 sem tocar o banco.
+
+    Retorna a quantidade de linhas atualizadas (rowcount). Efeito colateral: UPDATE
+    em `colaboradores` (não grava audit log por item) + commit.
+    """
     normalized_ids = sorted({int(item) for item in colaborador_ids if int(item) > 0})
     if not normalized_ids:
         return 0
@@ -1002,6 +1139,18 @@ def get_colaboradores_lookup(
     search: Optional[str] = None,
     limit: int = 100,
 ) -> list[dict]:
+    """Lista operadores auditáveis para seleção na UI, com filtros e busca textual.
+
+    Filtra colaboradores ATIVOS e auditáveis; aplica filtros de `supervisor`/`escala`
+    no SQL e de `sector_id` em memória (via `_matches_operador_sector`). `search` é
+    casada (acento-insensível) contra nome, ids, matrícula, supervisor e escala.
+    Resultados são deduplicados por nome+preferredId, ordenados por nome e truncados
+    em `limit`.
+
+    Retorna uma lista de dicts camelCase para a UI (`name`, `preferredId`, `escala`,
+    `sectorId`, `displaySector`, ids, `auditavel`, ...). Efeito colateral: leitura no
+    banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -1109,6 +1258,13 @@ def get_colaboradores_para_prompt(
     escala: Optional[str] = None,
     sector_id: Optional[str] = None,
 ) -> list[str]:
+    """Retorna os nomes de colaboradores auditáveis para injetar no prompt da IA.
+
+    Filtra ATIVOS e auditáveis (com filtros opcionais de `supervisor`/`escala` no SQL
+    e de `sector_id` em memória), descarta linhas removidas, e retorna apenas os
+    nomes — ordenados e sem duplicatas. Lista usada para ancorar a identificação do
+    operador na avaliação. Efeito colateral: leitura no banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()

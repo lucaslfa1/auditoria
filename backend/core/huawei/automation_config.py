@@ -75,6 +75,12 @@ def _load_config() -> Dict[str, Any]:
     return cfg
 
 def _missing_credentials(cfg: Dict[str, Any]) -> List[str]:
+    """Lista quais credenciais obrigatorias estao faltando, conforme o auth_mode.
+
+    Em modos OAuth direto (`OAUTH_DIRECT_MODES`) exige cc_id, vdn, direct_app_key
+    e direct_app_secret; nos demais (proxy) exige ak, sk, cc_id e vdn. Retorna a
+    lista vazia quando esta tudo presente. Funcao pura sobre o dict de `_load_config`.
+    """
     auth_mode = str(cfg.get("auth_mode") or "proxy").strip().lower()
     if auth_mode in OAUTH_DIRECT_MODES:
         obrigatorios = ["cc_id", "vdn", "direct_app_key", "direct_app_secret"]
@@ -106,6 +112,13 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
         return default
 
 def _runtime_int_config(env_key: str, db_keys: tuple[str, ...], default: int) -> int:
+    """Le um inteiro de runtime: env var primeiro, depois tabela configuracoes.
+
+    Tenta `env_key`; se vazio, percorre `db_keys` na ordem chamando
+    `database.get_config_value` e usa o primeiro valor presente. Falhas de leitura
+    do banco sao logadas em debug e ignoradas (passa para a proxima chave).
+    Retorna `default` se nada for encontrado. Efeito colateral: leitura de banco.
+    """
     raw = os.getenv(env_key)
     if raw not in (None, ""):
         return _coerce_int(raw, default)
@@ -123,6 +136,15 @@ def _runtime_int_config(env_key: str, db_keys: tuple[str, ...], default: int) ->
 
 
 def _effective_download_attempt_limit() -> int:
+    """Quantos downloads tentar por ciclo de sync (>= 1).
+
+    Override explicito vence: `HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS`. Sem ele, o
+    limite passa a ser a propria META de auditorias do ciclo (Opcao 1: downloads =
+    meta, 1:1), lida de env (`AUTOMATION_AUDIT_TARGET_COUNT` /
+    `AUTOMATION_AUDIT_BATCH_SIZE`) ou da tabela configuracoes
+    (`automacao_audit_target_count` / `automacao_audit_batch_size`). Efeito
+    colateral: leitura de banco/env. Default `DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT`.
+    """
     explicit_download_limit = os.getenv("HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS")
     if explicit_download_limit not in (None, ""):
         return max(
@@ -149,6 +171,11 @@ def _effective_download_attempt_limit() -> int:
 
 
 def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float) -> float:
+    """Versao float de `_runtime_int_config`: env var primeiro, depois banco.
+
+    Mesma logica de precedencia e tolerancia a falhas; retorna `default` se nada
+    for encontrado. Efeito colateral: leitura de banco.
+    """
     raw = os.getenv(env_key)
     if raw not in (None, ""):
         return _coerce_float(raw, default)
@@ -166,6 +193,12 @@ def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float
 
 
 def _get_huawei_auto_audit_confidence_threshold() -> float:
+    """Limiar de confianca [0.0, 1.0] para auto-auditar sem revisao humana.
+
+    Le de env/banco via `_runtime_float_config` (default
+    `DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD` = 0.90) e faz clamp no
+    intervalo [0.0, 1.0]. Efeito colateral: leitura de banco.
+    """
     threshold = _runtime_float_config(
         "HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD",
         ("huawei_auto_audit_confidence_threshold",),
@@ -174,6 +207,14 @@ def _get_huawei_auto_audit_confidence_threshold() -> float:
     return min(1.0, max(0.0, threshold))
 
 def _env_flag(name: str, default: Optional[bool] = None) -> Optional[bool]:
+    """Le uma flag booleana de env com semantica Huawei (tri-state).
+
+    Retorna `default` (por padrao None = "nao definido") quando a env var nao
+    existe; caso contrario, True se o valor for "1/true/yes/on", senao False.
+
+    ATENCAO: difere de `core.config._env_flag`, que e bool com default False. Aqui
+    o Optional/None e proposital para distinguir "nao configurado" de "False".
+    """
     raw = os.getenv(name)
     if raw is None:
         return default

@@ -1,3 +1,23 @@
+"""Selector deterministico de candidatos de transcricao (modelo "sandbox").
+
+Papel no fluxo: dados varios candidatos de transcricao (cada um produzido por um
+provedor real — fast / gpt4o_diarize / whisper / sdk), decide se a automacao pode
+seguir com UM deles ou se o item precisa de revisao humana. NUNCA cria texto novo:
+so escolhe entre os artefatos existentes ou roteia para revisao.
+
+Estados de decisao retornados (`SelectorDecision.status`):
+- DECISION_ACCEPTED     -> automacao pode prosseguir com o candidato selecionado.
+- DECISION_NEEDS_REVIEW -> segue com um candidato, mas marca revisao (ex.: empate
+                           que pede juiz LLM, divergencia de qualidade).
+- DECISION_MANUAL_REVIEW-> exige triagem humana (candidatos curtos demais).
+- DECISION_REJECTED     -> nao da para usar nenhum candidato (audio inviavel,
+                           todos vazios).
+
+CUSTO DE API: nenhum. Logica puramente deterministica em memoria (CPU); nao chama
+Azure nem banco. O desempate por LLM, quando sinalizado (gate
+`needs_judge_tiebreaker`), e disparado por outra camada via
+`core/transcription_judge.py`.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,6 +35,21 @@ DECISION_REJECTED = "rejected"
 
 @dataclass(frozen=True)
 class SelectorThresholds:
+    """Limiares de decisao do selector (todos com defaults conservadores).
+
+    - min_audio_quality_score: abaixo disto, rejeita por audio inviavel.
+    - manual_audio_quality_score: reservado para politica de revisao manual.
+    - min_segments_for_automation: minimo de segmentos para automacao prosseguir.
+    - numeric_manual_threshold: recall numerico abaixo do qual ha divergencia
+      numerica relevante (hoje resolvida pelo ranking global, v1.3.87).
+    - numeric_review_threshold: recall numerico abaixo do qual marca revisao.
+    - token_conflict_threshold: Jaccard de tokens abaixo do qual ha conflito de
+      texto entre candidatos.
+    - token_confirm_threshold: limiar de confirmacao por sobreposicao de tokens.
+    - tie_ratio_threshold: diferenca relativa de score abaixo da qual dois
+      candidatos sao considerados empatados (aciona desempate por juiz).
+    """
+
     min_audio_quality_score: float = 0.30
     manual_audio_quality_score: float = 0.50
     min_segments_for_automation: int = 3
@@ -27,6 +62,18 @@ class SelectorThresholds:
 
 @dataclass(frozen=True)
 class SelectorDecision:
+    """Resultado da decisao do selector.
+
+    Campos:
+    - status: um dos DECISION_* (accepted / needs_review / manual_review / rejected).
+    - reason: motivo curto (string de contrato, em snake_case PT) da decisao.
+    - selected_candidate: candidato escolhido (pode existir mesmo em needs_review;
+      None em rejected/manual_review).
+    - review_reasons: motivos legiveis para revisao/rejeicao.
+    - gates: trilha de rastreabilidade interna (quais portoes/limiares dispararam),
+      util para debug; nao exibida como badge na UI.
+    """
+
     status: str
     reason: str
     selected_candidate: Optional[TranscriptionCandidate] = None
@@ -35,10 +82,12 @@ class SelectorDecision:
 
     @property
     def selected_candidate_id(self) -> Optional[str]:
+        """candidate_id do candidato escolhido, ou None se nao houver."""
         return self.selected_candidate.candidate_id if self.selected_candidate else None
 
     @property
     def selected_provider(self) -> Optional[str]:
+        """Nome do provedor do candidato escolhido, ou None se nao houver."""
         return self.selected_candidate.provider if self.selected_candidate else None
 
 
@@ -53,6 +102,11 @@ def _usable_candidates(candidates: list[TranscriptionCandidate]) -> list[Transcr
 
 
 def _rank_candidates(candidates: list[TranscriptionCandidate]) -> list[TranscriptionCandidate]:
+    """Ordena candidatos do melhor para o pior (o primeiro vira o "top").
+
+    Criterio, em ordem de prioridade: maior deterministic_score, depois mais
+    segmentos, e por fim desempate a favor do provedor "fast".
+    """
     return sorted(
         candidates,
         key=lambda candidate: (
@@ -69,6 +123,12 @@ def _signals_for_top(
     candidates: list[TranscriptionCandidate],
     cross_signals: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """Coleta os sinais cruzados (pareados) entre o `top` e os demais candidatos.
+
+    Para cada outro candidato utilizavel, busca em `cross_signals` o registro do
+    par (chave via `pair_key`) — sobreposicao numerica, similaridade de tokens,
+    etc. Ignora o proprio top e candidatos com status insuficiente/erro.
+    """
     result: list[dict[str, Any]] = []
     for candidate in candidates:
         if candidate.candidate_id == top.candidate_id:
@@ -94,6 +154,11 @@ def _has_numeric_evidence(signals: dict[str, Any]) -> bool:
 
 
 def _close_score(first: TranscriptionCandidate, second: TranscriptionCandidate, threshold: float) -> bool:
+    """True quando os scores dos dois candidatos sao proximos o bastante (empate).
+
+    Compara a diferenca relativa dos `deterministic_score` (normalizada por um
+    baseline >= 1.0) contra `threshold`. Empate aciona o desempate por juiz LLM.
+    """
     first_score = float(first.deterministic_score or 0.0)
     second_score = float(second.deterministic_score or 0.0)
     baseline = max(abs(first_score), abs(second_score), 1.0)

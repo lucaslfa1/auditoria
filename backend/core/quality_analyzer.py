@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 class QualityAnalyzer:
+    """Heurísticas de qualidade de áudio aplicadas ANTES da transcrição.
+
+    Usa pydub/ffmpeg para inspecionar volume (dBFS), duração, proporção de
+    silêncio, clipping, taxa de amostragem e bitrate estimado, penalizando o
+    score (0.0 a 1.0) e acumulando notas explicativas. Não chama serviços
+    externos — sem custo de API (só CPU, decodificação local via ffmpeg).
+    """
 
     def analyze(self, audio_bytes: bytes) -> dict:
         """

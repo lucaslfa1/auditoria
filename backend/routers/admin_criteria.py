@@ -1,3 +1,19 @@
+"""Router admin do catalogo de criterios de auditoria (setores/alertas/criterios).
+
+CRUD completo sobre as tres tabelas que definem o que a IA avalia:
+`audit_sectors`, `audit_alerts` e `audit_criteria`, mais o log de auditoria das
+mudancas (Fase 1.1) e a invalidacao do cache do catalogo (Fase 1.2).
+
+Sem custo de API: todas as rotas apenas leem/gravam no banco e mexem em caches em
+memoria. O custo de Azure OpenAI ocorre depois, quando o pipeline de auditoria usa
+este catalogo para montar o prompt.
+
+Toda mutacao chama `_invalidate_catalog_cache()` para que a proxima auditoria use os
+valores atualizados sem precisar reiniciar o processo. As rotas de mutacao exigem
+perfil admin (`require_admin`); a unica excecao e `/api/criteria/export`, sem
+dependencia de auth, que devolve o catalogo no formato legado do `auditCriteria.json`.
+"""
+
 import logging
 from typing import Optional
 
@@ -119,10 +135,17 @@ def export_criteria():
 
 @router.get("/api/admin/sectors")
 def admin_get_sectors(_user: dict = Depends(require_admin)):
+    """Lista todos os setores cadastrados em `audit_sectors`. Somente admin."""
     return get_sectors(database.get_connection)
 
 @router.post("/api/admin/sectors")
 def admin_create_sector(req: SectorCreate, user: dict = Depends(require_admin)):
+    """Cria um setor novo e invalida o cache do catalogo.
+
+    `req.id` e o id interno fixo (ex.: 'transferencia') e `req.label` o rotulo
+    exibido; ambos obrigatorios. Registra o autor (`user`) e o motivo no audit log.
+    Retorna 400 se id/label vazios ou se o setor ja existir.
+    """
     if not req.id.strip() or not req.label.strip():
          raise HTTPException(status_code=400, detail="ID e Label são obrigatórios.")
     try:
@@ -142,6 +165,11 @@ def admin_create_sector(req: SectorCreate, user: dict = Depends(require_admin)):
 
 @router.put("/api/admin/sectors/{sector_id}")
 def admin_update_sector(sector_id: str, req: SectorUpdate, user: dict = Depends(require_admin)):
+    """Atualiza rotulo/descricao de um setor existente e invalida o cache.
+
+    Nao propaga o nome para colaboradores vinculados (para isso use o endpoint
+    `/rename`). Retorna 404 se o setor nao existir e 400 se o label vier vazio.
+    """
     if not req.label.strip():
          raise HTTPException(status_code=400, detail="Label é obrigatório.")
     if not update_sector(
@@ -162,6 +190,10 @@ def admin_delete_sector(
     motivo: Optional[str] = Query(default=None),
     user: dict = Depends(require_admin),
 ):
+    """Remove um setor e invalida o cache. `motivo` (query) vai pro audit log.
+
+    Retorna 404 se o setor nao existir.
+    """
     if not delete_sector(
         database.get_connection,
         sector_id,
@@ -207,10 +239,17 @@ def admin_rename_sector(sector_id: str, req: SectorRename, user: dict = Depends(
 
 @router.get("/api/admin/alerts")
 def admin_get_alerts(sector_id: Optional[str] = None, _user: dict = Depends(require_admin)):
+    """Lista alertas, opcionalmente filtrados por `sector_id` (query). Somente admin."""
     return get_alerts(database.get_connection, sector_id=sector_id)
 
 @router.post("/api/admin/alerts")
 def admin_create_alert(req: AlertCreate, user: dict = Depends(require_admin)):
+    """Cria um alerta dentro de um setor e invalida o cache do catalogo.
+
+    `req.sector_id` e `req.label` sao obrigatorios; `original_id` (ex.: '4.1.1'),
+    `pop_ref` e `expected_direction` sao opcionais. Retorna o id gerado. Erro 400 se
+    campos obrigatorios faltarem ou o alerta ja existir.
+    """
     if not req.sector_id.strip() or not req.label.strip():
         raise HTTPException(status_code=400, detail="Sector ID e Label são obrigatórios.")
     try:
@@ -233,6 +272,11 @@ def admin_create_alert(req: AlertCreate, user: dict = Depends(require_admin)):
 
 @router.put("/api/admin/alerts/{alert_id}")
 def admin_update_alert(alert_id: str, req: AlertUpdate, user: dict = Depends(require_admin)):
+    """Atualiza um alerta (label/context/pop_ref/expected_direction) e invalida o cache.
+
+    `alert_id` pode conter caracteres especiais (ex.: '::'), entao deve vir
+    url-encoded no path. Retorna 404 se o alerta nao existir.
+    """
     # alert_id contains special characters perhaps (::) so it must be passed in body or url encoded
     if not update_alert(
         database.get_connection,
@@ -254,6 +298,10 @@ def admin_delete_alert(
     motivo: Optional[str] = Query(default=None),
     user: dict = Depends(require_admin),
 ):
+    """Remove um alerta e invalida o cache. `motivo` (query) vai pro audit log.
+
+    Retorna 404 se o alerta nao existir.
+    """
     if not delete_alert(
         database.get_connection,
         alert_id,
@@ -269,10 +317,17 @@ def admin_delete_alert(
 
 @router.get("/api/admin/criteria")
 def admin_get_criteria(alert_id: Optional[str] = None, _user: dict = Depends(require_admin)):
+    """Lista criterios, opcionalmente filtrados por `alert_id` (query). Somente admin."""
     return get_criteria(database.get_connection, alert_id=alert_id)
 
 @router.post("/api/admin/criteria")
 def admin_create_criterion(req: CriterionCreate, user: dict = Depends(require_admin)):
+    """Cria um criterio sob um alerta e invalida o cache do catalogo.
+
+    Campos vindos de `CriterionCreate` (alert_id, chave, label, weight, type,
+    deflator, etc.) sao repassados ao repositorio. Retorna o id gerado; erro 400 se
+    o dado for invalido ou ja existir.
+    """
     try:
         new_id = create_criterion(
             database.get_connection,
@@ -296,6 +351,10 @@ def admin_create_criterion(req: CriterionCreate, user: dict = Depends(require_ad
 
 @router.put("/api/admin/criteria/{criterion_id}")
 def admin_update_criterion(criterion_id: int, req: CriterionUpdate, user: dict = Depends(require_admin)):
+    """Atualiza um criterio existente (por id numerico) e invalida o cache.
+
+    Retorna 404 se o criterio nao existir.
+    """
     if not update_criterion(
          database.get_connection,
          criterion_id,
@@ -320,6 +379,10 @@ def admin_delete_criterion(
     motivo: Optional[str] = Query(default=None),
     user: dict = Depends(require_admin),
 ):
+    """Remove um criterio (por id numerico) e invalida o cache.
+
+    `motivo` (query) vai pro audit log. Retorna 404 se o criterio nao existir.
+    """
     if not delete_criterion(
         database.get_connection,
         criterion_id,

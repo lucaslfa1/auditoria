@@ -59,6 +59,11 @@ def _norm(value: Optional[str]) -> str:
 
 
 def clear_cache() -> None:
+    """Invalida o cache em memória de regras de alias (per-process).
+
+    Chamado automaticamente após qualquer mutação (create/update/delete). Em
+    ambiente multi-pod só afeta o pod corrente (ver docstring do módulo). Sem I/O.
+    """
     global _rules_cache
     with _cache_lock:
         _rules_cache = None
@@ -213,6 +218,11 @@ def get_setor_exact_aliases(db_connection_factory: Callable) -> dict[str, str]:
 
 
 def _validate_audit_args(alterado_por: str, origem: str, op_label: str) -> bool:
+    """Pré-valida os metadados de auditoria de uma mutação (falha rápida).
+
+    Exige `alterado_por` não-vazio e `origem` em `_VALID_ORIGINS`. Loga e retorna
+    False quando inválido; True caso contrário. `op_label` só rotula o log.
+    """
     if not alterado_por or not str(alterado_por).strip():
         logger.error("%s rejeitado: alterado_por obrigatorio", op_label)
         return False
@@ -233,6 +243,11 @@ def _log_change(
     motivo: str,
     origem: str,
 ) -> None:
+    """Insere uma linha na trilha de auditoria de aliases (mesma transação do `cursor`).
+
+    Grava snapshots antes/depois como JSONB. Não faz commit — quem chama controla a
+    transação. Efeito colateral: INSERT no audit log via `cursor`.
+    """
     from psycopg2.extras import Json
 
     cursor.execute(
@@ -258,6 +273,12 @@ def _row_to_dict(row: Any) -> dict:
 
 
 def list_aliases(db_connection_factory: Callable) -> list[dict]:
+    """Lista TODAS as regras de alias (ativas e inativas) para a tela de admin.
+
+    Ordenadas por priority DESC, depois pattern_type/pattern_value. Não usa o cache
+    (que guarda só as ativas) — retorna a tabela crua, incluindo timestamps.
+    Efeito colateral: leitura no banco.
+    """
     conn = db_connection_factory()
     try:
         c = conn.cursor()
@@ -275,6 +296,10 @@ def list_aliases(db_connection_factory: Callable) -> list[dict]:
 
 
 def get_alias(db_connection_factory: Callable, alias_id: int) -> Optional[dict]:
+    """Busca uma regra de alias por id; retorna o dict da linha ou None.
+
+    Efeito colateral: leitura no banco.
+    """
     conn = db_connection_factory()
     try:
         c = conn.cursor()
@@ -318,6 +343,17 @@ def create_alias(
     motivo: Optional[str] = None,
     origem: str = "ui",
 ) -> Optional[int]:
+    """Cria uma regra de alias de setor e registra na trilha de auditoria.
+
+    Valida metadados de auditoria, `pattern_type` (contra `_VALID_PATTERN_TYPES`),
+    `pattern_value` (não-vazio após normalização via `_norm`) e `canonical_sector_id`
+    (não-vazio); qualquer falha loga e retorna None sem gravar. Em sucesso insere a
+    regra, grava o audit log e invalida o cache.
+
+    Retorna o id criado, ou None se validação falhar. Em erro de banco faz rollback,
+    loga e relança. Efeito colateral: INSERT em `sector_aliases` + audit log + commit
+    + `clear_cache()`.
+    """
     if not _validate_audit_args(alterado_por, origem, "create_alias"):
         return None
     if pattern_type not in _VALID_PATTERN_TYPES:
@@ -393,6 +429,17 @@ def update_alias(
     motivo: Optional[str] = None,
     origem: str = "ui",
 ) -> bool:
+    """Atualiza parcialmente uma regra de alias existente e registra a mudança.
+
+    Faz merge dos campos passados (não-None) sobre os valores atuais (`get_alias`),
+    re-valida o resultado e grava. Se o merge não muda nada, retorna True como no-op
+    (sem poluir o audit log). `pattern_value` é normalizado via `_norm`.
+
+    Retorna False se validação falhar, a regra não existir, ou o UPDATE não casar
+    linha (rowcount 0). Em sucesso grava o audit log e invalida o cache. Em erro de
+    banco faz rollback, loga e relança. Efeito colateral: UPDATE em `sector_aliases`
+    + audit log + commit + `clear_cache()`.
+    """
     if not _validate_audit_args(alterado_por, origem, "update_alias"):
         return False
 
@@ -485,6 +532,14 @@ def delete_alias(
     motivo: Optional[str] = None,
     origem: str = "ui",
 ) -> bool:
+    """Remove uma regra de alias por id e registra a remoção na trilha de auditoria.
+
+    Valida metadados de auditoria e a existência da regra (captura o snapshot
+    anterior). Retorna False se validação falhar, a regra não existir, ou o DELETE
+    não casar linha. Em sucesso grava o audit log e invalida o cache. Em erro de
+    banco faz rollback, loga e relança. Efeito colateral: DELETE em `sector_aliases`
+    + audit log + commit + `clear_cache()`.
+    """
     if not _validate_audit_args(alterado_por, origem, "delete_alias"):
         return False
 
@@ -525,6 +580,11 @@ def list_audit_log(
     entity_id: Optional[int] = None,
     limit: int = 50,
 ) -> list[dict]:
+    """Lista a trilha de auditoria de aliases, das mais recentes para as mais antigas.
+
+    Filtra por `entity_id` (id da regra) se informado. `limit` é clampado em [1, 500].
+    Fail-soft: em erro de banco loga e retorna []. Efeito colateral: leitura no banco.
+    """
     import psycopg2.extras
 
     safe_limit = max(1, min(int(limit or 50), 500))

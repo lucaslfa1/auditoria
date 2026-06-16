@@ -1874,6 +1874,14 @@ async def _safe_classify_audio(audio_bytes: bytes, filename: str) -> Classificat
         )
 
 async def classify_multiple_audios(files: list[tuple[str, bytes]]) -> list[ClassificationResult]:
+    """Classifica vários áudios em paralelo (`(filename, audio_bytes)` por item).
+
+    Dispara `classify_audio` para cada arquivo via `_safe_classify_audio` (que
+    isola falhas individuais em um `ClassificationResult` de erro, sem derrubar o
+    lote). Levanta `ValueError` se exceder `MAX_FILES_PER_REQUEST`. CUSTO: cada
+    arquivo consome a transcrição de triagem + 1 chamada GPT-4o (ver
+    `classify_audio`); paraleliza com `asyncio.gather`.
+    """
     if len(files) > MAX_FILES_PER_REQUEST: raise ValueError(f"Max {MAX_FILES_PER_REQUEST} files")
     tasks = [_safe_classify_audio(audio_bytes, filename) for filename, audio_bytes in files]
     return list(await asyncio.gather(*tasks, return_exceptions=False))

@@ -1,3 +1,19 @@
+"""Guardas (gatekeepers) de operador e cota da automação.
+
+Papel no fluxo: ao processar um item da fila de triagem para auditoria
+automática, a automação precisa (1) resolver a identidade oficial do operador
+contra o cadastro (`colaboradores`) e garantir que ele é auditável, e (2)
+verificar se o operador ainda tem cota mensal de auditorias automáticas. Estas
+duas regras de negócio ficam isoladas aqui (SRP), separadas da orquestração de
+banco/fila do `automation.py`.
+
+Cada guarda devolve um resultado/dict descritivo do bloqueio (motivo, mensagem,
+metadados para anexar ao item da fila) em vez de levantar exceção, para que o
+chamador decida o que fazer (ex.: marcar `blocked_operator`/`monthly_capped`).
+
+Sem custo de API: só acesso a banco (cadastro de operadores e contagem de
+auditorias do mês) e CPU.
+"""
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
@@ -7,7 +23,13 @@ from repositories import operators
 logger = logging.getLogger(__name__)
 
 class OperatorValidationResult:
-    """Encapsula o resultado da resolução e validação do operador."""
+    """Encapsula o resultado da resolução e validação do operador.
+
+    Quando `is_valid` é False, os campos `block_reason`/`block_message`
+    explicam o bloqueio; `motivos_revisao_append` lista motivos a anexar ao
+    item da fila e `metadata_merge` traz metadados (ex.: marcas de
+    auditabilidade) para mesclar no `metadata` do item.
+    """
     def __init__(
         self,
         is_valid: bool,
@@ -48,6 +70,14 @@ class OperatorGatekeeper:
     ) -> OperatorValidationResult:
         """
         Tenta encontrar o operador no banco de dados e valida regras de elegibilidade.
+
+        Resolve o colaborador auditável via `operators.resolve_auditable_colaborador`
+        (lê o cadastro) a partir do nome/id/setor informados. Bloqueia em dois
+        casos: operador não cadastrado ou não auditável (`blocked_operator`), e
+        ligação Huawei cujo operador não tem `id_huawei` cadastrado
+        (`blocked_operator_huawei_id`). Em caso de sucesso, consolida o nome e o
+        id oficiais (matrícula/preferredId) no `OperatorValidationResult`.
+        Efeito colateral: leitura de banco; não escreve nada.
         """
         # Resolve pelo banco de dados
         resolved_operator = operators.resolve_auditable_colaborador(
@@ -121,7 +151,13 @@ class QuotaGatekeeper:
 
     @classmethod
     def resolve_quota_datetime(cls, metadata: dict) -> datetime:
-        """Determina a data de referência da ligação para calcular a cota do mês."""
+        """Determina a data de referência da ligação para calcular a cota do mês.
+
+        Ordem de preferência: `huawei_begin_time`/`begin_time` (epoch ms UTC,
+        convertido para America/Sao_Paulo) > `audio_date`/`audioDate` (string
+        YYYY-MM-DD) > agora. O mês/ano dessa data é que define a janela de cota.
+        Apenas CPU; entradas inválidas geram warning e caem no próximo fallback.
+        """
         raw_timestamp = metadata.get("huawei_begin_time") or metadata.get("begin_time")
         if raw_timestamp is not None:
             try:
@@ -154,6 +190,13 @@ class QuotaGatekeeper:
         Verifica se a cota mensal foi atingida.
         Retorna um dicionário com os metadados de bloqueio caso tenha atingido.
         Retorna None se a cota estiver OK.
+
+        Consulta `get_operator_audit_count_for_month` (leitura de banco) para o
+        ano/mês de `quota_date`; se a contagem atual >= `monthly_audit_quota`,
+        devolve o dict de bloqueio (`block_reason='monthly_capped'`, mensagem,
+        motivos e metadados do período/operador). Falha de consulta é tratada
+        como contagem 0 (fail-open) — em ambiente de teste silenciosamente, fora
+        dele com `logger.exception`. Não escreve nada.
         """
         from repositories.audits import get_operator_audit_count_for_month
         import os

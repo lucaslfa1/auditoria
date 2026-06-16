@@ -1,3 +1,25 @@
+"""Constantes (vocabulários e marcadores) da detecção de speakers.
+
+Centraliza as listas de frases/palavras-chave que as heurísticas de diarização
+usam para decidir quem é operador, quem é interlocutor (motorista/ponto de apoio)
+e o que é áudio de telefonia/URA. Tudo em PT-BR e já normalizado (minúsculas,
+sem acento) para casar com `texto_normalizado`.
+
+Grupos principais:
+- SPEAKER_OPERADOR / SPEAKER_MOTORISTA: rótulos canônicos das personas.
+- PERGUNTA_PREFIXOS: prefixos que indicam pergunta/condução do operador.
+- OPERADOR_FRASES_*: famílias de frases que pesam a favor do operador
+  (suporte, muito fortes, contexto policial, institucionais).
+- RESPOSTAS_*: respostas curtas típicas de operador e de interlocutor.
+- TELEPHONY_MARKERS_*: marcadores de URA/atendimento eletrônico (fortes/fracos).
+- SUPPORT_POINT_HANDOFF_MARKERS: frases de passagem de chamada (handoff) a um
+  ponto de apoio/motorista.
+- LlmSpeakerMapper: alias de tipo da função de mapeamento de speakers via LLM.
+
+Alterar estas listas muda diretamente a classificação de falantes; são contrato
+de negócio, não strings arbitrárias. Sem custo de API (apenas dados em memória).
+"""
+
 from typing import Callable, Dict, List, Tuple
 SPEAKER_OPERADOR = "Operador"
 SPEAKER_MOTORISTA = "Motorista"

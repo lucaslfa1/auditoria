@@ -1,3 +1,17 @@
+"""Geração de relatórios exportáveis de um resultado de auditoria.
+
+Papel no sistema: converte um `AuditResult` (resultado de auditoria já avaliado)
+em arquivos baixáveis nos formatos Excel (.xlsx), Word (.docx) e PDF — tanto do
+relatório de critérios/notas quanto da transcrição da ligação. Cada função
+retorna um buffer em memória (`io.BytesIO`) já posicionado no início, pronto
+para ser servido como download pela camada de API.
+
+As bibliotecas pesadas (pandas/openpyxl, python-docx, reportlab) são importadas
+preguiçosamente dentro de cada função para não onerar o boot do processo.
+
+Sem custo de API: só formatação/CPU em memória. Não chama Azure OpenAI/Speech,
+banco nem rede.
+"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -7,6 +21,8 @@ from xml.sax.saxutils import escape
 from schemas import AuditResult
 
 
+# Rótulos exibidos nos relatórios para o status de cada critério (contrato de UI
+# em PT-BR). Apenas dois estados visíveis: "Atende" / "Não atende".
 STATUS_LABELS = {
     'pass': 'Atende',
     'fail': 'Não atende',
@@ -14,6 +30,12 @@ STATUS_LABELS = {
 
 
 def _format_detail_status(status: str) -> str:
+    """Mapeia o status técnico de um critério para o rótulo binário exibido.
+
+    Normaliza o valor cru (pass/na/n/a/pending_manual -> "Atende";
+    fail/partial e qualquer outro -> "Não atende"). Note que `partial` é
+    apresentado como reprovação no relatório.
+    """
     normalized = str(status or '').strip().lower()
     if normalized in {'pass', 'na', 'n/a', 'pending_manual'}:
         return STATUS_LABELS['pass']
@@ -23,10 +45,24 @@ def _format_detail_status(status: str) -> str:
 
 
 def _pdf_text(value: object) -> str:
+    """Escapa um valor para uso seguro em parágrafos do reportlab.
+
+    Aplica escape de XML/HTML e converte quebras de linha em ``<br/>`` (markup
+    aceito pelo `Paragraph` do reportlab).
+    """
     return escape(str(value or '')).replace('\n', '<br/>')
 
 
 def generate_excel_report(result: AuditResult):
+    """Gera o relatório de auditoria em Excel (.xlsx).
+
+    Produz uma planilha com duas abas: "Resumo" (data, operador, nota final e
+    resumo) e "Detalhes" (uma linha por critério: rótulo, status, peso, nota
+    obtida e comentário), com larguras de coluna e quebra de texto ajustadas.
+
+    Retorna um `io.BytesIO` posicionado no início. Sem efeitos colaterais
+    externos (escreve só em memória).
+    """
     import pandas as pd
     from openpyxl.styles import Alignment
 
@@ -79,6 +115,13 @@ def generate_excel_report(result: AuditResult):
 
 
 def generate_docx_report(result: AuditResult):
+    """Gera o relatório de auditoria em Word (.docx).
+
+    Monta um documento com cabeçalho (data, operador, nota final, resumo) e uma
+    tabela de critérios (Critério, Status, Peso, Nota Obtida, Comentário).
+
+    Retorna um `io.BytesIO` posicionado no início. Escreve só em memória.
+    """
     from docx import Document
 
     doc = Document()
@@ -114,6 +157,13 @@ def generate_docx_report(result: AuditResult):
 
 
 def generate_docx_transcription(result: AuditResult):
+    """Gera a transcrição da ligação em Word (.docx).
+
+    Escreve um parágrafo por segmento de `result.transcription`, no formato
+    "{start} - {end} | {text}".
+
+    Retorna um `io.BytesIO` posicionado no início. Escreve só em memória.
+    """
     from docx import Document
 
     doc = Document()
@@ -127,6 +177,14 @@ def generate_docx_transcription(result: AuditResult):
 
 
 def generate_pdf_report(result: AuditResult):
+    """Gera o relatório de auditoria em PDF (A4, via reportlab).
+
+    Renderiza cabeçalho (data, operador, nota), seção de resumo e uma tabela de
+    critérios (Critério, Status, Nota Obtida, Comentário) com cabeçalho repetido
+    a cada página. Textos passam por `_pdf_text` (escape + quebras de linha).
+
+    Retorna um `io.BytesIO` posicionado no início. Escreve só em memória.
+    """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
     from reportlab.lib import colors
@@ -212,6 +270,13 @@ def generate_pdf_report(result: AuditResult):
 
 
 def generate_pdf_transcription(result: AuditResult):
+    """Gera a transcrição da ligação em PDF (A4, via reportlab).
+
+    Para cada segmento de `result.transcription`, renderiza um carimbo de tempo
+    ("{start} - {end}", ou só `start` quando não há `end`) seguido do texto.
+
+    Retorna um `io.BytesIO` posicionado no início. Escreve só em memória.
+    """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
     from reportlab.lib import colors

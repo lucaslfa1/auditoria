@@ -142,6 +142,13 @@ def _escape_html(text: str) -> str:
 
 
 def _format_timestamp(value: Any) -> str:
+    """Formata um timestamp para "dd/mm HH:MM" para exibição no PDF.
+
+    Aceita epoch numérico (heurística: > 1e12 é tratado como milissegundos,
+    caso contrário segundos) ou string ISO (tenta vários formatos com/sem
+    sufixo ``Z``). Se não conseguir interpretar, devolve o valor original
+    como string.
+    """
     if value is None or value == "":
         return ""
     if isinstance(value, (int, float)):

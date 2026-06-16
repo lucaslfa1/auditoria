@@ -1,3 +1,20 @@
+"""Helpers compartilhados entre os routers FastAPI da auditoria.
+
+Reúne utilidades reaproveitadas por vários routers (classifier, supervisor,
+review, etc.) para não duplicar lógica:
+
+- Validação de upload por MIME (áudio x PDF) — ``resolve_upload_mime_type`` /
+  ``ensure_supported_upload``.
+- Autorização de supervisor sobre uma auditoria específica
+  (``can_access_supervisor_audit`` / ``get_supervisor_audit_for_user``).
+- Geração de senha temporária e sanitização de nome de arquivo para
+  Content-Disposition.
+- Registro best-effort de exportações de relatório (``safe_log_report_export``).
+
+Sem custo de API paga: este módulo só faz validação em memória, geração de
+strings e acesso a banco (PostgreSQL). Não chama Azure OpenAI/Speech.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -37,10 +54,21 @@ MIME_BY_EXTENSION = {
 
 
 def resolve_user_supervisor_name(user: dict) -> str:
+    """Extrai o nome de supervisor associado a um usuário autenticado.
+
+    Usa ``supervisor_name`` se presente; senão cai para ``username``. Retorna
+    string vazia se nenhum estiver disponível. Usado para filtrar/autorizar
+    auditorias pelo supervisor dono.
+    """
     return str(user.get("supervisor_name") or user.get("username") or "").strip()
 
 
 def generate_temporary_password(length: int = 16) -> str:
+    """Gera uma senha temporária aleatória criptograficamente forte.
+
+    Usa ``secrets.choice`` sobre um alfabeto sem caracteres ambíguos (sem I/O/l/0/1).
+    O comprimento efetivo é ``max(12, length)`` (mínimo de 12 caracteres).
+    """
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*?"
     return "".join(secrets.choice(alphabet) for _ in range(max(12, length)))
 
@@ -63,6 +91,12 @@ def _safe_filename(name: str, fallback: str = "arquivo") -> str:
 
 
 def can_access_supervisor_audit(user: dict, audit: dict) -> bool:
+    """Indica se ``user`` pode acessar a auditoria ``audit``.
+
+    Regra: admins (qualquer role != "supervisor") têm acesso total. Supervisores
+    só acessam auditorias cujo campo ``supervisor`` casa (após normalização de
+    lookup) com o seu próprio nome de supervisor.
+    """
     if user.get("role") != "supervisor":
         return True
     return _normalize_auth_lookup(audit.get("supervisor", "")) == _normalize_auth_lookup(
@@ -71,6 +105,12 @@ def can_access_supervisor_audit(user: dict, audit: dict) -> bool:
 
 
 def get_supervisor_audit_for_user(user: dict, audit_id: int) -> dict:
+    """Busca uma auditoria por id aplicando a autorização de supervisor.
+
+    Lê a auditoria no banco. Levanta HTTP 404 se ela não existir e HTTP 403 se
+    o supervisor não tiver permissão (via ``can_access_supervisor_audit``).
+    Retorna o dict da auditoria quando o acesso é permitido.
+    """
     audit = audits.get_audit_by_id(database.get_connection, audit_id)
     if audit is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auditoria não encontrada.")
@@ -80,6 +120,13 @@ def get_supervisor_audit_for_user(user: dict, audit_id: int) -> dict:
 
 
 def resolve_upload_mime_type(upload_file: UploadFile) -> str:
+    """Determina o MIME type efetivo de um upload.
+
+    Primeiro tenta inferir pela extensão do nome do arquivo (via
+    ``MIME_BY_EXTENSION``, mais confiável que o header do browser); se nenhuma
+    extensão conhecida casar, cai para o ``content_type`` declarado no upload
+    (sem o parâmetro ``;charset=...``, em minúsculas).
+    """
     filename = (upload_file.filename or "").lower().strip()
     for extension, mime_type in MIME_BY_EXTENSION.items():
         if filename.endswith(extension):
@@ -88,6 +135,13 @@ def resolve_upload_mime_type(upload_file: UploadFile) -> str:
 
 
 def ensure_supported_upload(upload_file: UploadFile, *, allow_pdf: bool) -> str:
+    """Valida o tipo do upload e retorna o MIME resolvido.
+
+    Aceita sempre os formatos de áudio em ``SUPPORTED_AUDIO_MIME_TYPES``;
+    quando ``allow_pdf=True``, aceita também PDF (``SUPPORTED_DOCUMENT_MIME_TYPES``).
+    Levanta HTTP 400 com mensagem apropriada se o formato não for suportado
+    (a mensagem muda conforme PDF seja permitido ou não).
+    """
     mime_type = resolve_upload_mime_type(upload_file)
     supported_types = SUPPORTED_AUDIO_MIME_TYPES | (SUPPORTED_DOCUMENT_MIME_TYPES if allow_pdf else set())
     if mime_type in supported_types:
@@ -106,6 +160,12 @@ def ensure_supported_upload(upload_file: UploadFile, *, allow_pdf: bool) -> str:
 
 
 def estimate_stream_size(stream) -> int | None:
+    """Estima o tamanho em bytes de um stream em memória (ex.: BytesIO).
+
+    Tenta ``getbuffer().nbytes`` e depois ``getvalue()``. Retorna ``None`` se o
+    objeto não expuser nenhum desses métodos ou se ocorrer qualquer erro
+    (best-effort, usado só para logar o tamanho de exports).
+    """
     try:
         if hasattr(stream, "getbuffer"):
             return int(stream.getbuffer().nbytes)
@@ -130,6 +190,16 @@ def safe_log_report_export(
     file_size_bytes: int | None = None,
     metadata: dict | None = None,
 ) -> None:
+    """Registra uma exportação de relatório na trilha de auditoria (best-effort).
+
+    Persiste em ``database.save_report_export`` os metadados do arquivo gerado
+    (tipo, formato, nome, quem gerou, operador, alerta, setor, score, tamanho,
+    etc.), extraindo campos do ``AuditResult`` quando fornecido.
+
+    Efeito colateral: escrita no banco. Falhas são engolidas e apenas logadas em
+    nível warning — nunca interrompem o download do relatório que está sendo
+    servido ao usuário.
+    """
     try:
         database.save_report_export(
             report_kind=report_kind,

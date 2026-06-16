@@ -1,3 +1,17 @@
+"""Provedor de transcrição GPT-4o-transcribe-diarize (Azure OpenAI, response_format diarized_json).
+
+Papel no fluxo: backend de transcrição que usa o modelo GPT-4o de transcrição com
+diarização nativa (segmentos já com `speaker`). Aplica prompt de domínio, normaliza
+o texto de cada segmento, mapeia os rótulos de speaker para inteiros estáveis e
+finaliza com a detecção de speakers (finalize_speaker_segments) para produzir os
+segmentos no formato da auditoria. Tem retry com backoff para erros transitórios
+(timeout/conexão/5xx) e refaz a chamada SEM o parâmetro `prompt` se a API o rejeitar.
+
+CUSTO DE API: ALTO — cada chamada é uma transcrição PAGA no Azure OpenAI, registrada
+via cost_guard.record_call(PROVIDER_AZURE_OPENAI, "transcricao_diarize"). Retries
+multiplicam o custo.
+"""
+
 from __future__ import annotations
 import logging
 
@@ -17,6 +31,13 @@ from transcription_providers.common import finalize_speaker_segments, normalize_
 
 @dataclass(frozen=True)
 class GPT4oDiarizeTranscriptionDependencies:
+    """Dependências injetadas em transcribe_audio_gpt4o_diarize (getters de config, normalizadores e sleep).
+
+    Pacote de Callables passado pelo caller para evitar import circular: filename de
+    upload, timeout, contagem/intervalo de retry, builder do prompt de domínio,
+    normalizadores de texto, deduplicador e a função de sleep (injetável para testes).
+    """
+
     guess_audio_filename: Callable[[str], str]
     get_transcription_timeout_seconds: Callable[[], int]
     get_retry_count: Callable[[], int]
@@ -37,6 +58,7 @@ def _parse_seconds(value: object) -> float:
 
 
 def _is_retryable_exception(exc: Exception) -> bool:
+    """True para falhas transitórias que valem retry: timeout, erro de conexão ou HTTP 5xx."""
     if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
         return True
     if isinstance(exc, requests.HTTPError):
@@ -47,6 +69,10 @@ def _is_retryable_exception(exc: Exception) -> bool:
 
 
 def _response_rejected_prompt_parameter(response: requests.Response) -> bool:
+    """True se o 400 da API indica que o parâmetro `prompt` não é aceito (mensagem cita prompt + unknown/invalid/...).
+
+    Usado para refazer a chamada sem `prompt` em deployments que não o suportam.
+    """
     status_code = getattr(response, "status_code", 0) or 0
     if status_code != 400:
         return False
@@ -70,6 +96,23 @@ def transcribe_audio_gpt4o_diarize(
     driver_name: Optional[str] = None,
     dependencies: GPT4oDiarizeTranscriptionDependencies,
 ) -> list[dict]:
+    """Transcreve o áudio via GPT-4o-transcribe-diarize (Azure OpenAI) e retorna segmentos por locutor.
+
+    Normaliza o áudio para WAV quando o MIME não é WAV; monta o payload
+    diarized_json com prompt de domínio e chunking_strategy=auto; autentica por
+    api-key ou Bearer (`auth_mode`). Se a API rejeitar `prompt`, repete a chamada sem
+    ele. Mapeia rótulos de speaker para inteiros estáveis e finaliza com a detecção de
+    speakers. Em erro transitório, tenta novamente até `get_retry_count` vezes com
+    backoff linear.
+
+    Params: `endpoint`/`api_key` (obrigatórios), `model_name` opcional,
+    `operator_label`/`driver_label` rótulos dos turnos, `operator_name`/`driver_name`
+    enriquecem o prompt, `dependencies` injeta getters/normalizadores/sleep.
+
+    Efeitos: chamada de REDE PAGA ao Azure OpenAI (custo no cost_guard) e conversão
+    de áudio (CPU). Levanta RuntimeError se não configurado, em falha após os retries
+    ou se não sobrar segmento válido. Retorna a lista de segmentos {start,end,text,...}.
+    """
     safe_endpoint = str(endpoint or "").strip()
     safe_api_key = str(api_key or "").strip()
     if not safe_endpoint or not safe_api_key:

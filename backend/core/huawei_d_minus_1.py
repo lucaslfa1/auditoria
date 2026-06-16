@@ -1,3 +1,25 @@
+"""Pipeline "D-1" da Huawei: coleta diária do lote do(s) dia(s) anterior(es).
+
+Papel no sistema: orquestra a baixa automática das gravações que a Huawei sobe
+para o OBS referentes ao dia anterior (D-1). Como a Huawei pode demorar horas
+para finalizar o upload, o pipeline tem retry, janela de lookback (vários dias
+para trás) e horário programado, tudo configurável pela tabela `configuracoes`
+(ver `PIPELINE_CONFIG_DEFAULTS`). É acionado pelo Cloud Scheduler / loop
+residente e também manualmente pela UI (force=True bypassa os gates de retry).
+
+Fluxo de `executar_d_minus_1`: adquire um lock em `configuracoes`
+('huawei_d1_run_lock'), verifica no OBS se há áudio + manifesto CSV do dia, e
+então delega o processamento real a `core.huawei_sync.executar_sync_huawei`
+(obs_only=True). O estado de cada dia (status, tentativas, contagens) é
+persistido na tabela `huawei_d_minus_1_runs` via `HuaweiDMinus1Tracker`.
+
+Custo de API: este módulo em si não chama Azure (OpenAI/Speech). As chamadas
+pagas/de rede ocorrem no `executar_sync_huawei` que ele invoca (download de
+áudio Huawei e, depois, transcrição/avaliação a jusante). Efeitos colaterais
+diretos daqui: banco (tabela de runs + lock), OBS (Huawei), e webhook HTTP de
+alerta em caso de tentativas esgotadas.
+"""
+
 import asyncio
 import logging
 import os
@@ -51,8 +73,19 @@ def get_pipeline_config() -> dict[str, str]:
 
 
 class HuaweiDMinus1Tracker:
+    """Acesso à tabela `huawei_d_minus_1_runs` (estado por dia do pipeline D-1).
+
+    Cada linha representa uma data (`date_str` no formato YYYYMMDD) e guarda
+    status, número de tentativas, timestamps e as contagens do último resultado.
+    Todos os métodos abrem/commitam a própria conexão de banco. Sem custo de API.
+    """
+
     @staticmethod
     def get_run(date_str: str) -> Optional[dict]:
+        """Lê a linha de run de uma data (YYYYMMDD) ou None se não existir.
+
+        Retorna o registro como dict (lê do banco). Apenas leitura.
+        """
         with database.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT * FROM huawei_d_minus_1_runs WHERE date_str = %s", (date_str,))
@@ -67,6 +100,12 @@ class HuaweiDMinus1Tracker:
 
     @staticmethod
     def mark_in_progress(date_str: str):
+        """Marca a data como 'in_progress' e incrementa o contador de tentativas.
+
+        Faz UPSERT em `huawei_d_minus_1_runs`: cria a linha (attempts=1) ou
+        soma +1 às tentativas existentes, atualizando `last_attempt_at`.
+        Efeito colateral: escreve no banco (commit).
+        """
         with database.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -81,6 +120,10 @@ class HuaweiDMinus1Tracker:
 
     @staticmethod
     def mark_empty(date_str: str, reason: str):
+        """Marca a data como 'empty' (OBS sem áudio/manifesto) gravando o motivo.
+
+        `reason` vai para a coluna `last_error`. Escreve no banco (commit).
+        """
         with database.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -92,6 +135,15 @@ class HuaweiDMinus1Tracker:
 
     @staticmethod
     def mark_result(date_str: str, status: str, result: dict, error: Optional[str] = None):
+        """Persiste o resultado final de uma execução para a data.
+
+        Grava `status` e extrai contagens do dict `result` (chamadas no
+        manifesto OBS, candidatos a download, baixadas, ignoradas por cota) para
+        colunas dedicadas, além do `result` completo em `last_result_json`.
+        `error` vai para `last_error`. Regra importante: em status='completed'
+        ZERA o contador de tentativas e marca `completed_at`; nos demais status
+        as tentativas são mantidas. Escreve no banco (commit).
+        """
         with database.get_connection() as conn:
             with conn.cursor() as cur:
                 # Reset attempts on success, keep incrementing on failure
@@ -126,6 +178,12 @@ class HuaweiDMinus1Tracker:
 
     @staticmethod
     def mark_retry_exhausted_alerted(date_str: str) -> bool:
+        """Marca (uma única vez) que o alerta de tentativas esgotadas foi disparado.
+
+        Seta `exhausted_alerted_at` SOMENTE se ainda estava NULL e retorna True
+        nesse caso; se já havia sido marcado antes, retorna False. Serve de
+        guarda de idempotência para não alertar repetidamente. Escreve no banco.
+        """
         with database.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -149,6 +207,14 @@ class HuaweiDMinus1Tracker:
         attempts: int,
         last_error: Optional[str] = None,
     ) -> bool:
+        """Alerta (uma vez) que um lote esgotou as tentativas de retry.
+
+        Usa `mark_retry_exhausted_alerted` como guarda: se já foi alertado
+        antes, retorna False sem fazer nada. Caso contrário loga em nível
+        CRITICAL e, se houver webhook configurado (`_get_failure_webhook_url`),
+        envia um POST de alerta (rede). Retorna True quando o alerta foi
+        emitido. `attempts`/`last_error` entram na mensagem/payload.
+        """
         if not HuaweiDMinus1Tracker.mark_retry_exhausted_alerted(date_str):
             return False
 
@@ -182,6 +248,12 @@ class HuaweiDMinus1Tracker:
 
     @staticmethod
     def cleanup_old_runs(retention_days: int = RUN_RETENTION_DAYS) -> int:
+        """Apaga runs mais antigos que `retention_days` (housekeeping).
+
+        Calcula o corte em America/Sao_Paulo e deleta linhas com `date_str`
+        (formato YYYYMMDD) anterior a ele. Retorna a quantidade removida.
+        Escreve no banco (DELETE + commit).
+        """
         cutoff = (datetime.now(SP_TZ) - timedelta(days=retention_days)).strftime("%Y%m%d")
         with database.get_connection() as conn:
             with conn.cursor() as cur:
@@ -211,6 +283,11 @@ def _format_date_str(date_str: str) -> str:
 
 
 def _calc_day_window_ms(date_str: str, begin_time_str: Optional[str] = None) -> tuple[int, int]:
+    """Devolve (begin_ms, end_ms) cobrindo o dia `date_str` em America/Sao_Paulo.
+
+    Início é meia-noite do dia (ou "HH:MM" se `begin_time_str` for dado e
+    parseável); fim é 1s antes da meia-noite seguinte. Valores em epoch ms.
+    """
     dt = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=SP_TZ)
     if begin_time_str:
         try:
@@ -233,6 +310,34 @@ async def executar_d_minus_1(
     should_cancel: Optional[Callable[[], bool]] = None,
     progress_callback: Optional[Callable[[str, int, int], None]] = None,
 ) -> dict:
+    """Executa o pipeline D-1 para UMA data (default: ontem em America/Sao_Paulo).
+
+    Passos: adquire o lock `huawei_d1_run_lock` em `configuracoes` (libera locks
+    presos há +2h; se outra instância já roda, retorna status 'skipped');
+    verifica no OBS se há áudio (`Voice/<date>/`) e manifesto CSV — se faltar,
+    marca a data como 'empty' e devolve status *_will_retry; senão chama
+    `executar_sync_huawei(obs_only=True)` para baixar/processar o lote.
+
+    Ao fim calcula a cobertura (itens processados / linhas do manifesto) e
+    classifica como 'completed' (>= HUAWEI_D_MINUS_1_COVERAGE_THRESHOLD, default
+    0.8) ou 'partial', persistindo via `HuaweiDMinus1Tracker.mark_result`.
+
+    Parâmetros:
+    - date_str: data alvo YYYYMMDD; None usa D-1.
+    - force: documentado no wrapper; aqui é só repassado a jusante.
+    - begin_time_str: "HH:MM" para recortar o início da janela do dia.
+    - should_cancel: callback de cancelamento cooperativo (verificado em
+      pontos-chave; retorna status 'cancelled').
+    - progress_callback: callback (stage, current, total) repassado ao sync.
+
+    Retorno: dict com `status` ('completed'/'partial'/'skipped'/'cancelled'/
+    'error'/obs_*_will_retry), `date_str`, e (quando processou) `coverage` e
+    `result` do sync.
+
+    Efeitos colaterais: banco (lock + tabela de runs), OBS/Huawei e tudo que o
+    sync chamado dispara (download de áudio; transcrição/avaliação a jusante —
+    aí sim há custo de API). O lock é sempre liberado no finally.
+    """
     if not date_str:
         date_str = _calc_date_str_d_minus_1()
 
@@ -421,6 +526,12 @@ def _last_attempt_sp(run: Optional[dict]) -> Optional[datetime]:
 
 
 def _is_retry_exhausted(run: Optional[dict], max_retries: int) -> bool:
+    """True se a data já bateu `max_retries` e segue em estado não-terminal.
+
+    Considera esgotado quando attempts >= max_retries E o status ainda é um dos
+    que pediriam nova tentativa (empty/error/partial/obs_*_will_retry). Status
+    'completed' nunca conta como esgotado.
+    """
     if not run:
         return False
     status = (run or {}).get("status") or "pending"

@@ -1,3 +1,23 @@
+"""Configuração central do backend: credenciais Azure, prompts e flags.
+
+Papel no fluxo: este módulo é importado no boot e expõe (via `__all__`) as
+constantes e helpers que o resto do backend usa para falar com a IA — endpoint/
+chave/deployment do Azure OpenAI, chave/região do Azure Speech, conjuntos de
+MIME aceitos, modo determinístico e os getters de tuning da transcrição
+(timeouts, retries, thresholds de score lidos de variáveis de ambiente).
+
+Carrega `.env` de três níveis (raiz do projeto, backend/, core/) sem
+sobrescrever variáveis já definidas no ambiente. Os prompts são servidos por
+`PROMPTS_CONFIG`, um dict preguiçoso que lê do banco (Neon) a cada acesso e cai
+para `config/prompts.json` quando o banco está indisponível.
+
+CRÍTICO: os valores padrão de deployment Azure (ex.: 'gpt-4o') NÃO podem ser
+alterados sem autorização explícita — trocar a versão quebra produção (HTTP
+404). Ver o aviso em destaque mais abaixo no arquivo.
+
+Sem custo de API neste módulo: ele apenas lê configuração (env/arquivo/banco).
+As chamadas pagas acontecem em quem consome estas constantes.
+"""
 import json
 import logging
 import os
@@ -190,9 +210,18 @@ AUDIT_DETAIL_SEVERITY = {
     "pass": 2,
 }
 def load_criteria_for_sector(sector_id: Optional[str]) -> Optional[list[AuditCriterion]]:
+    """Carrega os critérios de auditoria de um setor a partir de scoring_rules.yaml.
+
+    Normaliza o `sector_id` e aplica o mapa de aliases legados (ex.: 'grs'→'uti',
+    'longo_percurso'→'rastreamento') antes de buscar em `db.scoring_loader.get_alerts()`.
+    Setores operacionais sem alerta próprio caem no conjunto de alertas do 'bas'.
+    Retorna a lista de `AuditCriterion` (id = "<alert_id>-<índice>") do primeiro
+    alerta que casar, ou None se faltar `sector_id`, o YAML falhar ao carregar ou
+    nada casar. Efeito colateral: leitura do arquivo de regras (sem custo de API).
+    """
     if not sector_id:
         return None
-        
+
     from core.utils import normalize_sector_slug
     normalized_sector_id = normalize_sector_slug(sector_id)
     
@@ -371,6 +400,16 @@ def _get_azure_gpt4o_diarize_model_name() -> str:
     return configured or "gpt-4o-transcribe-diarize"
 
 def validate_runtime_credentials(*, strict: bool = False) -> list[str]:
+    """Valida as credenciais Azure em runtime e retorna a lista de problemas.
+
+    Checa presença/placeholders de AZURE_OPENAI_ENDPOINT/KEY/DEPLOYMENT, detecta
+    o conflito cross-resource conhecido (Whisper apontando para outro recurso/
+    região da chave principal) e exige config de Whisper (própria ou via
+    fallback do Azure OpenAI). Retorna a lista de strings descrevendo cada
+    problema (vazia = tudo ok). Com `strict=True`, levanta `RuntimeError` se
+    houver qualquer problema; senão apenas registra em log. Sem custo de API
+    (não chama os endpoints, só inspeciona as variáveis já carregadas).
+    """
     issues: list[str] = []
 
     placeholders = {"SEU_RECURSO", "NOME_RECURSO", "YOUR_RESOURCE"}

@@ -1,3 +1,16 @@
+"""Repositório de registros de exportação de relatórios (tabela `report_exports`).
+
+Mantém o histórico/auditoria de cada relatório gerado e baixado pelo sistema
+(DOCX/XLSX/etc.): tipo do relatório, formato, operador, alerta, setor, score e
+metadados. Não armazena o arquivo em si — só os metadados da geração.
+
+A tabela é criada sob demanda via `ensure_report_exports_table`. O campo
+`metadata_json` é saneado contra o escape de NUL (U+0000) na escrita
+(`strip_json_nul`) para não quebrar casts `::jsonb` posteriores.
+
+Sem custo de API (apenas acesso a banco/CPU).
+"""
+
 import json
 from typing import Callable, Optional, Any
 
@@ -26,6 +39,17 @@ def save_report_export(
     file_size_bytes: Optional[int] = None,
     metadata: Optional[dict] = None,
 ) -> int:
+    """Registra a geração de um relatório exportado e retorna o id da linha criada.
+
+    `report_kind` e `file_format` são normalizados (trim+lowercase); `source_type` é
+    validado via `normalize_source_type`. `metadata` (dict opcional) é serializado em
+    JSON saneado de NUL na coluna `metadata_json`. Os demais campos (operador, alerta,
+    setor, score, etc.) são gravados como vieram.
+
+    Garante a existência da tabela antes de inserir. Retorna o id do registro.
+    Efeito colateral: possível DDL (criação da tabela), INSERT em `report_exports` +
+    commit.
+    """
     normalized_report_kind = str(report_kind or "").strip().lower()
     normalized_file_format = str(file_format or "").strip().lower()
     normalized_source_type = normalize_source_type(source_type, default=None)
@@ -75,6 +99,16 @@ def list_report_exports(
     file_format: Optional[str] = None,
     operator_name: Optional[str] = None,
 ) -> list[dict]:
+    """Lista exportações de relatórios, das mais recentes para as mais antigas.
+
+    Filtros opcionais: `report_kind` e `file_format` (match exato, normalizados) e
+    `operator_name` (LIKE case-insensitive, substring). `limit` é clampado em
+    [1, 1000]. Garante a existência da tabela antes de consultar.
+
+    Retorna uma lista de dicts com os campos do registro; `metadata_json` é
+    desserializado de volta na chave `metadata` (default {}). Efeito colateral:
+    possível DDL (criação da tabela) + leitura no banco.
+    """
     conn = get_connection()
     try:
         # conn.row_factory handled by DictCursor

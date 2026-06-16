@@ -1,3 +1,17 @@
+"""Triagem de ligações por LLM: escolhe quais chamadas valem auditoria.
+
+Papel no fluxo: dado um lote de metadados de chamadas de um setor (já
+filtradas por tempo mínimo), pede ao LLM para selecionar as melhores candidatas
+a auditoria real e descartar "lixo" (caixa postal, recusa, tabulação genérica).
+Chamado pela esteira de automação (`huawei_sync._triagem_grupo`); quando a
+triagem LLM não roda (Azure ausente ou orçamento estourado), o caller cai no
+fallback determinístico e nada é descartado.
+
+CUSTO DE API: `filtrar_ligacoes_com_llm` faz UMA chamada PAGA ao Azure OpenAI
+(chat completions) por lote, contabilizada via `cost_guard.record_call`. É
+guardada por `cost_guard.budget_exceeded()` (teto diário) e por checagem das
+credenciais Azure (falha fechada = retorna vazio).
+"""
 import json
 import logging
 from typing import List, Dict, Any
@@ -23,6 +37,13 @@ def _get_duracao(chamada: Dict[str, Any]) -> int:
 
 
 def _parse_ids_aprovados(payload: str, total_candidatos: int) -> List[int]:
+    """Extrai e valida os IDs aprovados da resposta JSON do LLM.
+
+    Lê a chave `ids_aprovados` do `payload`; aceita só inteiros (descarta bool,
+    que é subclasse de int) dentro do intervalo [0, total_candidatos),
+    remove duplicatas e limita a `MAX_LLM_APPROVED_CALLS`. Retorna a lista de
+    índices válidos (vazia se o JSON for inválido/inesperado).
+    """
     dados = json.loads(payload or "{}")
     ids_aprovados = dados.get("ids_aprovados", [])
     if not isinstance(ids_aprovados, list):
@@ -43,9 +64,22 @@ def _parse_ids_aprovados(payload: str, total_candidatos: int) -> List[int]:
 
 
 async def filtrar_ligacoes_com_llm(chamadas: List[Dict[str, Any]], setor: str, regra: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-    """
-    Recebe uma lista de metadados de chamadas (ja filtradas por tempo minimo)
-    e pede para o LLM escolher as melhores para auditar, descartando "lixo".
+    """Pede ao LLM que selecione as melhores chamadas para auditar.
+
+    Recebe `chamadas` (metadados já filtrados por tempo mínimo), o `setor` e a
+    `regra` opcional do setor (cujo `motivos_alvo` vira prioridade no prompt).
+    Pré-ordena por duração e considera no máximo `MAX_LLM_CANDIDATES`; o LLM
+    devolve até `MAX_LLM_APPROVED_CALLS` IDs aprovados.
+
+    Falha fechada: retorna lista vazia se o Azure OpenAI não estiver
+    configurado, se o orçamento diário estiver estourado
+    (`cost_guard.budget_exceeded`) ou se qualquer exceção ocorrer — nesses
+    casos o caller usa o fallback determinístico.
+
+    CUSTO DE API: faz UMA chamada paga ao Azure OpenAI (chat completions,
+    `response_format=json_object`) quando não cai em nenhuma das guardas.
+    Efeitos colaterais: logging e `cost_guard.record_call`. Retorna a sublista
+    de `chamadas` aprovadas (objetos originais).
     """
     if not chamadas:
         return []

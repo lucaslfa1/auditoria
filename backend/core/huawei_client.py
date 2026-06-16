@@ -106,6 +106,28 @@ class HuaweiAICCClient:
         direct_app_key: Optional[str] = None,
         direct_app_secret: Optional[str] = None,
     ) -> None:
+        """Monta o cliente AICC com URLs, credenciais e modo de autenticação.
+
+        Principais parâmetros:
+        - cms_url / fs_url: bases dos serviços CC-CMS e CC-FS (default
+          `brazilsaas.aicccloud.com:28443`); barra final é removida.
+        - cc_id / vdn: identificadores do contact center e da VDN consultada.
+        - ak / sk: AK/SK usados pelo proxy de assinatura (modo 'proxy') e pela
+          assinatura local HMAC (modo 'direct').
+        - app_key / app_secret: credenciais do app Huawei (X-APP-Key e fallback
+          do OAuth direto).
+        - auth_mode: 'proxy' (default), 'oauth_direct'/'token' ou 'direct';
+          se None, lê de HUAWEI_AUTH_MODE.
+        - direct_app_key / direct_app_secret / tenant_space_id: credenciais e
+          tenant header do modo oauth_direct (caem em app_key/app_secret e env
+          se ausentes).
+        - timeout_seconds: timeout HTTP padrão das chamadas.
+
+        Sem efeitos colaterais de rede aqui: apenas resolve config (parte vem
+        de variáveis de ambiente) e inicializa o cache de token vazio. As
+        chamadas pagas/HTTP acontecem nos métodos async (custo: API Huawei, sem
+        custo Azure).
+        """
         self.cms_url = (cms_url or DEFAULT_CMS_URL).rstrip("/")
         self.fs_url = (fs_url or DEFAULT_FS_URL).rstrip("/")
         self.cc_id = cc_id
@@ -429,6 +451,13 @@ class HuaweiAICCClient:
 
     @staticmethod
     def _coerce_epoch_millis(value: Any) -> Optional[int]:
+        """Converte um valor de epoch (s ou ms) para epoch em MILISSEGUNDOS.
+
+        Aceita int/float/str numérica. Retorna None para vazio, não-numérico ou
+        valor <= 0. Heurística: se o número for "pequeno" (< 10^10, ou seja em
+        segundos) multiplica por 1000 para chegar em ms. Também é reusado fora
+        da classe (ex.: `huawei_discovery`).
+        """
         if value is None:
             return None
         text = str(value).strip()
@@ -446,6 +475,20 @@ class HuaweiAICCClient:
         return numeric
     @classmethod
     def _normalize_querycalls_row(cls, row: Dict[str, Any]) -> Dict[str, Any]:
+        """Normaliza uma linha do /querycalls preenchendo campos derivados.
+
+        A Huawei nomeia os campos de forma inconsistente entre versões. Este
+        helper, a partir de um dict de linha, deriva e preenche (via
+        setdefault, sem sobrescrever valores já presentes):
+        - `beginTime`/`endTime` em epoch ms (varrendo callBegin/beginTime/
+          ackBegin/waitBegin e callEnd/endTime/logDate);
+        - `duration`/`duracao` em segundos (de um campo explícito de duração ou
+          calculado por end-begin);
+        - `callReasonCode` e `callReason` (consolidando os vários aliases de
+          motivo/observação).
+        Retorna um NOVO dict (cópia da linha) com esses campos. Sem efeitos
+        colaterais.
+        """
         normalized = dict(row or {})
         start_ms = (
             cls._coerce_epoch_millis(normalized.get("callBegin"))
@@ -515,6 +558,13 @@ class HuaweiAICCClient:
 
     @staticmethod
     def _coerce_huawei_datetime_string(value: Any) -> str:
+        """Garante o formato de data-hora que o CC-FS espera ("YYYY-MM-DD HH:MM:SS").
+
+        Se o valor já parece uma data formatada (tem '-', '/' ou ':' e não é só
+        dígitos) é devolvido como está. Se for um epoch numérico, converte para
+        o fuso de `HUAWEI_TIMEZONE` (default America/Sao_Paulo; cai em UTC se o
+        nome do fuso for inválido) e formata. Vazio vira "".
+        """
         text = str(value or "").strip()
         if not text:
             return ""

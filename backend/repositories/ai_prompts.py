@@ -1,3 +1,18 @@
+"""Repositorio dos prompts de IA configuraveis em runtime (tabela `ai_prompts`).
+
+Le e atualiza os prompts usados pela transcricao/avaliacao sem precisar de deploy
+(editaveis pela tela admin de Prompts). As chaves usam dot-path (ex.:
+`audit_system.regra_senha`, `whisper_prompt.<setor>`); `list_prompts` reconstroi a
+estrutura aninhada que o codigo cliente espera. Toda escrita registra trilha em
+`ai_prompts_audit_log` e permite restaurar um estado anterior do log.
+
+Cache: mantem um cache de modulo (`_PROMPTS_CACHE`) populado sob demanda no
+primeiro `get_prompt`/`list_prompts`, para nao bater no banco a cada requisicao;
+`update_prompt` e `invalidate_ai_prompts_cache` o invalidam.
+
+Sem custo de API de IA aqui (apenas acesso a banco) — este modulo so guarda/serve
+o TEXTO dos prompts; o custo ocorre quando a transcricao/avaliacao os envia a Azure.
+"""
 import json
 import logging
 from typing import Any, Callable, Dict, List, Optional
@@ -13,6 +28,10 @@ _PROMPTS_CACHE_POPULATED = False
 
 
 def invalidate_ai_prompts_cache() -> None:
+    """Limpa o cache de modulo de prompts, forcando recarga do DB na proxima leitura.
+
+    Sem acesso a banco; apenas zera o estado em memoria.
+    """
     global _PROMPTS_CACHE_POPULATED
     _PROMPTS_CACHE.clear()
     _PROMPTS_CACHE_POPULATED = False
@@ -40,6 +59,11 @@ def _ensure_cache_populated(get_connection: Callable) -> None:
 
 
 def get_prompt(get_connection: Callable, chave: str, default: Any = None) -> Any:
+    """Retorna o valor do prompt de dot-path `chave`, ou `default` se inexistente.
+
+    Popula o cache de modulo no primeiro uso (le `ai_prompts` via `get_connection`,
+    que e uma callable que devolve uma conexao). Leituras subsequentes vem do cache.
+    """
     _ensure_cache_populated(get_connection)
     return _PROMPTS_CACHE.get(chave, default)
 
@@ -49,6 +73,12 @@ def get_whisper_prompt_for_sector(
     sector_id: Optional[str],
     default: str = "",
 ) -> str:
+    """Resolve o prompt do Whisper para um setor, com cadeia de fallback.
+
+    Tenta nesta ordem, devolvendo o primeiro nao-vazio: `whisper_prompt.<setor>`
+    (setor normalizado para minusculas) -> `whisper_prompt.default` ->
+    `whisper_prompt` (chave legada) -> `default`. So leitura (via cache de prompts).
+    """
     normalized_sector = str(sector_id or "").strip().lower()
     if normalized_sector:
         sector_prompt = get_prompt(get_connection, f"whisper_prompt.{normalized_sector}", None)
@@ -67,8 +97,14 @@ def get_whisper_prompt_for_sector(
 
 
 def list_prompts(get_connection: Callable) -> Dict[str, Any]:
+    """Retorna TODOS os prompts como dicionario aninhado (reconstruido do dot-path).
+
+    Ex.: a chave `audit_system.regra_senha` vira
+    `{"audit_system": {"regra_senha": <valor>}}`, formato que o codigo cliente
+    espera. Le do cache (populado no primeiro uso via `get_connection`).
+    """
     _ensure_cache_populated(get_connection)
-    
+
     # Reconstrói a estrutura aninhada a partir do dot-path (ex: audit_system.regra_senha)
     # Mas como o código do cliente atual (ex: PROMPTS_CONFIG.get("audit_system", {}).get("regra_senha"))
     # espera a estrutura aninhada, precisamos converter as chaves dot-path para dicionário aninhado.
@@ -93,10 +129,19 @@ def update_prompt(
     motivo: str,
     origem: str = "ui",
 ) -> bool:
+    """Faz upsert do prompt `chave` com `valor` e registra a mudanca no audit_log.
+
+    Le o estado anterior; se for igual ao novo `valor`, retorna True sem escrever
+    (no-op). Senao grava em `ai_prompts` (INSERT ... ON CONFLICT, `valor` como
+    JSON), insere em `ai_prompts_audit_log` (acao 'create' ou 'update') na mesma
+    transacao, commita e invalida o cache. `alterado_por`/`motivo`/`origem`
+    alimentam a trilha. Retorna True em sucesso, False em erro (com rollback).
+    Efeito colateral: escreve no DB.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        
+
         # Pega estado anterior
         cursor.execute("SELECT valor FROM ai_prompts WHERE chave = %s", (chave,))
         row = cursor.fetchone()
@@ -151,6 +196,12 @@ def update_prompt(
 
 
 def list_audit_log(get_connection: Callable, limit: int = 50, offset: int = 0, entity_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Lista o historico de mudancas de prompts (`ai_prompts_audit_log`), recentes primeiro.
+
+    Pagina por `limit`/`offset`; filtra por `entity_id` (a chave do prompt) se
+    informado. Read-only; retorna lista de dicts (vazia em erro). Abre e fecha a
+    conexao.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -182,6 +233,14 @@ def restore_from_audit(
     alterado_por: str,
     motivo: str,
 ) -> bool:
+    """Restaura um prompt para o estado ANTERIOR registrado na entrada `audit_id` do log.
+
+    Le `payload_antes` da entrada `ai_prompts_audit_log` e reaplica via
+    `update_prompt` (gerando uma nova entrada de log com o motivo prefixado).
+    Retorna False se a entrada nao existe ou se `payload_antes` for nulo (caso de
+    'create' — nao da para restaurar a "nada"; delete-se o prompt manualmente).
+    Efeito colateral: escreve no DB (via update_prompt).
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()

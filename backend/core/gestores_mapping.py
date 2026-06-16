@@ -1,5 +1,15 @@
+"""Mapeamentos compartilhados para exports de gestores e geração de pesos.
+
+Papel no fluxo: traduz IDs/labels internos de alertas de auditoria para os
+rótulos e tipos de contato usados no relatório de "gestores" (ex.:
+`UTI-PRIORITARIO-MOT` -> grupo "ALERTAS PRIORITÁRIOS", contato "Motorista").
+Resolve aliases de IDs/labels e infere o tipo de contato quando o alerta não
+está no catálogo fixo. O catálogo dinâmico é montado a partir das regras de
+scoring (`db.scoring_loader.load_scoring_rules`) e fica em cache (lru_cache).
+
+Sem custo de API (só leitura de regras de scoring + CPU; nenhuma chamada Azure).
+"""
 from __future__ import annotations
-"""Shared mapping helpers for gestores exports and weight generation."""
 
 
 from functools import lru_cache
@@ -95,6 +105,14 @@ def _infer_contact_type(alert_id: str, alert_label: str) -> str:
 
 
 def resolve_alert_export_metadata(alert_id: str, alert_label: str) -> tuple[str, str]:
+    """Resolve (rótulo de gestores, tipo de contato) de um alerta.
+
+    Aplica o alias de ID (`_ALERT_ID_ALIASES`) e consulta o catálogo fixo
+    `_ALERT_EXPORT_METADATA`. Se não houver entrada, usa o próprio
+    `alert_label`/`alert_id` em maiúsculas como rótulo de fallback e infere o
+    tipo de contato por `_infer_contact_type`. Função pura. Retorna a tupla
+    (gestores_label, contact_type).
+    """
     canonical_id = _ALERT_ID_ALIASES.get(alert_id, alert_id)
     gestores_label, contact_type = _ALERT_EXPORT_METADATA.get(canonical_id, ("", ""))
     if gestores_label:
@@ -106,6 +124,14 @@ def resolve_alert_export_metadata(alert_id: str, alert_label: str) -> tuple[str,
 
 @lru_cache(maxsize=1)
 def get_gestores_alert_catalog() -> dict[str, dict[str, str]]:
+    """Catálogo (em cache) de metadados de export por ID de alerta.
+
+    Carrega as regras de scoring (`load_scoring_rules`) e, para cada alerta,
+    monta um dict com `alert_label`, `gestores_label` e `contact_type`
+    (resolvidos por `resolve_alert_export_metadata`). Cacheado via lru_cache
+    (maxsize=1) — só recarrega ao limpar o cache. Efeito colateral: lê as
+    regras de scoring na primeira chamada.
+    """
     rules = load_scoring_rules()
     catalog: dict[str, dict[str, str]] = {}
     for alert in rules.get("alerts", []):
@@ -122,6 +148,12 @@ def get_gestores_alert_catalog() -> dict[str, dict[str, str]]:
 
 @lru_cache(maxsize=1)
 def get_gestores_alert_label_lookup() -> dict[str, str]:
+    """Índice reverso (em cache) de label normalizado -> ID de alerta.
+
+    Permite resolver um alerta a partir do texto do label quando o ID não
+    bate. Inclui os labels do catálogo (normalizados por `_normalize`) e os
+    aliases de label (`_ALERT_LABEL_ALIASES`). Cacheado via lru_cache.
+    """
     label_lookup: dict[str, str] = {}
     for alert_id, metadata in get_gestores_alert_catalog().items():
         label_lookup[_normalize(metadata["alert_label"])] = alert_id
@@ -135,6 +167,15 @@ def resolve_gestores_alert(
     alert_id: Optional[str],
     alert_label: Optional[str],
 ) -> tuple[str, str, Optional[str]]:
+    """Resolve um alerta para o relatório de gestores por ID e/ou label.
+
+    Tenta, em ordem: (1) casar pelo `alert_id` (após alias) no catálogo;
+    (2) casar pelo `alert_label` normalizado via índice reverso; (3) fallback
+    com label em maiúsculas e tipo de contato inferido. Retorna a tupla
+    (gestores_label, contact_type, resolved_alert_id) — onde `resolved_alert_id`
+    é o ID canônico quando encontrado, ou o ID/None de entrada como fallback.
+    Função pura (lê catálogos em cache).
+    """
     raw_alert_id = str(alert_id or "").strip()
     raw_alert_label = str(alert_label or "").strip()
     catalog = get_gestores_alert_catalog()

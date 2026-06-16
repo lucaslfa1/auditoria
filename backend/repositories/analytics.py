@@ -1,3 +1,15 @@
+"""Repositorio de analytics/estatisticas de auditorias (leitura agregada).
+
+Calcula metricas de desempenho a partir da tabela `audits` para o dashboard:
+totais, media de score, percentual medio e taxa de aprovacao (score >=
+`AUDIT_PASS_THRESHOLD` do maximo), alem do historico recente e da lista de
+setores distintos. Hoje todas as estatisticas consideram apenas auditorias com
+status `approved` (`AUDIT_STATUS_APPROVED`).
+
+Read-only; cada funcao recebe uma `ConnectionFactory` (callable que devolve uma
+conexao do pool) e fecha a conexao ao final. Sem custo de API (apenas acesso a
+banco/CPU).
+"""
 import json
 from typing import Callable, Any
 
@@ -8,6 +20,14 @@ PASS_THRESHOLD = AUDIT_PASS_THRESHOLD
 
 
 def get_stats(get_connection: ConnectionFactory) -> dict:
+    """Agrega estatisticas das auditorias aprovadas para o dashboard.
+
+    Sobre as linhas de `audits` com status `approved`, calcula: total, media de
+    score (`average_score`), percentual medio (`average_score_percentage`) e taxa
+    de aprovacao (`pass_rate`, % com score >= `PASS_THRESHOLD` do max_score).
+    `valid_audits` espelha o total; `invalid_audits`/`telephony_audits` retornam 0
+    (campos mantidos por contrato). Read-only; retorna dict com essas chaves.
+    """
     conn = get_connection()
     try:
         
@@ -46,6 +66,12 @@ def get_stats(get_connection: ConnectionFactory) -> dict:
 
 
 def get_history(get_connection: ConnectionFactory, limit: int = 10) -> list[dict]:
+    """Retorna as ultimas `limit` auditorias aprovadas (mais recentes primeiro).
+
+    Cada item traz id, timestamp, operator, score, max_score, summary, source_type
+    (default `audio` se nulo) e sector_id. Filtra por status `approved`; ordena por
+    id DESC. Read-only.
+    """
     conn = get_connection()
     try:
         
@@ -75,6 +101,10 @@ def get_history(get_connection: ConnectionFactory, limit: int = 10) -> list[dict
 
 
 def get_sectors(get_connection: ConnectionFactory) -> list[str]:
+    """Lista os `sector_id` distintos presentes em `audits` (ignorando nulos/vazios).
+
+    Read-only. Retorna lista de strings.
+    """
     conn = get_connection()
     try:
         
@@ -87,5 +117,9 @@ def get_sectors(get_connection: ConnectionFactory) -> list[str]:
 
 
 def get_technical_incidents(limit: int = 50, sector_id: str | None = None) -> list[dict]:
+    """Stub: rastreamento de incidentes tecnicos esta desativado — sempre retorna [].
+
+    Parametros mantidos por compatibilidade de assinatura; nao ha acesso a banco.
+    """
     # Technical incidents tracking remains disabled.
     return []

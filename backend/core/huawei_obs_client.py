@@ -67,6 +67,20 @@ class HuaweiOBSClient:
         *,
         http_client: Optional[httpx.AsyncClient] = None,
     ) -> None:
+        """Configura o cliente OBS com credenciais, bucket e endpoint.
+
+        Params:
+        - ak / sk: Access Key e Secret Key OBS (usadas na assinatura HMAC-SHA1).
+        - bucket: nome do bucket (cai em DEFAULT_BUCKET se vazio).
+        - endpoint: host OBS (default sa-brazil-1).
+        - http_client: `httpx.AsyncClient` compartilhado do ciclo (reaproveita
+          Keep-Alive/TLS). Se None, cada operacao cria o seu proprio cliente
+          (modo usado em testes).
+
+        Inicializa caches em memoria por instancia (listagens .V3, manifests
+        CSV/linhas e presenca de objetos em Voice/{date}/) — vivem apenas
+        enquanto a instancia existir, ou seja, por ciclo de sync.
+        """
         self.ak = ak
         self.sk = sk
         self.bucket = bucket or DEFAULT_BUCKET

@@ -1,3 +1,19 @@
+"""Juiz LLM de desempate entre dois candidatos de transcricao.
+
+Papel no fluxo: o selector deterministico (`core/transcription_selector.py`)
+escolhe o melhor candidato por regras; quando dois candidatos ficam num "empate"
+(scores muito proximos), este modulo aciona um juiz GPT-4o que le os dois textos
+e decide qual e mais fiel ao audio, marcando tambem possiveis alucinacoes.
+
+CUSTO DE API: SIM. `judge_tie_break` faz UMA chamada paga a Azure OpenAI
+(chat.completions GPT-4o, deployment `AZURE_OPENAI_DEPLOYMENT`, registrada via
+`core.cost_guard`). So e chamado no caso de empate, nao em toda transcricao.
+
+Contrato de robustez: qualquer falha (prompt ausente em PROMPTS_CONFIG, cliente
+sem credencial, JSON invalido na resposta, excecao na chamada) faz a funcao
+retornar None silenciosamente — o caller trata None como "juiz nao resolveu" e
+cai no fallback deterministico ja existente. Nunca propaga excecao.
+"""
 from __future__ import annotations
 
 import json
@@ -15,6 +31,18 @@ _MAX_TEXT_CHARS_PER_CANDIDATE = 8000
 
 @dataclass(frozen=True)
 class JudgeOutcome:
+    """Resultado estruturado da decisao do juiz LLM.
+
+    Campos:
+    - winner_label: "A", "B" ou "tie" (empate, juiz nao escolheu vencedor).
+    - winner_candidate_id: candidate_id do vencedor (None quando "tie").
+    - confidence: confianca do juiz no intervalo [0.0, 1.0].
+    - reason: justificativa textual curta da decisao.
+    - scores: notas por candidato (mapa candidate_id/label -> [0.0, 1.0]).
+    - hallucinations: trechos suspeitos de alucinacao por candidate_id.
+    - raw_response: payload JSON bruto retornado pelo modelo.
+    """
+
     winner_label: str
     winner_candidate_id: Optional[str]
     confidence: float
@@ -25,10 +53,16 @@ class JudgeOutcome:
 
     @property
     def resolved(self) -> bool:
+        """True quando o juiz escolheu um vencedor concreto (A ou B com id)."""
         return self.winner_label in {"A", "B"} and bool(self.winner_candidate_id)
 
 
 def _serialize_segments(candidate: TranscriptionCandidate) -> str:
+    """Achata os segmentos do candidato em texto "speaker: fala" por linha.
+
+    Trunca em `_MAX_TEXT_CHARS_PER_CANDIDATE` (8000 chars) para limitar o tamanho
+    do prompt enviado ao modelo. Ignora segmentos sem texto.
+    """
     parts: list[str] = []
     total = 0
     for segment in candidate.segments or []:
@@ -81,6 +115,12 @@ def _parse_judge_response(
     candidate_a: TranscriptionCandidate,
     candidate_b: TranscriptionCandidate,
 ) -> Optional[JudgeOutcome]:
+    """Converte a resposta JSON do juiz em JudgeOutcome, validando o conteudo.
+
+    Retorna None quando o texto nao e JSON valido, nao e objeto, ou traz um
+    `winner` fora de {A, B, TIE}. Faz coercao defensiva de confianca/scores para
+    [0.0, 1.0] e resolve `winner_candidate_id` a partir do label quando omitido.
+    """
     try:
         payload = json.loads(raw_text)
     except (TypeError, ValueError) as exc:
@@ -148,6 +188,19 @@ def judge_tie_break(
     deployment: Optional[str] = None,
 ) -> Optional[JudgeOutcome]:
     """Decide qual de dois candidatos de transcricao e mais fiel via LLM judge.
+
+    CUSTO DE API: faz uma chamada paga a Azure OpenAI (GPT-4o) quando todas as
+    pre-condicoes sao atendidas (prompt configurado, textos utilizaveis, cliente
+    com credencial). A chamada e registrada em `core.cost_guard`.
+
+    Params:
+    - candidate_a / candidate_b: os dois candidatos a comparar.
+    - alert_id / alert_label / sector_id: contexto do alerta, injetados no prompt.
+    - operator_label / driver_label: rotulos de falante para o prompt.
+    - client: cliente AzureOpenAI ja construido (opcional); se None, monta um
+      default a partir das credenciais em `core.config`.
+    - deployment: nome do deployment a usar (opcional); default
+      `AZURE_OPENAI_DEPLOYMENT` ou "gpt-4o".
 
     Retorna None silenciosamente em qualquer falha (config ausente, cliente sem
     credencial, resposta invalida). Caller deve tratar None como "judge nao

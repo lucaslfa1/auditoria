@@ -1,3 +1,16 @@
+"""Armazenamento do áudio das auditorias (Google Cloud Storage ou disco local).
+
+Papel no fluxo: persiste o WAV/áudio original de cada auditoria e devolve o caminho
+relativo gravado em `audits.audio_storage_path`. Quando há bucket GCS configurado
+(env GCS_BUCKET_NAME, ou o padrão no Cloud Run) o áudio vai para o Cloud Storage;
+caso contrário, vai para o diretório local (env AUDIT_AUDIO_STORAGE_DIR ou
+backend/audits/audio). Toda gravação faz read-back para confirmar o tamanho antes
+de retornar o caminho — evita gravar no DB um ponteiro para um blob órfão/corrompido.
+
+CUSTO DE API: sem custo de IA. Há custo/latência de I/O de armazenamento (GCS ou
+disco), nunca chamadas a Azure OpenAI/Speech.
+"""
+
 import logging
 import os
 import re
@@ -31,12 +44,19 @@ _SAFE_SUFFIXES = set(AUDIO_EXTENSION_BY_MIME.values())
 _SAFE_HASH_CHARS = re.compile(r"[^a-z0-9]+")
 
 class CloudStorageFile:
+    """Wrapper de um blob no GCS com interface estilo pathlib.Path (exists/unlink/read_bytes).
+
+    Permite ao resto do código tratar áudio no Cloud Storage e áudio em disco de
+    forma uniforme. Acessa a rede (Google Cloud Storage) a cada operação.
+    """
+
     def __init__(self, bucket_name, blob_name):
         self.bucket_name = bucket_name
         self.blob_name = blob_name
         self.name = Path(blob_name).name
 
     def exists(self):
+        """True se o blob existe no bucket. Erros de acesso ao GCS são logados e viram False."""
         try:
             from google.cloud import storage
             client = storage.Client()
@@ -49,6 +69,7 @@ class CloudStorageFile:
             return False
 
     def unlink(self, missing_ok=False):
+        """Apaga o blob no GCS. Com `missing_ok=False` (padrão), propaga erro de remoção."""
         try:
             from google.cloud import storage
             client = storage.Client()
@@ -61,6 +82,7 @@ class CloudStorageFile:
                 raise
 
     def read_bytes(self):
+        """Baixa e retorna o conteúdo do blob como bytes (acessa o GCS)."""
         from google.cloud import storage
         client = storage.Client()
         bucket = client.bucket(self.bucket_name)
@@ -68,6 +90,7 @@ class CloudStorageFile:
         return blob.download_as_bytes()
 
 def _get_bucket_name() -> str:
+    """Nome do bucket GCS (env GCS_BUCKET_NAME). No Cloud Run sem a env, assume o bucket padrão; vazio = usar disco local."""
     name = os.getenv("GCS_BUCKET_NAME", "").strip()
     if not name and os.getenv("K_SERVICE"):
         # Se estiver rodando no Cloud Run e sem var, assume o padrao
@@ -75,6 +98,11 @@ def _get_bucket_name() -> str:
     return name
 
 def get_audit_audio_storage_root() -> Path:
+    """Diretório raiz do áudio em disco (env AUDIT_AUDIO_STORAGE_DIR ou backend/audits/audio).
+
+    Cria o diretório se faltar (retry em PermissionError) e retorna o path absoluto
+    resolvido. Usado só quando não há bucket GCS configurado.
+    """
     configured = (os.getenv("AUDIT_AUDIO_STORAGE_DIR") or "").strip()
     if configured:
         root = Path(configured).expanduser()
@@ -102,18 +130,37 @@ def _sanitize_hash_fragment(input_hash: str | None) -> str:
     return normalized[:12] or "semhash"
 
 def _ensure_inside_root(root: Path, candidate: Path) -> Path:
+    """Garante (anti path-traversal) que `candidate` está dentro de `root`; levanta ValueError se escapar."""
     resolved_root = root.resolve()
     resolved_candidate = candidate.resolve()
     resolved_candidate.relative_to(resolved_root)
     return resolved_candidate
 
 def build_audio_storage_relative_path(*, audit_id: int, mime_type: str | None, original_filename: str | None, input_hash: str | None) -> str:
+    """Monta o caminho relativo do áudio: AAAA/MM/audit_{id}_{hash12}{.ext} (separador POSIX).
+
+    A extensão vem do nome original ou do MIME; o fragmento de hash é sanitizado
+    (12 chars alfanuméricos). Função pura, sem efeitos colaterais.
+    """
     suffix = _resolve_audio_suffix(original_filename, mime_type)
     short_hash = _sanitize_hash_fragment(input_hash)
     now = datetime.now()
     return str(Path(f"{now:%Y}") / f"{now:%m}" / f"audit_{audit_id}_{short_hash}{suffix}").replace("\\", "/")
 
 def store_audit_audio_file(*, audit_id: int, audio_bytes: bytes, mime_type: str | None, original_filename: str | None, input_hash: str | None, existing_relative_path: str | None = None) -> dict:
+    """Grava os bytes do áudio de uma auditoria (GCS ou disco) e verifica a integridade por tamanho.
+
+    Reaproveita `existing_relative_path` se informado, senão gera um novo via
+    build_audio_storage_relative_path. No GCS faz upload + reload e compara o
+    tamanho; em disco grava via arquivo .tmp + os.replace atômico e confere o
+    st_size. Em qualquer divergência/falha de read-back, apaga o blob/arquivo
+    parcial e levanta AudioUploadVerificationError (em disco, PermissionError
+    persistente vira erro após 3 tentativas).
+
+    Efeitos: escreve no GCS ou no disco (rede/FS). Retorna dict de metadados
+    {audio_storage_path, audio_original_filename, audio_mime_type, audio_size_bytes}
+    para o caller gravar em `audits`.
+    """
     relative_path = existing_relative_path or build_audio_storage_relative_path(
         audit_id=audit_id,
         mime_type=mime_type,
@@ -213,6 +260,12 @@ def store_audit_audio_file(*, audit_id: int, audio_bytes: bytes, mime_type: str 
     }
 
 def resolve_stored_audit_audio_path(relative_path: str | None):
+    """Resolve o caminho relativo gravado no DB em um objeto legível (CloudStorageFile no GCS, Path no disco).
+
+    Retorna None se `relative_path` for vazio ou (no modo local) se o path escapar
+    da raiz permitida. O objeto retornado expõe exists()/read_bytes() para o caller
+    ler o áudio depois.
+    """
     if not relative_path:
         return None
 

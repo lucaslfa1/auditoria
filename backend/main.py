@@ -1,3 +1,24 @@
+"""Entrypoint da API FastAPI de auditoria (montagem do app e middlewares).
+
+Responsável por inicializar e configurar a aplicação ASGI servida em produção
+(Cloud Run) e em dev:
+
+- carrega ``.env`` (raiz do projeto e backend/, este último com override);
+- inicializa logging, overrides de DNS e, opcionalmente, o Sentry;
+- valida credenciais de runtime (estrito em produção);
+- define o ``lifespan`` (startup/shutdown): init do banco, reconciliação de runs
+  de sync da Telefonia órfãos e flush da fila de saved-files no shutdown;
+- configura CORS, headers de segurança e um rate limit global em memória;
+- expõe um endpoint interno de cron (Knowledge Agent) protegido por token;
+- inclui todos os routers da API (``/api/...``);
+- monta o frontend estático (``dist/``) com política de cache e fallback SPA.
+
+Custo de API: este módulo em si não chama Azure OpenAI/Speech (só faz wiring); o
+log de boot apenas informa o deployment configurado. As rotas incluídas é que
+podem gerar custo. A inicialização carrega ``services`` (que re-exporta o pipeline
+de IA), mas não dispara chamadas pagas no import.
+"""
+
 import logging
 import asyncio
 import hashlib
@@ -182,6 +203,17 @@ def _initialize_database_once() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Ciclo de vida do app (startup antes do ``yield``, shutdown depois).
+
+    Startup: inicializa o banco uma única vez e reconcilia runs de sync da
+    Telefonia abandonados por restart do pod (marca como ``interrupted`` os com
+    heartbeat stale). Não há loop residente de automação — o ciclo só acorda por
+    gatilho externo (Cloud Scheduler -> ``/api/automation/cron/run``) ou pela UI.
+
+    Shutdown: aguarda (com timeout) o flush da fila de sincronização de
+    saved-files. Falhas em startup/shutdown são logadas, não propagadas (exceto a
+    de banco em produção, tratada em ``_initialize_database_once``).
+    """
     # Startup
     _initialize_database_once()
     # Reconcilia runs de sync da Telefonia abandonados em restart do pod (v1.3.95).
@@ -257,6 +289,13 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
+    """Middleware: adiciona cabeçalhos de segurança a toda resposta.
+
+    Define (via ``setdefault``, sem sobrescrever cabeçalhos já presentes):
+    X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy e
+    X-Permitted-Cross-Domain-Policies. Em produção, adiciona também
+    Strict-Transport-Security (HSTS). Retorna a resposta da cadeia.
+    """
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
@@ -338,6 +377,19 @@ _RATE_LIMIT_EXEMPT_PATHS = frozenset({
 
 @app.middleware("http")
 async def global_rate_limit_middleware(request: Request, call_next):
+    """Middleware: rate limit global por sessão/IP em janela deslizante.
+
+    Habilitado em produção (ou via ``ENABLE_GLOBAL_RATE_LIMIT``). Só limita rotas
+    ``/api/...``, isentando prefixes de docs e paths com limiter próprio (auth,
+    health etc. em ``_RATE_LIMIT_EXEMPT_PATHS``). A chave é a sessão (hash do
+    cookie) quando logado, senão o IP do cliente (X-Forwarded-For). Mantém os
+    timestamps por chave em memória (``_GLOBAL_RATE_LIMIT``); ao exceder
+    ``max_requests`` na janela, responde 429 com cabeçalho ``Retry-After``. Faz
+    sweep periódico das chaves stale para evitar vazamento de memória.
+
+    Efeitos colaterais: muta o estado em memória do processo (não compartilhado
+    entre réplicas). Retorna a resposta da cadeia ou um 429.
+    """
     global _RATE_LIMIT_LAST_CLEANUP
 
     enabled, max_requests, window_seconds = _get_global_rate_limit_settings()

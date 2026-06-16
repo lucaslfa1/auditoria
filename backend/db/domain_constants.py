@@ -1,3 +1,22 @@
+"""Constantes de dominio do backend de auditoria (vocabulario canonico).
+
+Centraliza os valores de string que viajam por DB, IA, exports/BI e frontend:
+status de auditoria, vereditos de contestacao, papeis de usuario, tipos de fonte
+(audio/PDF), escopo de auditoria, status/prioridade da fila de revisao e o limiar
+de aprovacao. Sao CONTRATOS — nao traduzir nem alterar os literais sem migracao
+coordenada (DB grava esses textos crus e o frontend/BI os consome).
+
+Pontos que confundem quem chega agora:
+- `AUDIT_STATUS_CONTESTED` e um ALIAS de `AUDIT_STATUS_CONTESTATION_PENDING_REVIEW`
+  (o status "contested" foi renomeado; `LEGACY_AUDIT_STATUS_CONTESTED='contested'`
+  ainda existe para ler linhas antigas).
+- `FECHAMENTO_NOTA_STATUSES`: quais status contam a nota na media do fechamento
+  (toda auditoria salva conta, exceto descartada e contestacao aceita).
+- `REVIEW_QUEUE_STATUS_ALL`/`READY_FOR_AUDIT` sao status "virtuais" de consulta
+  (em `REVIEW_QUEUE_QUERY_STATUSES`), nao valores gravados na tabela.
+
+Sem custo de API (so define constantes; nenhum acesso a banco/rede/CPU relevante).
+"""
 AUDIT_STATUS_AWAITING_PAIR = "awaiting_pair"
 AUDIT_STATUS_PENDING_APPROVAL = "pending_approval"
 AUDIT_STATUS_CONTESTATION_PENDING_REVIEW = "contestation_pending_review"

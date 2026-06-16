@@ -1,3 +1,21 @@
+"""Provedor de transcrição Azure: Whisper (Azure OpenAI) e Fast Transcription (Azure Speech).
+
+Papel no fluxo: implementa o backend de transcrição que o orquestrador chama para
+converter o áudio da ligação em segmentos por locutor. O mesmo endpoint pode apontar
+para duas APIs e o código escolhe o caminho pela URL:
+  - endpoint com "openai/deployments" → Azure OpenAI Whisper (transcriptions),
+    com phrase prompt de domínio, temperatura e retries em 429 (rate limit);
+  - caso contrário → Azure Speech "Fast Transcription" (transcriptions:transcribe),
+    com diarização nativa e phraseList de domínio.
+Em ambos os casos o resultado passa por finalize_speaker_segments (common.py) para
+virar os segmentos finais com rótulos de operador/motorista.
+
+CUSTO DE API: ALTO — cada chamada é uma transcrição PAGA no Azure. Whisper registra
+custo via cost_guard.record_call(PROVIDER_AZURE_OPENAI, "transcricao_whisper"); Fast
+registra (PROVIDER_AZURE_SPEECH, "transcricao_fast"). Concorrência do Whisper é
+limitada por um Semaphore (WHISPER_MAX_CONCURRENCY) para respeitar a cota do tier.
+"""
+
 from __future__ import annotations
 from datetime import timedelta
 import time
@@ -41,6 +59,15 @@ def _get_whisper_max_concurrency() -> int:
 
 @dataclass(frozen=True)
 class AzureTranscriptionDependencies:
+    """Dependências injetadas em transcribe_audio_azure (normalizadores, getters de config e helpers de parsing).
+
+    Evita import circular com o módulo de serviços: o caller monta este pacote de
+    Callables/config e o passa por parâmetro. Inclui config de correções de texto,
+    getters de timeout/temperatura/prompt do Whisper, normalizadores de texto,
+    parsers de duração/float e os predicados de descarte/substituição de segmentos
+    do Whisper.
+    """
+
     text_corrections_config: dict
     guess_audio_filename: Callable[[str], str]
     get_transcription_timeout_seconds: Callable[[], int]
@@ -72,6 +99,24 @@ def transcribe_audio_azure(
     sector_id: Optional[str] = None,
     dependencies: AzureTranscriptionDependencies,
 ) -> list[dict]:
+    """Transcreve o áudio via Azure (Whisper OU Fast Transcription) e retorna segmentos por locutor.
+
+    Escolhe a API pela URL do endpoint: "openai/deployments" → Whisper (Azure
+    OpenAI); caso contrário → Azure Speech Fast Transcription. Normaliza o áudio para
+    WAV quando o MIME não é WAV. Aplica prompt/phraseList de domínio, descarta/
+    substitui segmentos suspeitos do Whisper e finaliza com a detecção de speakers.
+
+    Params: `audio_file` (bytes; <100 bytes é rejeitado), `operator_label`/
+    `driver_label` rótulos dos turnos; `operator_name`/`driver_name` enriquecem o
+    vocabulário; `mime_type` define conversão; `endpoint_override`/`api_key_override`
+    sobrescrevem env (AZURE_SPEECH_ENDPOINT/AZURE_SPEECH_KEY); `sector_id` escolhe o
+    prompt; `dependencies` injeta normalizadores/getters/parsers.
+
+    Efeitos: chamada de REDE PAGA ao Azure (custo registrado no cost_guard) e
+    conversão de áudio (CPU). Levanta RuntimeError se não configurado / em falha da
+    API ou se não sobrar nenhum segmento válido após os filtros; ValueError se o
+    áudio for inválido. Retorna a lista de segmentos {start, end, text, speaker_*}.
+    """
     api_key = (api_key_override or os.getenv("AZURE_SPEECH_KEY") or "").strip()
     endpoint = (endpoint_override or os.getenv("AZURE_SPEECH_ENDPOINT") or "").strip()
     if not api_key or not endpoint:

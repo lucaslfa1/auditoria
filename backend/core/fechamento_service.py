@@ -1,3 +1,24 @@
+"""Montagem das linhas do Fechamento mensal de qualidade (planilha BI).
+
+Papel no fluxo: a partir do mês/ano e do banco (colaboradores + médias de
+auditoria + overrides manuais), produz a lista de linhas do "Fechamento" — a
+planilha consumida pelo BI/relatório de qualidade. Cada linha agrega dados
+cadastrais do colaborador, a média das auditorias do mês, a coluna de
+desempenho (BOM/RUIM), o cálculo "Processo - Cadeia de Contatos" (UTI/UTI-RJ)
+e a coluna "Final" (ajuste percentual), além de IDs Huawei/WEON.
+
+Há duas estratégias de carga, escolhidas em `get_fechamento_rows`:
+- LAYOUT (preferida): preserva a ordem/estrutura oficial da planilha via a
+  tabela `fechamento_layout_operadores`, complementando com colaboradores
+  cadastrados que ainda não têm linha; overrides em `fechamento_layout_overrides`.
+- LEGADO (fallback): monta direto de `colaboradores` + `fechamento_cadeia_contatos`
+  quando o seed do layout falha.
+
+IMPORTANTE (contrato BI): o formato/labels/normalizações desta saída são o
+contrato consumido pelo BI — não devem ser alterados sem alinhamento.
+
+Sem custo de API (apenas banco PostgreSQL + CPU; nenhuma chamada paga a Azure).
+"""
 import json
 from pathlib import Path
 import unicodedata
@@ -32,6 +53,13 @@ def _canon(value: Any) -> str:
 
 
 def _is_removed_operator_row(row: Dict[str, Any]) -> bool:
+    """True se a linha deve sair do fechamento por regra de negócio.
+
+    Combina dois filtros de `core.operator_filters`: operação excluída
+    (setor/escala/conta de telefonia) ou conta técnica/de sistema de telefonia
+    (sem operador humano real). Usado para não exibir esses registros na
+    planilha.
+    """
     return is_excluded_operation_values(
         row.get('setor'),
         row.get('escala'),
@@ -179,6 +207,19 @@ def _resolve_layout_colaborador_ids(cursor, layout_rows: list[dict[str, Any]]) -
 
 
 def _ensure_fechamento_layout_seeded(conn) -> bool:
+    """Garante que a tabela de layout do fechamento exista e esteja vinculada.
+
+    Se `fechamento_layout_operadores` já tem linhas, re-vincula
+    `colaborador_id` por matrícula (e, em fallback, por nome) e commita,
+    retornando True. Se a tabela está vazia, faz o seed a partir do JSON de
+    layout (`_load_layout_seed`) resolvendo os colaboradores
+    (`_resolve_layout_colaborador_ids`) e retorna True.
+
+    Efeitos colaterais: executa UPDATE/INSERT e commit no banco. Em caso de
+    erro (ex.: tabela inexistente em ambiente legado), faz rollback, guarda o
+    cursor em `conn._fechamento_fallback_cursor` para reaproveitamento e
+    retorna False — sinalizando ao chamador para cair na carga legada.
+    """
     cursor = conn.cursor()
     try:
         if _layout_count(cursor) > 0:
@@ -276,6 +317,12 @@ def _resolve_fechamento_status(row: dict[str, Any], fallback_status: Any = "ATIV
 
 
 def _resolve_desempenho(status: str, media_auditoria: Any) -> str:
+    """Resolve a coluna "Desempenho" do fechamento.
+
+    Retorna "INATIVO" se o status for inativo; "" quando não há média de
+    auditoria (ou ela não é numérica); senão "BOM" se a média for >=
+    `FECHAMENTO_DESEMPENHO_MIN_SCORE`, ou "RUIM" abaixo disso.
+    """
     if str(status or "").upper() == "INATIVO":
         return "INATIVO"
     if media_auditoria is None:
@@ -297,6 +344,16 @@ def _calculate_process_and_final(
     final_override: Any = None,
     apply_overrides: bool = True,
 ) -> tuple[str, str]:
+    """Calcula as colunas "Processo" e "Final" do fechamento.
+
+    A cadeia de contatos só pontua para setores UTI/UTI-RJ (detectados por
+    `_is_uti_rj`/`_is_uti` em setor+turno): soma `nota_mot+nota_pa+nota_cli+
+    nota_policia` e converte pela tabela oficial (`_processo_uti`/`_processo_uti_rj`);
+    demais setores ficam no piso 0.70. "Processo" é o percentual (ex.: "100%")
+    e "Final" é o ajuste derivado da cadeia ("Adeus" se INATIVO, "-4%"/"-2%"/
+    "2%"/"4%"). Quando `apply_overrides` e os respectivos override forem dados,
+    eles substituem o valor calculado. Retorna a tupla (processo, final).
+    """
     cadeia_val = 0.70
     uti_rj = _is_uti_rj(setor, turno)
     uti_simples = (not uti_rj) and _is_uti(setor, turno)
@@ -339,6 +396,16 @@ def _format_registered_layout_row(
     mes_str: str,
     apply_overrides: bool,
 ) -> Dict[str, Any]:
+    """Monta uma linha de fechamento para um colaborador complementar.
+
+    Usada por `_append_and_link_registered_rows_for_layout` ao materializar no
+    layout colaboradores cadastrados que ainda não tinham linha. Recebe o `row`
+    com dados do cadastro (nome, matricula, setor, escala, médias e overrides),
+    decide se a nota vai na coluna operacional ou telefônica (por `_is_receptive`),
+    resolve status/desempenho/processo/final e aplica overrides quando
+    `apply_overrides`. Retorna o dict no formato de linha do fechamento (mesmas
+    chaves consumidas pelo BI). Função pura (não toca banco).
+    """
     nome = row.get('nome')
     matricula = row.get('matricula')
     supervisor = row.get('supervisor')
@@ -582,6 +649,19 @@ def _append_and_link_registered_rows_for_layout(
 
 
 def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overrides: bool = True) -> List[Dict[str, Any]]:
+    """Carrega as linhas do fechamento pela estratégia de LAYOUT.
+
+    Lê `fechamento_layout_operadores` (ativas, com colaborador vivo) juntando
+    cadastro, média mensal de auditorias (`media_mensal`) e overrides de layout
+    e de cadeia de contatos; monta cada linha no formato do BI e, ao final,
+    chama `_append_and_link_registered_rows_for_layout` para incluir
+    colaboradores cadastrados ainda ausentes do layout.
+
+    Params: `conn` conexão; `month`/`year` competência; `apply_overrides`
+    aplica os ajustes manuais (False = valores base, usado para diff em
+    `save_fechamento_overrides`). Retorna a lista de dicts de linha. Efeito
+    colateral: o complemento pode inserir linhas no layout (commit).
+    """
     cursor = conn.cursor()
     date_start, date_end = _month_bounds(month, year)
 
@@ -773,6 +853,14 @@ def _get_fechamento_rows_from_layout(conn, month: int, year: int, *, apply_overr
 
 
 def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides: bool = True) -> List[Dict[str, Any]]:
+    """Carrega as linhas do fechamento pela estratégia LEGADA (fallback).
+
+    Usada quando o seed do layout falha (`_ensure_fechamento_layout_seeded`
+    retornou False). Monta direto de `colaboradores` + `fechamento_cadeia_contatos`
+    + média mensal, gera IDs visuais sequenciais por supervisor e aplica
+    overrides quando `apply_overrides`. Mesmos parâmetros e formato de retorno
+    de `_get_fechamento_rows_from_layout`. Apenas leitura (sem commit).
+    """
     cursor = getattr(conn, "_fechamento_fallback_cursor", None)
     if cursor is not None:
         try:
@@ -954,6 +1042,16 @@ def _get_fechamento_rows_legacy(conn, month: int, year: int, *, apply_overrides:
 
 
 def get_fechamento_rows(conn, month: int, year: int, *, apply_overrides: bool = True) -> List[Dict[str, Any]]:
+    """API pública: retorna as linhas do fechamento da competência month/year.
+
+    Tenta a estratégia de LAYOUT (`_get_fechamento_rows_from_layout`) e, se o
+    seed do layout falhar, cai na estratégia LEGADA (`_get_fechamento_rows_legacy`).
+    `apply_overrides=False` retorna os valores-base (sem ajustes manuais),
+    usado para calcular o diff em `save_fechamento_overrides`.
+
+    Efeito colateral: pode commitar no banco (o seed/complemento do layout
+    insere/vincula linhas). Retorna a lista de dicts de linha no formato BI.
+    """
     if _ensure_fechamento_layout_seeded(conn):
         return _get_fechamento_rows_from_layout(conn, month, year, apply_overrides=apply_overrides)
     return _get_fechamento_rows_legacy(conn, month, year, apply_overrides=apply_overrides)
@@ -1112,6 +1210,20 @@ def remove_fechamento_layout_operador(conn, *, layout_id: int | None = None, col
 
 
 def save_fechamento_overrides(conn, month: int, year: int, rows: List[Dict[str, Any]]):
+    """Persiste os overrides manuais do fechamento ("Gravar Cálculo").
+
+    Para cada linha de `rows`, grava apenas notas e cálculos (notas
+    mot/pa/cli/policia, operacional, telefônica, desempenho, processo, final);
+    os override de operacional/telefônica/desempenho/processo/final só são
+    salvos quando diferem do valor-base (via `_override_or_none`, comparando com
+    `get_fechamento_rows(..., apply_overrides=False)`). Campos cadastrais
+    (nome, matrícula, supervisor, turno, setor, huawei, weon) NÃO são
+    persistidos — continuam vindo do cadastro de colaboradores.
+
+    Roteia o UPSERT por origem da linha: linha de layout (`layout_id`) vai para
+    `fechamento_layout_overrides`; linha de complemento (`colab_id`) vai para
+    `fechamento_cadeia_contatos`. Efeito colateral: INSERT/UPDATE e commit.
+    """
     # IMPORTANTE: dados cadastrais continuam sendo fonte do cadastro de
     # colaboradores. Gravar Cálculo persiste só notas/cálculos do fechamento;
     # edições de nome, supervisor, turno, setor etc. servem para simular/exportar

@@ -1,3 +1,19 @@
+"""Validação determinística das evidências citadas pela IA contra a transcrição.
+
+A IA, ao auditar, devolve para cada critério um ``evidence_text`` (o trecho que ela
+alega ter ouvido). Este módulo confere, sem chamar IA, se esse trecho realmente
+existe na transcrição — combatendo "alucinação" de evidência. A checagem é em
+camadas, da mais barata para a mais tolerante: igualdade literal → igualdade após
+normalização (sem acento, minúsculas, só alfanumérico) → casamento fuzzy por janela
+de tokens (``SequenceMatcher`` com limiar ~0.86).
+
+Quando a evidência não casa, o comentário do critério recebe uma nota de alerta e o
+``evidence_validation`` registra status/método. ``summarize_evidence_coverage``
+agrega isso em um indicador de qualidade da evidência (boa/regular/baixa/muito_baixa)
+usado para recomendar revisão humana.
+
+Sem custo de API (puro CPU/memória — só comparação de strings).
+"""
 from __future__ import annotations
 
 from difflib import SequenceMatcher
@@ -73,7 +89,17 @@ def _validate_single_evidence(evidence_text: Any, transcription_text: str) -> di
 
 
 def validate_evidence_against_transcription(payload: Any, transcription: Any) -> Any:
-    """Annotate AI audit evidence with a deterministic transcription check."""
+    """Anota cada detalhe da avaliação da IA com uma checagem determinística da evidência.
+
+    Para cada item em ``payload['details']``, valida o ``evidence_text`` contra o texto
+    da transcrição e grava o resultado em ``evidence_validation`` (status/matched/method).
+    Se houver evidência declarada mas ela NÃO casar com a transcrição, acrescenta uma
+    nota de alerta ao ``comment`` do critério (``_UNVERIFIED_EVIDENCE_NOTE``).
+
+    Não muta a entrada: retorna uma cópia rasa do ``payload`` com ``details``
+    reconstruído. Entradas que não sejam dict (ou sem ``details`` em lista) são
+    devolvidas inalteradas/copiadas. Função pura (sem rede/IA).
+    """
     if not isinstance(payload, dict):
         return payload
 
@@ -109,6 +135,22 @@ def validate_evidence_against_transcription(payload: Any, transcription: Any) ->
 
 
 def summarize_evidence_coverage(payload: Any) -> dict[str, Any]:
+    """Resume a cobertura de evidência de uma avaliação já validada.
+
+    Espera o ``payload`` após ``validate_evidence_against_transcription`` (cada detalhe
+    com ``evidence_text`` e ``evidence_validation``). Conta critérios avaliáveis, com
+    evidência, com evidência casada, sem evidência e com evidência não localizada, e
+    deriva:
+
+    - ``quality``: ``boa`` (>=80% casada e nenhuma faltando), ``regular`` (>=55%),
+      ``baixa`` (há evidência mas pouca casa), ``muito_baixa`` (sem evidência), ou
+      ``sem_criterios_avaliaveis`` quando não há detalhes.
+    - ``review_recommended`` e ``reason``: sinalizam quando recomendar revisão humana.
+    - métricas de contagem e ``matched_ratio``/``evidence_ratio``.
+
+    Payload inválido retorna ``quality='indefinida'`` com ``review_recommended=True``.
+    Função pura (sem efeitos colaterais).
+    """
     if not isinstance(payload, dict):
         return {
             "quality": "indefinida",

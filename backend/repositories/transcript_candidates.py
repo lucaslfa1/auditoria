@@ -1,3 +1,21 @@
+"""Repositório dos candidatos de transcrição (tabela ``transcript_candidates``).
+
+Cada áudio passa por múltiplos provedores/engines de transcrição (ver pipeline
+``fast`` em ``core/transcription*``) e o selector escolhe um. Este módulo persiste
+TODOS os candidatos vistos pelo selector — não só o vencedor — como fonte de
+verdade imutável para trace, benchmark e auditoria do pipeline. A transcrição
+selecionada continua sendo gravada em ``audits.transcription_json`` por
+compatibilidade; aqui ficam os artefatos brutos de cada provedor (segments,
+raw_response, scores determinístico/judge, motivos de seleção etc.).
+
+Sem custo de API: este módulo só grava no banco (PostgreSQL via psycopg2) o que o
+pipeline de transcrição já produziu; ele não chama Azure/OpenAI/Speech.
+
+Observação: a serialização para JSONB remove bytes U+0000 (NUL), que apareceriam
+em ``segments``/``raw_response`` de alguns provedores e fariam o INSERT
+``%s::jsonb`` falhar, descartando o candidato silenciosamente.
+"""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +34,16 @@ def _json_dumps(value: Any) -> str:
 
 
 def _candidate_rows_from_audio_quality(audio_quality: Optional[dict[str, Any]]) -> tuple[list[dict[str, Any]], Optional[str], Optional[str], dict[str, Any]]:
+    """Extrai os candidatos do bloco ``transcription_provider`` do audio_quality.
+
+    O resultado do pipeline guarda, em ``audio_quality["transcription_provider"]``,
+    a lista de ``candidates`` mais os metadados de seleção. Esta função navega
+    defensivamente nessa estrutura (tudo opcional/aninhado) e devolve a tupla:
+    ``(rows, selected_candidate_id, selection_reason, selection_gates)``, onde
+    ``rows`` são cópias dos dicts de candidato. ``selection_reason`` aceita tanto
+    ``selection_reason`` quanto o alias ``selected_reason``. Strings vazias viram
+    None. Sem efeitos colaterais (função pura).
+    """
     provider_meta = (
         audio_quality.get("transcription_provider")
         if isinstance(audio_quality, dict) and isinstance(audio_quality.get("transcription_provider"), dict)

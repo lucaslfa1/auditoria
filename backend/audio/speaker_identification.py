@@ -1,3 +1,27 @@
+"""Identificação e pós-processamento de falantes da diarização.
+
+Núcleo do pipeline de diarização de speakers. Faz duas grandes coisas:
+
+1. ATRIBUIÇÃO DE PERSONA: a partir das frases brutas (`RawPhrase`) com
+   speaker_ids nativos do STT, coleta estatísticas por id, aplica heurísticas e,
+   opcionalmente, um LLM para agrupar ids fragmentados e decidir qual id é
+   operador e qual é interlocutor (`analisar_diarizacao_por_ids`,
+   `classificar_speakers`).
+2. PÓS-PROCESSAMENTO DOS SEGMENTOS: uma sequência de passos que corrige rótulos
+   trocados, rebalanceia turnos, quebra segmentos híbridos colados pelo STT e
+   funde/limpa segmentos (corrigir_perguntas_operacionais,
+   rebalancear_interlocutores_por_turno, promover_turnos_operacionais,
+   suavizar_troca_isolada_de_speaker, quebrar_segmentos_hibridos,
+   filtrar_runs_repetitivos, compactar_frase_dominante,
+   remover_duplicatas_contiguas, mesclar_segmentos_consecutivos).
+
+CUSTO DE API: `_tentar_mapear_speakers_com_llm` chama o Azure OpenAI (GPT-4o,
+deployment de `AZURE_OPENAI_DEPLOYMENT`) — chamada PAGA — quando há 2+ speaker_ids
+e as credenciais (`AZURE_OPENAI_ENDPOINT`/`AZURE_OPENAI_KEY`) estão presentes;
+registra a chamada em `core.cost_guard`. Sem credenciais ou com 1 id, tudo roda
+só com heurística (CPU). O restante do módulo é CPU puro.
+"""
+
 import json
 import logging
 import os
@@ -38,6 +62,11 @@ from audio.speaker_normalization import (
 logger = logging.getLogger(__name__)
 
 def mapear_speakers_por_id(phrases: List[RawPhrase], operator_label: str, driver_label: str) -> Dict[int, str]:
+    """Retorna apenas o mapa speaker_id -> persona da análise de diarização.
+
+    Atalho sobre `analisar_diarizacao_por_ids`. Herda o possível custo de API
+    (mapeamento via LLM). Ver `analisar_diarizacao_por_ids` para detalhes.
+    """
     return analisar_diarizacao_por_ids(phrases, operator_label, driver_label).speaker_map
 
 def _merge_id_tuples(first: Tuple[int, ...], second: Tuple[int, ...]) -> Tuple[int, ...]:
@@ -57,6 +86,13 @@ def _merge_risk(first: str, second: str) -> str:
     return first if _risk_rank(first) >= _risk_rank(second) else second
 
 def _coletar_stats_por_id(phrases: List[RawPhrase], ids: List[int]) -> Dict[int, SpeakerStats]:
+    """Agrega evidências heurísticas por speaker_id em `SpeakerStats`.
+
+    Para cada frase (ignorando segmentos de telefonia e ids fora de `ids`),
+    pontua operador/motorista e contabiliza perguntas, intros, respostas curtas
+    e turnos "fortes", além de tempo de primeira fala e duração total. É a base
+    para `_avaliar_speaker_por_heuristica`. Função pura.
+    """
     stats_by_id = {sid: SpeakerStats() for sid in ids}
 
     for phrase in phrases:
@@ -109,6 +145,15 @@ def _avaliar_speaker_por_heuristica(
     operator_label: str,
     driver_label: str,
 ) -> Dict[str, object]:
+    """Decide o papel provável de um speaker_id a partir de suas estatísticas.
+
+    Combina os scores acumulados com bônus (intro, perguntas, turnos fortes,
+    início precoce da fala) para produzir score_operador vs score_interlocutor,
+    o delta entre eles, uma confiança [0.35..0.98] e uma flag de ambiguidade
+    (quando o delta é pequeno e não há evidência decisiva). Retorna um dict com:
+    speaker_id, role (operator_label/driver_label), confidence, ambiguous,
+    operator_score, driver_score, delta. Função pura.
+    """
     bonus_inicio = 2 if stats.primeira_fala_segundos <= 25 and (
         stats.intro_operador > 0 or stats.score_operador >= stats.score_interlocutor + 2
     ) else 0
@@ -291,6 +336,14 @@ def _parse_llm_persona_mapping(
     operator_label: str,
     driver_label: str,
 ) -> Tuple[Dict[int, str], Dict[int, float], Tuple[int, ...]]:
+    """Faz o parsing da resposta JSON do LLM em mapa/confiança/ambíguos.
+
+    Aceita dois formatos: lista "personas" (com role, speaker_ids, confidence) e
+    chaves soltas "speaker_<id>"; também lê "ambiguous_ids". Só considera ids
+    presentes em `ids`; normaliza roles via `_normalizar_role_llm` e clampa
+    confiança em [0..1]. Retorna (speaker_map, confidence_by_id,
+    tuple(ambiguous_ids)). Função pura (tolerante a payload malformado).
+    """
     speaker_map: Dict[int, str] = {}
     confidence_by_id: Dict[int, float] = {}
     ambiguous_ids: set[int] = set()
@@ -363,6 +416,22 @@ def _tentar_mapear_speakers_com_llm(
     operator_label: str,
     driver_label: str,
 ) -> Tuple[Dict[int, str], Dict[int, float], Tuple[int, ...]]:
+    """Tenta mapear speaker_ids -> persona via Azure OpenAI (GPT-4o). CHAMADA PAGA.
+
+    Monta um resumo por speaker + um trecho inicial da conversa e pede ao modelo
+    para agrupar ids fragmentados e identificar operador vs interlocutor,
+    devolvendo JSON. É o desempate sobre a heurística para casos difíceis
+    (fragmentação, vozes misturadas no mesmo id).
+
+    Efeitos colaterais: chamada de rede ao Azure OpenAI (custo de API),
+    registrada em `core.cost_guard`. Só roda se houver 2+ ids E
+    `AZURE_OPENAI_ENDPOINT`/`AZURE_OPENAI_KEY` configurados E houver trecho útil;
+    qualquer falha (sem credencial, erro de rede, JSON inválido) é capturada e
+    retorna vazio, deixando a heurística prevalecer.
+
+    Retorna (speaker_map, confidence_by_id, ambiguous_ids); tuplas/dicts vazios
+    quando não há mapeamento.
+    """
     if len(ids) <= 1:
         return {}, {}, ()
 
@@ -440,6 +509,25 @@ def analisar_diarizacao_por_ids(
     *,
     llm_mapper: Optional[LlmSpeakerMapper] = None,
 ) -> DiarizationAnalysis:
+    """Analisa a diarização nativa e produz o mapeamento id -> persona consolidado.
+
+    Pipeline: coleta stats por id -> avalia papel heurístico por id -> backfill
+    de operador/interlocutor quando faltar algum papel -> aplica o mapeamento do
+    LLM (quando concorda reforça; quando diverge, decide por confiança e marca
+    ambíguo) -> calcula fragmentação, diálogo estável de 2 pessoas, handoff de
+    ponto de apoio, risco por id e o risco global de troca (swap_risk).
+
+    Params:
+        phrases: frases brutas com speaker_id nativo (>= 0; ids < 0 são ignorados).
+        operator_label / driver_label: rótulos das personas.
+        llm_mapper: injeção opcional do mapeador (para testes). Quando None usa
+            `_tentar_mapear_speakers_com_llm` (que PODE chamar o Azure OpenAI —
+            custo de API; ver aquela função).
+
+    Retorna `DiarizationAnalysis`. Sem ids nativos, retorna análise com
+    raw_speaker_count=0 e swap_risk="high". Efeito colateral: possível chamada de
+    API via o mapper padrão.
+    """
     ids = sorted(set(phrase.speaker_id for phrase in phrases if phrase.speaker_id >= 0))
     if not ids:
         return DiarizationAnalysis(
@@ -583,6 +671,21 @@ def analisar_diarizacao_por_ids(
     )
 
 def classificar_speakers(phrases: List[RawPhrase], operator_label: str, driver_label: str) -> List[SegmentoFormatado]:
+    """Converte frases brutas em segmentos rotulados (operador/interlocutor).
+
+    Para frases com speaker_id nativo, usa o mapa de
+    `analisar_diarizacao_por_ids` (com risco/confiança por id). Para frases sem
+    diarização (id < 0), infere o falante turno a turno via
+    `inferir_speaker_sem_diarizacao`. É o primeiro passo do pós-processamento;
+    a saída ainda passa pelos passos de correção/fusão deste módulo.
+
+    Params:
+        phrases: frases brutas (com ou sem speaker_id nativo).
+        operator_label / driver_label: rótulos das personas.
+
+    Retorna lista de `SegmentoFormatado`. Efeito colateral: herda a possível
+    chamada de API de `analisar_diarizacao_por_ids` (mapeamento LLM).
+    """
     analysis = analisar_diarizacao_por_ids(phrases, operator_label, driver_label)
     speaker_map = analysis.speaker_map
     segmentos: List[SegmentoFormatado] = []
@@ -701,6 +804,14 @@ def corrigir_perguntas_operacionais(segmentos: List[SegmentoFormatado], operator
     return res
 
 def rebalancear_interlocutores_por_turno(segmentos: List[SegmentoFormatado], operator_label: str, driver_label: str) -> List[SegmentoFormatado]:
+    """Reatribui ao interlocutor a resposta que segue uma pergunta do operador.
+
+    Após uma pergunta/condução do operador, o segmento seguinte (em até ~35s) que
+    seja resposta curta/indicador de motorista — e não tenha indicador forte de
+    operador — é reclassificado como interlocutor (via override heurístico, que
+    reduz confiança e marca ambíguo). Não muta a lista de entrada (trabalha em
+    cópia). Função pura.
+    """
     if len(segmentos) < 3: return segmentos
     
     res = list(segmentos)
@@ -731,6 +842,15 @@ def rebalancear_interlocutores_por_turno(segmentos: List[SegmentoFormatado], ope
     return res
 
 def promover_turnos_operacionais(segmentos: List[SegmentoFormatado], operator_label: str, driver_label: str) -> List[SegmentoFormatado]:
+    """Promove a operador segmentos rotulados como interlocutor mas operacionais.
+
+    Reclassifica para operador frases com indicador forte/score de operador,
+    continuações operacionais logo após fala do operador, endereços quebrados
+    pelo Whisper, acks após pergunta do interlocutor e respostas seguidas de
+    agradecimento do interlocutor — sempre preservando devoluções sociais e
+    respostas curtas legítimas do interlocutor. Aplica override heurístico
+    (reduz confiança / marca ambíguo). Trabalha em cópia. Função pura.
+    """
     if len(segmentos) < 2:
         return segmentos
 
@@ -808,6 +928,14 @@ def promover_turnos_operacionais(segmentos: List[SegmentoFormatado], operator_la
     return res
 
 def suavizar_troca_isolada_de_speaker(segmentos: List[SegmentoFormatado]) -> List[SegmentoFormatado]:
+    """Absorve uma troca de falante isolada entre dois turnos do mesmo falante.
+
+    Quando o segmento anterior e o seguinte têm o mesmo falante e o do meio
+    destoa (provável erro de diarização), o segmento do meio é reatribuído a esse
+    falante — exceto quando há sinais claros de que a troca é legítima (pergunta
+    do operador seguida de resposta, indicadores fortes de motorista, ou um turno
+    longo/pergunta). Trabalha em cópia. Função pura.
+    """
     if len(segmentos) < 3: return segmentos
     res = list(segmentos)
     for i in range(1, len(res) - 1):
@@ -889,7 +1017,22 @@ def dividir_em_subturnos(texto: str) -> List[str]:
 
 
 def quebrar_segmentos_hibridos(segmentos: List[SegmentoFormatado], operator_label: str, driver_label: str) -> List[SegmentoFormatado]:
-    """Divide turnos mistos apenas quando a diarização acústica não está confiável."""
+    """Divide turnos mistos apenas quando a diarização acústica não está confiável.
+
+    Quebra cada segmento em cláusulas (por pontuação ou, em fallback, por
+    `dividir_em_subturnos`) e reclassifica cláusula a cláusula usando contexto
+    (segmentos vizinhos, cláusula anterior, indicadores fortes). Só divide de
+    fato quando as cláusulas têm falantes diferentes; preserva o segmento intacto
+    quando a confiança acústica já é alta (>= 0.70 e risco "low"). Ao dividir,
+    redistribui a duração proporcional ao tamanho do texto e rebaixa
+    confiança/risco das cláusulas que mudaram de falante.
+
+    Params:
+        segmentos: lista de segmentos já rotulados.
+        operator_label / driver_label: rótulos das personas.
+
+    Retorna nova lista de `SegmentoFormatado` (não muta a entrada). Função pura.
+    """
     if len(segmentos) < 2:
         return segmentos
 
@@ -1006,6 +1149,13 @@ def quebrar_segmentos_hibridos(segmentos: List[SegmentoFormatado], operator_labe
     return res
 
 def filtrar_runs_repetitivos(segmentos: List[SegmentoFormatado]) -> List[SegmentoFormatado]:
+    """Remove ou compacta sequências de segmentos idênticos consecutivos.
+
+    Combate alucinação/loop do STT: runs longos de token de ruído ou de textos
+    muito curtos são descartados; runs medianos de frases reais (não ruído, não
+    pergunta) são compactados a uma única ocorrência; o resto é mantido. Retorna
+    nova lista. Função pura.
+    """
     if not segmentos: return []
     res = []
     i = 0
@@ -1029,8 +1179,15 @@ def filtrar_runs_repetitivos(segmentos: List[SegmentoFormatado]) -> List[Segment
     return res
 
 def compactar_frase_dominante(segmentos: List[SegmentoFormatado]) -> List[SegmentoFormatado]:
+    """Reduz a no máximo 2 ocorrências uma frase que domina a transcrição.
+
+    Quando uma mesma frase responde por >= 45% (e >= 8) dos segmentos — sinal de
+    alucinação repetida do STT —, mantém só as 2 primeiras e remove as demais.
+    Não atua sobre token de ruído nem perguntas, nem em transcrições curtas
+    (< 12 segmentos). Retorna nova lista. Função pura.
+    """
     if len(segmentos) < 12: return segmentos
-    
+
     counts = {}
     for s in segmentos:
         counts[s.texto_normalizado] = counts.get(s.texto_normalizado, 0) + 1
@@ -1055,6 +1212,12 @@ def compactar_frase_dominante(segmentos: List[SegmentoFormatado]) -> List[Segmen
     return res
 
 def remover_duplicatas_contiguas(segmentos: List[SegmentoFormatado]) -> List[SegmentoFormatado]:
+    """Remove duplicatas imediatas (mesmo texto, falante e timestamp ~igual).
+
+    Descarta um segmento quando é idêntico ao anterior em texto normalizado e
+    falante e ocorre praticamente no mesmo instante (<= 0.2s de diferença).
+    Retorna nova lista. Função pura.
+    """
     if len(segmentos) < 2: return segmentos
     res = [segmentos[0]]
     for i in range(1, len(segmentos)):
@@ -1066,11 +1229,19 @@ def remover_duplicatas_contiguas(segmentos: List[SegmentoFormatado]) -> List[Seg
     return res
 
 def mesclar_segmentos_consecutivos(segmentos: List[SegmentoFormatado]) -> List[SegmentoFormatado]:
+    """Funde segmentos vizinhos do mesmo falante separados por pausa curta.
+
+    Passo final que reagrupa o turno: mescla quando o falante é o mesmo, o
+    intervalo é <= 3s e o segmento anterior não termina em "?"/"!" (e não junta
+    se houver "." com pausa > 1.3s ou se o texto combinado passar de 380 chars).
+    Ao mesclar, une textos, soma duração, mescla ids/risco e usa a menor
+    confiança. Retorna nova lista. Função pura.
+    """
     if len(segmentos) < 2: return segmentos
     res = [segmentos[0]]
     for i in range(1, len(segmentos)):
         atu, ult = segmentos[i], res[-1]
-        
+
         gap = (atu.timestamp - (ult.timestamp + timedelta(seconds=ult.duracao_seconds))).total_seconds()
         pode_mesclar = (ult.speaker == atu.speaker and gap <= 3.0 and \
                        not ult.texto.strip().endswith(("?", "!")))

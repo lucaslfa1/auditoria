@@ -103,6 +103,13 @@ def _normalize(text: str) -> str:
 
 
 def _normalize_binary_detail_status(value: object) -> str:
+    """Reduz o status de um critério ao binário SIM/NÃO da planilha dos gestores.
+
+    A planilha dos gestores só tem SIM/NÃO, então status não-reprovatórios
+    (``pass``/``na``/``n/a``/``pending_manual``) viram ``pass`` (SIM) e os demais
+    (``fail``/``partial`` e qualquer desconhecido) viram ``fail`` (NÃO) — default
+    conservador.
+    """
     status = str(value or "").strip().lower()
     if status in {"pass", "na", "n/a", "pending_manual"}:
         return "pass"

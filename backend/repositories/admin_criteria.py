@@ -1,3 +1,22 @@
+"""Repositorio do catalogo de criterios de auditoria (setores/alertas/criterios).
+
+CRUD da hierarquia que define COMO a IA pontua cada ligacao:
+`audit_sectors` -> `audit_alerts` -> `audit_criteria`. Consumido pela tela admin
+de Criterios (via router) e pela avaliacao. Toda operacao de ESCRITA grava uma
+trilha de auditoria (audit_log) na MESMA transacao da mudanca, exigindo os
+parametros keyword-only `alterado_por`/`motivo`/`origem` (validados por
+`_validate_audit_args`); um no-op (sem mudanca real) nao polui o log.
+
+Primitivas de trilha de auditoria (`_log_change`, `_validate_audit_args`,
+`_AUDIT_LOG_TABLES`) e de export/serializacao (`_with_row_factory`,
+`get_export_format`, etc.) foram extraidas para modulos irmaos
+(`admin_criteria_audit_log`, `admin_criteria_export`) e reexportadas aqui para
+compatibilidade de import.
+
+Funcao especial: `rename_sector_with_cascade` renomeia o rotulo do setor e
+propaga o nome para os colaboradores vinculados sem mexer no `id` interno (regras
+de auditoria intactas). Sem custo de API (apenas acesso a banco).
+"""
 import logging
 from typing import Optional, Any
 
@@ -27,6 +46,11 @@ from repositories.admin_criteria_export import (  # noqa: E402,F401
 
 
 def get_sectors(db_connection_factory):
+    """Lista todos os setores de auditoria (id, label, description), ordenados por label.
+
+    `db_connection_factory` e uma callable que devolve uma conexao do pool.
+    Read-only; abre e fecha a conexao. Retorna lista de dicts.
+    """
     conn = _with_row_factory(db_connection_factory())
     try:
         c = conn.cursor()
@@ -36,6 +60,12 @@ def get_sectors(db_connection_factory):
         conn.close()
 
 def get_alerts(db_connection_factory, sector_id: Optional[str] = None):
+    """Lista alertas de auditoria; se `sector_id` for dado, filtra por aquele setor.
+
+    Retorna campos id, sector_id, label, context, pop_ref e expected_direction,
+    ordenados por label (ou por sector_id, label quando sem filtro). Read-only;
+    abre e fecha a conexao. Retorna lista de dicts.
+    """
     conn = _with_row_factory(db_connection_factory())
     try:
         c = conn.cursor()
@@ -53,6 +83,13 @@ def get_alerts(db_connection_factory, sector_id: Optional[str] = None):
         conn.close()
 
 def get_criteria(db_connection_factory, alert_id: Optional[str] = None):
+    """Lista criterios de auditoria; se `alert_id` for dado, filtra por aquele alerta.
+
+    Retorna campos id, alert_id, chave, label, weight, description, type,
+    deflator, referencia, exemplo e evaluation_type, ordenados por id (ou por
+    alert_id, id quando sem filtro). Read-only; abre e fecha a conexao. Retorna
+    lista de dicts.
+    """
     conn = _with_row_factory(db_connection_factory())
     try:
         c = conn.cursor()
@@ -93,6 +130,13 @@ def create_sector(
     motivo: str = "",
     origem: str = "ui",
 ) -> bool:
+    """Cria um setor de auditoria (`audit_sectors`) e registra a criacao no audit_log.
+
+    `id`/`label`/`description` sao os campos do setor; `alterado_por`/`motivo`/
+    `origem` (keyword-only) alimentam a trilha. Insert + log na mesma transacao
+    (commit ao final; rollback e re-raise em erro). Retorna False se a validacao
+    de auditoria falhar, True em sucesso. Efeito colateral: escreve no DB.
+    """
     if not _validate_audit_args(alterado_por, origem, "create_sector"):
         return False
     conn = db_connection_factory()
@@ -135,6 +179,13 @@ def update_sector(
     motivo: str = "",
     origem: str = "ui",
 ):
+    """Atualiza label/description de um setor e registra a mudanca no audit_log.
+
+    Le o estado anterior; se nada mudou (antes == depois), retorna True sem tocar
+    no DB nem no log (no-op silencioso). Caso contrario faz UPDATE + log na mesma
+    transacao. Retorna False se o setor nao existe ou se a validacao de auditoria
+    falhar. Efeito colateral: escreve no DB. Rollback e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "update_sector"):
         return False
     conn = db_connection_factory()
@@ -354,6 +405,12 @@ def delete_sector(
     motivo: str = "",
     origem: str = "ui",
 ):
+    """Remove um setor (`audit_sectors`) e registra a exclusao no audit_log.
+
+    Snapshota o estado anterior antes do DELETE; insere o log na mesma transacao.
+    Retorna False se o setor nao existe ou se a validacao de auditoria falhar.
+    Efeito colateral: escreve no DB. Rollback e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "delete_sector"):
         return False
     conn = db_connection_factory()
@@ -401,6 +458,14 @@ def create_alert(
     pop_ref: Optional[str] = None,
     expected_direction: Optional[str] = None,
 ):
+    """Cria um alerta (`audit_alerts`) sob `sector_id` e registra no audit_log.
+
+    Gera o id como `{sector_id}::{original_id}` quando `original_id` e dado, senao
+    `{sector_id}::{uuid curto}`. `label`/`context`/`pop_ref`/`expected_direction`
+    sao os campos do alerta. Insert + log na mesma transacao. Retorna o id gerado
+    (str) em sucesso, ou None se a validacao de auditoria falhar. Efeito
+    colateral: escreve no DB. Rollback e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "create_alert"):
         return None
 
@@ -455,6 +520,14 @@ def update_alert(
     pop_ref: Optional[str] = None,
     expected_direction: Optional[str] = None,
 ):
+    """Atualiza um alerta (label/context/pop_ref/expected_direction) e registra no log.
+
+    `pop_ref` e `expected_direction` so sao alterados quando passados explicitamente
+    (None preserva o valor atual). No-op silencioso se nada mudou (retorna True).
+    Faz UPDATE + log na mesma transacao. Retorna False se o alerta nao existe ou
+    se a validacao de auditoria falhar. Efeito colateral: escreve no DB. Rollback
+    e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "update_alert"):
         return False
     conn = db_connection_factory()
@@ -512,6 +585,12 @@ def delete_alert(
     motivo: str = "",
     origem: str = "ui",
 ):
+    """Remove um alerta (`audit_alerts`) e registra a exclusao no audit_log.
+
+    Snapshota o estado anterior antes do DELETE; insere o log na mesma transacao.
+    Retorna False se o alerta nao existe ou se a validacao de auditoria falhar.
+    Efeito colateral: escreve no DB. Rollback e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "delete_alert"):
         return False
     conn = db_connection_factory()
@@ -566,6 +645,13 @@ def create_criterion(
     motivo: str = "",
     origem: str = "ui",
 ):
+    """Cria um criterio (`audit_criteria`) sob `alert_id` e registra no audit_log.
+
+    `chave`/`label`/`weight`/`description`/`type`/`deflator`/`referencia`/`exemplo`/
+    `evaluation_type` sao os campos do criterio. Insert com RETURNING id + log na
+    mesma transacao. Retorna o novo id (int) em sucesso, ou None se a validacao de
+    auditoria falhar. Efeito colateral: escreve no DB. Rollback e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "create_criterion"):
         return None
     conn = db_connection_factory()
@@ -621,6 +707,12 @@ def update_criterion(
     motivo: str = "",
     origem: str = "ui",
 ):
+    """Atualiza um criterio (todos os campos exceto alert_id) e registra no audit_log.
+
+    No-op silencioso se nada mudou (retorna True). Faz UPDATE + log na mesma
+    transacao. Retorna False se o criterio nao existe ou se a validacao de
+    auditoria falhar. Efeito colateral: escreve no DB. Rollback e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "update_criterion"):
         return False
     conn = db_connection_factory()
@@ -682,6 +774,12 @@ def delete_criterion(
     motivo: str = "",
     origem: str = "ui",
 ):
+    """Remove um criterio (`audit_criteria`) e registra a exclusao no audit_log.
+
+    Snapshota o estado anterior antes do DELETE; insere o log na mesma transacao.
+    Retorna False se o criterio nao existe ou se a validacao de auditoria falhar.
+    Efeito colateral: escreve no DB. Rollback e re-raise em erro.
+    """
     if not _validate_audit_args(alterado_por, origem, "delete_criterion"):
         return False
     conn = db_connection_factory()

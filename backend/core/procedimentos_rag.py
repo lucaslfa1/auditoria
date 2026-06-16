@@ -22,6 +22,11 @@ DEFAULT_MAX_PROMPT_CHARS = 7000
 
 @dataclass(frozen=True)
 class ProcedimentoSection:
+    """Uma seção (cabeçalho ``##``) de um arquivo de POP em markdown.
+
+    Campos: caminho relativo da fonte, hash sha256 do arquivo cru, nome do
+    arquivo sem extensão, frontmatter parseado, título da seção e o conteúdo
+    em texto. Imutável (frozen)."""
     source_path: str
     source_hash: str
     file_stem: str
@@ -32,6 +37,11 @@ class ProcedimentoSection:
 
 @dataclass(frozen=True)
 class ProcedimentoChunk:
+    """Pedaço (chunk) de uma seção de POP, dimensionado para indexação futura.
+
+    Além da fonte/hash, carrega o ``setor`` (do frontmatter), os ``alert_ids``
+    inferidos para a seção, o título da seção, o índice do chunk dentro dela e
+    o conteúdo. Imutável (frozen)."""
     source_path: str
     source_hash: str
     setor: str | None
@@ -153,6 +163,9 @@ ALERT_SECTION_HINTS = {
 
 
 def normalize_lookup(value: object) -> str:
+    """Normaliza texto para casamento de setor/seção: minúsculo, sem acentos e
+    com qualquer sequência não alfanumérica trocada por espaço (bordas
+    aparadas). Usado para comparar títulos de seção, setores e hints."""
     normalized = unicodedata.normalize("NFD", str(value or "").strip().lower())
     without_accents = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
     return re.sub(r"[^a-z0-9]+", " ", without_accents).strip()
@@ -233,6 +246,13 @@ def _split_sections(path: Path) -> list[ProcedimentoSection]:
 
 @lru_cache(maxsize=1)
 def load_procedimento_sections() -> tuple[ProcedimentoSection, ...]:
+    """Lê e parseia todos os POPs em ``rag/sources/procedimentos_operacionais``,
+    devolvendo suas seções como tupla imutável.
+
+    Arquivos cujo nome começa com ``_`` são ignorados. Lê do disco; o resultado
+    é cacheado (``lru_cache``), então edições nos .md exigem limpar o cache para
+    refletir. Retorna tupla vazia se o diretório não existir.
+    """
     if not PROCEDIMENTOS_DIR.exists():
         return ()
     sections: list[ProcedimentoSection] = []
@@ -273,6 +293,16 @@ def find_procedimento_section(
     alert_label: object = None,
     alert_context: object = None,
 ) -> ProcedimentoSection | None:
+    """Encontra a seção de POP mais relevante para um setor/alerta.
+
+    Estratégia: (1) resolve o arquivo de POP via ``alert_id``/``sector_id``;
+    (2) se houver hints específicos para o alerta, retorna a primeira seção
+    cujo título casa todos os hints; (3) senão, pontua as seções por interseção
+    de tokens do título com ``alert_id``/``alert_label``/``alert_context`` e
+    retorna a de maior score (>0); (4) se houver um único candidato, retorna-o.
+    Retorna ``None`` se nada casar. Todos os parâmetros são keyword-only.
+    Sem efeitos colaterais (lê do cache de seções).
+    """
     file_name = _resolve_file_name(sector_id, alert_id)
     if not file_name:
         return None
@@ -313,6 +343,15 @@ def get_procedimento_prompt_block(
     alert_context: object = None,
     max_chars: int = DEFAULT_MAX_PROMPT_CHARS,
 ) -> str:
+    """Monta o bloco de texto do POP oficial para injeção direta no prompt da IA.
+
+    Localiza a seção relevante (via ``find_procedimento_section``), trunca o
+    conteúdo para ``max_chars`` (default ``DEFAULT_MAX_PROMPT_CHARS``) e
+    encapsula com cabeçalho/instruções fixas ("PROCEDIMENTO OPERACIONAL
+    OFICIAL (RAG)", fonte, seção). Retorna string vazia se nenhuma seção casar.
+    Não chama a IA por si só (apenas prepara texto); o custo de API ocorre quando
+    o prompt resultante é enviado ao Azure OpenAI pelo chamador.
+    """
     section = find_procedimento_section(
         sector_id=sector_id,
         alert_id=alert_id,
@@ -344,6 +383,14 @@ def _alert_ids_for_section(section_title: str) -> tuple[str, ...]:
 
 
 def build_procedimento_chunks(max_chars: int = 3200) -> list[ProcedimentoChunk]:
+    """Quebra todas as seções de POP em chunks de até ``max_chars`` para
+    indexação futura (busca/RAG vetorial).
+
+    As seções são divididas por subtítulos ``###`` e os parágrafos são
+    agregados greedily até o limite de caracteres. Cada chunk herda o setor
+    (frontmatter) e os ``alert_ids`` inferidos do título da seção. Sem efeitos
+    colaterais (lê do cache de seções).
+    """
     chunks: list[ProcedimentoChunk] = []
     for section in load_procedimento_sections():
         frontmatter_setor = section.frontmatter.get("setor")

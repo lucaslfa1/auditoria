@@ -31,10 +31,14 @@ _KNOWN_NAMESPACES = (CLASSIFIED_MEDIA_NAMESPACE, AUDIT_MEDIA_NAMESPACE)
 
 
 class MediaStorageError(RuntimeError):
+    """Erro genérico de armazenamento de mídia (upload/download/delete falhou
+    em qualquer backend, ou configuração inválida, ex.: backend desconhecido,
+    path traversal, connection string Azure ausente)."""
     pass
 
 
 class MediaNotFoundError(MediaStorageError):
+    """Mídia não encontrada no backend nem nos caminhos legados de fallback."""
     pass
 
 

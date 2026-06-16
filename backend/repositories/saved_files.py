@@ -1,3 +1,21 @@
+"""Repositório de "Arquivos Salvos" (tabela `arquivos_salvos`).
+
+Persiste os artefatos salvos da auditoria — conteúdo da auditoria/transcrição,
+nome do arquivo, operador, setor, score e metadados — opcionalmente vinculados a
+um `audit_id`. Alimenta a tela "Arquivos Salvos" (lista resumida + detalhe).
+
+Pontos de cuidado embutidos:
+- Blindagem de descarte: a listagem e a contagem NUNCA incluem arquivos cujo audit
+  vinculado está com status `AUDIT_STATUS_DISCARDED`.
+- O `metadata_json` é saneado contra o escape de NUL (U+0000) na escrita
+  (`_json_dumps`) e na leitura da lista (replace antes do cast `::jsonb`), porque
+  uma única linha corrompida derrubava a query inteira (incidente prod 2026-06-15).
+- A listagem retorna apenas um preview do `conteudo` (LEFT 800) e um resumo do
+  metadata; o detalhe completo vem de `get_arquivo_salvo`.
+
+Sem custo de API (apenas acesso a banco/CPU).
+"""
+
 import json
 from datetime import datetime
 from typing import Callable, Optional, Any
@@ -36,6 +54,13 @@ def save_arquivo(
     criado_por: str = "",
     data_analise: Optional[str] = None,
 ) -> int:
+    """Salva um novo arquivo (linha em `arquivos_salvos`) e retorna o id criado.
+
+    `metadata` (dict opcional) é serializado em JSON saneado de NUL. `data_analise`
+    default para o instante atual (ISO) quando não informado. Demais campos
+    (`tipo`, `conteudo`, operador, setor, score, `criado_por`, `audit_id`) gravados
+    como vieram. Efeito colateral: INSERT em `arquivos_salvos` + commit.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -75,6 +100,17 @@ def list_arquivos_salvos(
     tipo: Optional[str] = None,
     include_audits: bool = True,
 ) -> list[dict]:
+    """Lista arquivos salvos (resumo) ordenados pela inserção mais recente.
+
+    Cada item traz apenas um preview do conteúdo (LEFT 800) e um resumo extraído do
+    `metadata_json` (summary, ai_feedback, score, source_type, timestamp, operador
+    resolvido por várias chaves alternativas). Filtra por `tipo` se informado; se
+    `tipo` for None e `include_audits=False`, exclui itens do tipo 'auditoria'.
+    SEMPRE oculta arquivos cujo audit está descartado.
+
+    `limit`/`offset` paginam o resultado. Cada dict marca `detail_loaded=False`
+    (detalhe completo vem de `get_arquivo_salvo`). Efeito colateral: leitura no banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -173,6 +209,13 @@ def list_arquivos_salvos(
 
 
 def get_arquivo_salvo(get_connection: ConnectionFactory, arquivo_id: int) -> Optional[dict]:
+    """Retorna o detalhe completo de um arquivo salvo pelo `arquivo_id`.
+
+    Diferente da listagem, traz o `conteudo` inteiro e o `metadata` desserializado
+    por completo, além do `audit_status` do audit vinculado. Marca
+    `detail_loaded=True`. Retorna None se não existir. Efeito colateral: leitura no
+    banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -216,6 +259,13 @@ def update_arquivo_salvo(
     score: Optional[float] = None,
     metadata: Optional[dict] = None,
 ) -> bool:
+    """Atualiza um arquivo salvo pelo `arquivo_id`.
+
+    Se `metadata` for fornecido (não-None), atualiza conteúdo + score + metadata;
+    caso contrário atualiza apenas o `conteudo`. Retorna True se a linha foi
+    atualizada (tolerante a drivers sem rowcount, que assumem sucesso). Efeito
+    colateral: UPDATE em `arquivos_salvos` + commit.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -238,6 +288,11 @@ def update_arquivo_salvo(
 
 
 def delete_arquivo_salvo(get_connection: ConnectionFactory, arquivo_id: int) -> bool:
+    """Remove um arquivo salvo pelo `arquivo_id`.
+
+    Retorna True se a linha foi deletada (tolerante a drivers sem rowcount, que
+    assumem sucesso). Efeito colateral: DELETE em `arquivos_salvos` + commit.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -330,6 +385,12 @@ def count_arquivos_salvos(
     tipo: Optional[str] = None,
     include_audits: bool = True,
 ) -> int:
+    """Conta arquivos salvos aplicando os mesmos filtros/blindagens da listagem.
+
+    Mesma semântica de `tipo`/`include_audits` de `list_arquivos_salvos` e mesma
+    blindagem de descarte (não conta arquivos de audits descartados). Retorna o
+    total. Efeito colateral: leitura no banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()

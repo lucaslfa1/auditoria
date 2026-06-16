@@ -1,3 +1,12 @@
+"""Geração da planilha Excel de incidentes técnicos de telefonia.
+
+Papel no fluxo: consome a lista de incidentes técnicos detectados na auditoria
+de telefonia (ex.: áudio de baixa qualidade, silêncio excessivo, bitrate ruim)
+e produz um arquivo .xlsx formatado para download/relatório. É puro
+in-memory/CPU: não acessa banco nem rede.
+
+Sem custo de API (só openpyxl em memória; nenhuma chamada paga a Azure).
+"""
 import io
 from datetime import datetime
 
@@ -25,6 +34,19 @@ def _format_notes(notes: list[str] | None) -> str:
 
 
 def generate_technical_incidents_excel(incidents: list[dict]) -> io.BytesIO:
+    """Monta a planilha Excel de incidentes técnicos de telefonia.
+
+    Cada item de `incidents` é um dict de incidente; as colunas são extraídas
+    de chaves como `id`, `timestamp`, `operator_name`, `operator_id`,
+    `sector_id`, `alert_label`, `summary` e do bloco aninhado
+    `audio_quality` (com `score`, `quality`, `notes` e `details` contendo
+    `silence_ratio`, `sample_rate`, `bitrate_kbps`, `duration_seconds`).
+    Aplica cabeçalho estilizado, bordas, larguras de coluna, freeze pane e
+    auto-filtro.
+
+    Retorna um `io.BytesIO` posicionado no início (seek 0), pronto para envio.
+    Não tem efeitos colaterais externos (tudo em memória).
+    """
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = "Telefonia"
@@ -122,6 +144,12 @@ def generate_technical_incidents_excel(incidents: list[dict]) -> io.BytesIO:
 
 
 def build_technical_incidents_filename(sector_id: str | None = None) -> str:
+    """Monta o nome do arquivo de download da planilha de telefonia.
+
+    Formato: `auditoria_telefonia[_<sector_id>]_<YYYY-MM-DD>.xlsx`, usando a
+    data local de hoje. Quando `sector_id` é informado, ele entra como sufixo
+    antes da data. Função pura (sem efeitos colaterais).
+    """
     stamp = datetime.now().strftime("%Y-%m-%d")
     sector_part = f"_{sector_id}" if sector_id else ""
     return f"auditoria_telefonia{sector_part}_{stamp}.xlsx"

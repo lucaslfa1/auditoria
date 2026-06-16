@@ -1,3 +1,16 @@
+"""Router admin para gerenciar os prompts de IA (`ai_prompts`).
+
+Expoe CRUD + log de auditoria + invalidacao de cache sobre os prompts usados nas
+chamadas ao Azure OpenAI (avaliacao/auditoria). Aqui NAO ha custo de API: estas
+rotas apenas leem/gravam o texto dos prompts no banco e invalidam o cache local;
+o custo ocorre depois, quando o pipeline de auditoria efetivamente envia esses
+prompts ao modelo.
+
+Todas as rotas exigem perfil admin (`require_admin`). A persistencia, o versionamento
+e o cache ficam no repositorio `repositories.ai_prompts`; este modulo so traduz
+HTTP <-> repositorio e valida entrada (ex.: motivo obrigatorio).
+"""
+
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Body

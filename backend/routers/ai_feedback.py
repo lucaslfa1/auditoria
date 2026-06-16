@@ -1,4 +1,15 @@
-"""AI Feedback router — CRUD endpoints for auditor calibration feedback."""
+"""AI Feedback router — CRUD endpoints for auditor calibration feedback.
+
+Os feedbacks sao correcoes/observacoes que os auditores humanos registram para
+calibrar as avaliacoes da IA (ex.: "a IA marcou X como reprovado, mas o correto era
+aprovado"). Esses registros viram referencia consultada pelo pipeline de auditoria
+nas proximas avaliacoes.
+
+Sem custo de API nestas rotas: apenas leitura/gravacao no banco via `core.ai_feedback`.
+A unica chamada externa e o envio de e-mail de notificacao (`send_new_feedback_email`)
+ao criar um feedback avulso — feito de forma sincrona porque no Cloud Run a CPU congela
+apos o response e BackgroundTasks morreriam. Todas as rotas exigem usuario autenticado.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -57,11 +68,23 @@ class AuditCorrectionsCreate(BaseModel):
 
 @router.get("")
 def api_list_feedback(tipo: Optional[str] = None, setor: Optional[str] = None, ativo: Optional[bool] = None, _user: dict = Depends(require_authenticated_user)):
+    """Lista feedbacks, com filtros opcionais por `tipo`, `setor` e ativos (`ativo`).
+
+    Retorna `{"items": [...]}`. Requer usuario autenticado.
+    """
     return {"items": list_feedback(tipo=tipo, setor=setor, ativo_only=bool(ativo))}
 
 
 @router.post("/audit-corrections", status_code=201)
 def api_create_audit_corrections(body: AuditCorrectionsCreate, _user: dict = Depends(require_authenticated_user)):
+    """Converte correcoes manuais de uma auditoria em feedbacks de tipo 'avaliacao'.
+
+    Recebe a lista `body.corrections` (cada item: criterio + status anterior da IA +
+    status corrigido pelo auditor) e cria um feedback por correcao valida, montando
+    automaticamente os textos de situacao/correcao/justificativa. Itens sem
+    `criterion_id` ou `corrected_status` sao ignorados. Grava no banco; nao envia
+    e-mail. Retorna `{"created": N, "ids": [...]}`.
+    """
     username = _user.get("username", "admin")
     created_ids: list[int] = []
 
@@ -104,6 +127,7 @@ def api_create_audit_corrections(body: AuditCorrectionsCreate, _user: dict = Dep
 
 @router.get("/{feedback_id}")
 def api_get_feedback(feedback_id: int, _user: dict = Depends(require_authenticated_user)):
+    """Retorna um feedback pelo id. 404 se nao existir."""
     item = get_feedback_by_id(feedback_id)
     if not item:
         raise HTTPException(status_code=404, detail="Feedback não encontrado")
@@ -112,6 +136,12 @@ def api_get_feedback(feedback_id: int, _user: dict = Depends(require_authenticat
 
 @router.post("", status_code=201)
 def api_create_feedback(body: FeedbackCreate, _user: dict = Depends(require_authenticated_user)):
+    """Cria um feedback avulso e dispara o e-mail de notificacao.
+
+    `body.tipo` precisa estar em `VALID_TIPOS` (senao 422). Apos persistir, tenta
+    enviar `send_new_feedback_email` de forma sincrona (falha no e-mail e apenas
+    logada, nao quebra o request). Retorna o feedback criado.
+    """
     if body.tipo not in VALID_TIPOS:
         raise HTTPException(status_code=422, detail=f"Tipo inválido. Válidos: {sorted(VALID_TIPOS)}")
 
@@ -142,6 +172,10 @@ def api_create_feedback(body: FeedbackCreate, _user: dict = Depends(require_auth
 
 @router.put("/{feedback_id}")
 def api_update_feedback(feedback_id: int, body: FeedbackUpdate, _user: dict = Depends(require_authenticated_user)):
+    """Atualiza campos de um feedback existente. 404 se nao existir.
+
+    Retorna `{"updated": True}` em caso de sucesso.
+    """
     updated = update_feedback(
         feedback_id,
         situacao=body.situacao,
@@ -158,6 +192,10 @@ def api_update_feedback(feedback_id: int, body: FeedbackUpdate, _user: dict = De
 
 @router.patch("/{feedback_id}/toggle")
 def api_toggle_feedback(feedback_id: int, _user: dict = Depends(require_authenticated_user)):
+    """Inverte o flag `ativo` de um feedback (liga/desliga seu uso pela IA).
+
+    Retorna o novo estado em `{"ativo": ...}`. 404 se nao existir.
+    """
     new_state = toggle_feedback(feedback_id)
     if new_state is None:
         raise HTTPException(status_code=404, detail="Feedback não encontrado")
@@ -166,6 +204,7 @@ def api_toggle_feedback(feedback_id: int, _user: dict = Depends(require_authenti
 
 @router.delete("/{feedback_id}")
 def api_delete_feedback(feedback_id: int, _user: dict = Depends(require_authenticated_user)):
+    """Remove um feedback pelo id. 404 se nao existir. Retorna `{"deleted": True}`."""
     if not delete_feedback(feedback_id):
         raise HTTPException(status_code=404, detail="Feedback não encontrado")
     return {"deleted": True}

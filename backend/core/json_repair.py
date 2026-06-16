@@ -132,6 +132,23 @@ def parse_json_with_repair(
     ai_model: Optional[str] = None,
     generation_config: Any = None,
 ) -> Any:
+    """Faz parse de JSON tolerante a falhas, reparando local ou via LLM.
+
+    Tenta em ordem: (1) `json.loads` direto; (2) reparo LOCAL determinístico
+    (remove cercas markdown e extrai o primeiro objeto/array balanceado); (3)
+    reparo via LLM até `max_attempts`, enviando o texto + `schema_hint` para o
+    modelo corrigir. A rota de reparo LLM é Azure OpenAI quando
+    `ai_provider_priority == "azure"` e há key/endpoint; caso contrário usa o
+    cliente primário (`ai_client`/Gemini). Os parâmetros nomeados permitem
+    injetar clientes/config (útil em testes); quando None, caem nos defaults de
+    `core.config`.
+
+    CUSTO DE API: o passo (3) faz chamadas PAGAS (Azure OpenAI ou cliente
+    primário) — uma por tentativa de reparo, contabilizada via
+    `cost_guard.record_call`. Os passos (1) e (2) são gratuitos (CPU). Levanta
+    a exceção original se esgotar as tentativas sem JSON válido. Retorna o
+    objeto Python já parseado.
+    """
     provider_priority = ai_provider_priority or AI_PROVIDER_PRIORITY
     azure_key = AZURE_OPENAI_KEY if azure_openai_key is None else azure_openai_key
     azure_endpoint = AZURE_OPENAI_ENDPOINT if azure_openai_endpoint is None else azure_openai_endpoint

@@ -1,3 +1,13 @@
+"""Utilitários de rede em nível de processo.
+
+Hoje contém apenas o sistema de DNS override: permite redirecionar domínios
+para IPs específicos via variável de ambiente ``DNS_OVERRIDES`` fazendo
+monkeypatch de ``socket.getaddrinfo``, sem precisar de privilégios de root
+para alterar ``/etc/hosts``. Útil em ambientes (ex.: Cloud Run) onde um
+endpoint precisa apontar para um IP fixo.
+
+Sem custo de API (só rede/CPU local).
+"""
 import socket
 import os
 import logging

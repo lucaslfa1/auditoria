@@ -1,3 +1,21 @@
+"""Avaliacao deterministica da QUALIDADE de uma transcricao para fins de auditoria.
+
+Papel no fluxo: depois de transcrever um audio, este modulo calcula um sinal de
+"prontidao para auditar" (audit_readiness) a partir dos segmentos e dos metadados
+do provedor/diarizacao. Esse sinal alimenta a camada de disposicao da automacao,
+que decide entre auditar automaticamente, mandar para revisao humana ou descartar.
+
+Distincao central usada pela automacao:
+- 'blocked'   -> IMPOSSIVEL de auditar (vazia, conteudo insuficiente, selector
+                 rejeitado). Pode justificar descarte permanente SO se vazia.
+- 'review_required' -> existe mas imperfeita; deve seguir e ser auditada.
+- 'ready'     -> forte o bastante para auditoria automatica.
+
+NAO julga se o operador passou na auditoria; so mede a transcricao em si.
+
+CUSTO DE API: nenhum. So processa estruturas em memoria (CPU); nao chama
+Azure/rede nem banco.
+"""
 from __future__ import annotations
 
 from collections import Counter
@@ -36,6 +54,14 @@ def _append_unique(target: list[str], values: list[str]) -> None:
 
 
 def _provider_has_degraded_consensus_gap(provider_meta: dict[str, Any]) -> bool:
+    """True quando o pipeline pretendia usar hybrid_dual mas caiu em fallback.
+
+    Detecta o "gap de consenso degradado": a estrategia hybrid_dual (que combina
+    dois provedores) foi tentada mas teve de ser substituida por outra
+    (effective_strategy != hybrid_dual) ou registrou status insuficiente/erro nas
+    tentativas. Esse caso e penalizado/sinalizado porque a transcricao foi feita
+    sem o consenso esperado. Inspeciona `provider_meta["attempts"]`.
+    """
     selected_strategy = str(provider_meta.get("selected_strategy") or "").strip().lower()
     if not selected_strategy or selected_strategy == "hybrid_dual":
         return False
@@ -58,6 +84,13 @@ def _provider_has_degraded_consensus_gap(provider_meta: dict[str, Any]) -> bool:
 
 
 def get_transcription_review_reasons(audio_quality: Optional[dict[str, Any]]) -> list[str]:
+    """Lista os motivos pelos quais a transcricao exige revisao humana.
+
+    Le o bloco `transcription_quality` de `audio_quality`: quando o readiness e
+    'blocked' ou 'review_required', devolve os `reasons` ja apurados (ou um motivo
+    sintetico `transcricao_<readiness>`). Como fallback, sinaliza o gap de
+    consenso degradado do provedor. Retorna [] quando nao ha motivo. Funcao pura.
+    """
     if not isinstance(audio_quality, dict):
         return []
 
@@ -323,6 +356,15 @@ def attach_transcription_quality_gate(
     audio_quality: Optional[dict[str, Any]],
     transcription_segments: list[dict],
 ) -> dict[str, Any]:
+    """Anexa o gate de qualidade de transcricao ao dict de qualidade de audio.
+
+    Roda `assess_transcription_quality` sobre os segmentos e guarda o resultado em
+    `transcription_quality`. Quando a transcricao recomenda revisao, eleva os
+    sinais agregados de revisao do dict (`review_recommended=True`,
+    `review_priority` -> no minimo "high") e acrescenta os motivos prefixados com
+    "transcricao:". NAO muta o dict de entrada: trabalha sobre uma copia rasa e a
+    retorna. Funcao pura (so processa dicts em memoria).
+    """
     base = dict(audio_quality or {})
     assessment = assess_transcription_quality(transcription_segments, base)
     base["transcription_quality"] = assessment

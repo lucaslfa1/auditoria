@@ -1,3 +1,24 @@
+"""Bootstrap idempotente do schema PostgreSQL em runtime (CREATE IF NOT EXISTS).
+
+`ensure_runtime_schema` e o ponto central que garante, em toda inicializacao, que
+todas as tabelas/indices/views do sistema existem: auditorias (`audits`),
+colaboradores, fechamento (cadeia de contatos + layout/overrides), fila de
+triagem de classificacao, catalogo de criterios (`audit_sectors`/`audit_alerts`/
+`audit_criteria`), rascunhos, configuracoes, usuarios, feedback de IA (`ai_feedback`,
+com coluna vetorial opcional via pgvector), logs de sync Huawei e tracking de
+pipelines (D-1 e ciclos de automacao). Tudo via `CREATE TABLE IF NOT EXISTS` e
+`ensure_column`, entao rodar repetidamente e seguro.
+
+Detalhes que confundem quem chega agora:
+- A coluna FK `audits.colaborador_id` so e adicionada DEPOIS que `colaboradores`
+  e criada (ordem importa). O mesmo para as tabelas de fechamento (FK -> colaboradores).
+- pgvector e best-effort: se `CREATE EXTENSION vector` falhar (restricao de Role no
+  provedor), faz rollback isolado via SAVEPOINT, loga aviso e segue sem a coluna
+  `transcricao_embedding`/coluna vetorial.
+
+Recebe um `cursor` ja aberto; nao commita (quem chama controla a transacao).
+Sem custo de API (apenas DDL no PostgreSQL).
+"""
 
 from .domain_constants import (
     DEFAULT_AUDIT_SCOPE,
@@ -28,6 +49,12 @@ def _get_audit_scope(row) -> str:
 
 
 def _sync_audit_scopes(cursor) -> None:
+    """Normaliza a coluna `audit_scope` de toda linha de `audits` para o valor canonico.
+
+    Hoje so existe um escopo (`call_quality` = `CALL_QUALITY_SCOPE`), entao isto
+    apenas garante que linhas antigas/sem escopo recebam o valor padrao. Efeito
+    colateral: faz UPDATE nas linhas cujo escopo divergir. Chamado no bootstrap.
+    """
     cursor.execute("SELECT id, source_type, audio_quality, audit_scope FROM audits")
     rows = cursor.fetchall()
     for row in rows:
@@ -37,6 +64,11 @@ def _sync_audit_scopes(cursor) -> None:
 
 
 def ensure_gestor_feedbacks_table(cursor) -> None:
+    """Cria a tabela `gestor_feedbacks` (+ indice) se ainda nao existir.
+
+    Guarda o feedback escrito do gestor por auditoria (1:1 com `audits`, FK com
+    ON DELETE CASCADE). Idempotente. Efeito colateral: DDL no DB.
+    """
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS gestor_feedbacks (
@@ -56,6 +88,12 @@ def ensure_gestor_feedbacks_table(cursor) -> None:
 
 
 def ensure_report_exports_table(cursor) -> None:
+    """Cria a tabela `report_exports` (+ indices) se ainda nao existir.
+
+    Registra o historico de exportacoes de relatorios (tipo, formato, arquivo,
+    quem gerou, operador/alerta/setor, score, metadados). Idempotente. Efeito
+    colateral: DDL no DB.
+    """
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS report_exports (
@@ -86,6 +124,12 @@ def ensure_report_exports_table(cursor) -> None:
 
 
 def ensure_arquivos_salvos_table(cursor) -> None:
+    """Cria a tabela `arquivos_salvos` (+ indices) se ainda nao existir.
+
+    Lista de "Arquivos Salvos" (resultados/analises persistidos para revisao),
+    com FK opcional para `audits` (ON DELETE SET NULL) e metadados de exibicao
+    (operador, setor, alerta, score). Idempotente. Efeito colateral: DDL no DB.
+    """
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS arquivos_salvos (
@@ -111,6 +155,18 @@ def ensure_arquivos_salvos_table(cursor) -> None:
 
 
 def ensure_runtime_schema(cursor) -> None:
+    """Garante todo o schema de runtime: tabelas, indices e views do sistema.
+
+    Cria (idempotente, CREATE IF NOT EXISTS) e completa colunas (`ensure_column`)
+    de TODAS as estruturas centrais — auditorias, colaboradores, fechamento, fila
+    de triagem, catalogo de criterios, rascunhos, configuracoes, usuarios,
+    ai_feedback, logs Huawei e tracking de pipelines — alem das views auxiliares.
+    Ordem importa: FKs para `colaboradores` so sao adicionadas apos a tabela existir.
+
+    pgvector e best-effort (ver docstring do modulo): se indisponivel, a coluna
+    vetorial de `ai_feedback` e omitida. Recebe um `cursor` ja aberto e NAO
+    commita. Efeitos colaterais: muito DDL/DML no DB (incl. `_sync_audit_scopes`).
+    """
     # ── Pipeline D-1 Tracking ──
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS huawei_d_minus_1_runs (

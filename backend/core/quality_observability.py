@@ -1,3 +1,21 @@
+"""Observabilidade interna de qualidade do pipeline de auditoria.
+
+Papel no sistema: gera um "trace" estruturado (dict serializável em JSON) que
+resume, em formato enxuto e seguro para log, os sinais de qualidade de uma
+auditoria — metadados da transcrição escolhida, qualidade de áudio/diarização,
+qualidade da evidência, divergências entre critérios oficiais e o que a IA
+avaliou, e o resultado final (nota, zeragem, fatal_flags). É instrumentação de
+diagnóstico: NÃO altera o fluxo de auditoria, só observa e emite log.
+
+Todas as funções de resumo são defensivas (toleram None / tipos inesperados) e
+truncam textos longos para não poluir o log. Os campos do trace usam chaves em
+inglês (contrato de log consumido por ferramentas de observabilidade) — não
+traduzir.
+
+Sem custo de API: trabalha só com dados já produzidos (CPU/memória) e escreve
+em log via `logging`. Não chama Azure OpenAI/Speech nem banco.
+"""
+
 import json
 import logging
 import os
@@ -6,6 +24,10 @@ from typing import Any, Optional
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
+    """Lê uma variável de ambiente booleana ("1/true/yes/on" => True).
+
+    Retorna ``default`` quando a variável não está definida.
+    """
     raw_value = os.getenv(name)
     if raw_value is None:
         return default
@@ -38,6 +60,16 @@ def _safe_text(value: Any, max_length: int = 240) -> str:
 
 
 def summarize_transcription_metadata(metadata: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """Resume os metadados do seletor de transcrição em formato enxuto p/ log.
+
+    Recebe o dict de metadados produzido pelo pipeline de transcrição (estratégia
+    e provider escolhidos, motivo da escolha e lista de `attempts`) e devolve um
+    resumo truncado com a contagem e os campos relevantes de cada tentativa
+    (strategy/provider/status/score/reason/error).
+
+    Tolerante a entrada inválida: retorna ``{}`` se `metadata` não for dict.
+    Não tem efeitos colaterais.
+    """
     if not isinstance(metadata, dict):
         return {}
 
@@ -68,6 +100,15 @@ def summarize_transcription_metadata(metadata: Optional[dict[str, Any]]) -> dict
 
 
 def summarize_audio_quality(audio_quality: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """Resume o bloco de qualidade de áudio (diarização, transcrição, evidência).
+
+    Extrai e trunca, do dict `audio_quality`, os subgrupos `diarization`,
+    `transcription_quality` e `evidence_quality`, além de `review_recommended`,
+    `review_priority` e os metadados do provider de transcrição. Cada subgrupo é
+    achatado nos campos numéricos/textuais de interesse para diagnóstico.
+
+    Retorna ``{}`` se a entrada não for dict. Não tem efeitos colaterais.
+    """
     if not isinstance(audio_quality, dict):
         return {}
 
@@ -120,6 +161,17 @@ def summarize_audio_quality(audio_quality: Optional[dict[str, Any]]) -> dict[str
 
 
 def summarize_result(result: Any) -> dict[str, Any]:
+    """Resume um objeto de resultado de auditoria (AuditResult-like) p/ log.
+
+    Lê via `getattr` (duck typing) os campos `details`, `score`,
+    `maxPossibleScore`, `fatal_flags` e `summary`. Calcula `score_ratio`
+    (score/max) e a flag `zeroed` (nota zerada com max > 0), além de contar
+    detalhes aprovados vs reprovados — tratando `na`/`pending_manual` como
+    aprovados para fins de contagem.
+
+    Retorna sempre um dict (campos vazios/None quando o resultado não os tem).
+    Não tem efeitos colaterais.
+    """
     details = getattr(result, "details", []) or []
     detail_status_counts = {"pass": 0, "fail": 0}
     for detail in details:
@@ -152,6 +204,15 @@ def summarize_result(result: Any) -> dict[str, Any]:
 
 
 def summarize_evaluation(evaluation: Optional[dict[str, Any]], criteria_list: Optional[list[Any]]) -> dict[str, Any]:
+    """Resume a avaliação bruta da IA e aponta critérios oficiais não cobertos.
+
+    Compara os `criterionId` presentes em `evaluation["details"]` com os ids dos
+    critérios oficiais em `criteria_list` (objetos com atributo `id`) e reporta
+    quais ids oficiais ficaram ausentes na avaliação (até 20), além da contagem
+    de detalhes brutos, fatal_flags e se há feedback da IA.
+
+    Retorna ``{}`` se `evaluation` não for dict. Não tem efeitos colaterais.
+    """
     if not isinstance(evaluation, dict):
         return {}
 
@@ -193,6 +254,20 @@ def build_internal_quality_trace(
     from_cache: bool = False,
     stage: str = "audit_pipeline",
 ) -> dict[str, Any]:
+    """Monta o trace consolidado de qualidade interna de uma auditoria.
+
+    Agrega num único dict (com timestamp UTC, estágio, origem do cache e
+    identificação do item: input_hash, source_type, sector_id, alert) os resumos
+    de transcrição, qualidade de áudio, avaliação e resultado, chamando as
+    funções `summarize_*` deste módulo.
+
+    Params principais:
+        source_type: origem do conteúdo auditado (ex.: "audio"/"document").
+        alert: objeto com `.id`/`.label` (pode ser None).
+        criteria_list: critérios oficiais usados na avaliação.
+    Retorna o dict do trace (não emite log; use `emit_internal_quality_trace`).
+    Não tem efeitos colaterais.
+    """
     alert_id = _safe_text(getattr(alert, "id", None), 80)
     alert_label = _safe_text(getattr(alert, "label", None), 160)
 
@@ -214,6 +289,13 @@ def build_internal_quality_trace(
 
 
 def emit_internal_quality_trace(logger: Optional[logging.Logger], trace: dict[str, Any]) -> dict[str, Any]:
+    """Emite o trace de qualidade como linha de log JSON (efeito colateral: log).
+
+    Só escreve quando a flag `AUDIT_INTERNAL_OBSERVABILITY_ENABLED` está ligada
+    (default ligado). Usa o `logger` informado ou, na ausência, o logger
+    "audit.internal_quality"; serializa o trace com `ensure_ascii=False` e chaves
+    ordenadas. Retorna o próprio `trace` (inalterado) para encadeamento.
+    """
     if not _env_flag("AUDIT_INTERNAL_OBSERVABILITY_ENABLED", True):
         return trace
 

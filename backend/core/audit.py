@@ -1,3 +1,19 @@
+"""Núcleo da auditoria de uma ligação/documento (transcrição + avaliação por IA).
+
+Orquestra o pipeline de auditoria de UM item: resolve os critérios oficiais do
+alerta (sempre do banco, módulo IA > Critérios), transcreve o áudio (ou faz parse
+do documento), avalia com a IA e monta o ``AuditResult``. É o ponto chamado tanto
+pela auditoria manual (via routers/services) quanto pela automação em lote.
+
+CUSTO DE API: ``process_audit_with_ai`` dispara chamadas PAGAS ao Azure —
+transcrição (Azure Speech Fast Transcription, + Whisper/GPT-4o no fallback) e
+avaliação (Azure OpenAI GPT-4o). ``process_pdf_audit`` e ``reevaluate_audit``
+gastam apenas a avaliação GPT-4o (sem transcrição de áudio). Em ``DETERMINISTIC_MODE``
+um hit de cache por ``input_hash`` evita totalmente o custo de API. As funções de
+parse de documento (``extract_text_from_pdf``, ``parse_whatsapp_log``) não têm
+custo de API.
+"""
+
 import io
 import logging
 from datetime import datetime
@@ -177,6 +193,23 @@ async def process_audit_with_ai(
     pipeline_context: Optional[Any] = None,
     allow_degraded_hybrid_fallback: Optional[bool] = None,
 ) -> tuple[AuditResult, str, bool]:
+    """Audita uma ligação em ÁUDIO: transcreve, avalia com a IA e monta o resultado.
+
+    Fluxo: resolve os critérios oficiais do alerta (do banco); calcula o
+    ``input_hash``; em ``DETERMINISTIC_MODE`` retorna a auditoria do cache se
+    houver; analisa a qualidade bruta do áudio; transcreve; avalia com IA; monta
+    o ``AuditResult`` e emite o trace interno de qualidade.
+
+    Parâmetros: ``audio_file``/``mime_type`` são os bytes e o tipo do áudio;
+    ``alert`` é o alerta (será reescrito com os critérios oficiais);
+    ``operator_name``/``operator_id``/``sector_id`` identificam o operador e setor;
+    ``pipeline_context`` carrega metadados da esteira; ``allow_degraded_hybrid_fallback``
+    (default ``True``) libera fallback degradado de transcrição.
+
+    CUSTO DE API: transcrição (Azure Speech) + avaliação (GPT-4o), salvo hit de cache.
+    Retorna ``(AuditResult, input_hash, from_cache)``. Sem persistência aqui (o
+    chamador persiste); emite log/trace de observabilidade.
+    """
     alert = _resolve_official_audit_alert(alert, sector_id)
     input_hash = compute_input_hash(audio_file, mime_type, alert, operator_name, operator_id, sector_id)
     coerced_pipeline_context = coerce_pipeline_context(pipeline_context)
@@ -279,10 +312,24 @@ async def process_audit_with_ai(
     )
     return data, input_hash, False
 def extract_text_from_pdf(file_content: bytes) -> str:
+    """Extrai o texto cru de um PDF (delega a ``core.document_parsing.extract_raw_text``).
+
+    Recebe os bytes do arquivo e retorna o texto extraído. Sem custo de API
+    (extração local). Fase 1 usa pypdf; Fase 2, pdfplumber.
+    """
     # Extração isolada em core.document_parsing (Fase 1: pypdf; Fase 2: pdfplumber).
     from core.document_parsing import extract_raw_text
     return extract_raw_text(file_content)
 def parse_whatsapp_log(text: str) -> list[dict]:
+    """Faz parse de um log de conversa no formato WhatsApp em segmentos por locutor.
+
+    Reconhece linhas ``[DD/MM/AAAA HH:MM:SS] Fulano: mensagem``; converte o
+    timestamp para ``HH:MM`` (usa ``"00:00"`` se não parsear). Linhas sem cabeçalho
+    são anexadas ao segmento anterior; texto antes da primeira mensagem vira um
+    segmento de preâmbulo. Retorna lista de dicts ``{"start", "end", "text"}``,
+    ou ``[]`` se o texto não casar com o formato WhatsApp. Função pura, sem custo
+    de API.
+    """
     pattern = r"\[(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})\]\s+([^:]+):\s+(.*)"
     if not re.search(pattern, text):
         return []
@@ -316,6 +363,18 @@ async def process_pdf_audit(
     sector_id: Optional[str],
     pipeline_context: Optional[Any] = None,
 ) -> tuple[AuditResult, str, bool]:
+    """Audita um DOCUMENTO (PDF/chat): extrai o texto, estrutura por locutor e avalia com a IA.
+
+    Fluxo análogo a ``process_audit_with_ai`` mas sem transcrição de áudio:
+    resolve critérios oficiais; calcula ``input_hash``; usa cache em
+    ``DETERMINISTIC_MODE``; extrai o texto do PDF e o estrutura via
+    ``core.document_parsing.parse_document`` (dispatcher Service Cloud/WhatsApp/
+    genérico, com fallback para bloco único); avalia com a IA e monta o resultado.
+
+    CUSTO DE API: apenas avaliação GPT-4o (sem áudio), salvo hit de cache.
+    Retorna ``(AuditResult, input_hash, from_cache)``. Não persiste; emite trace
+    interno de qualidade.
+    """
     alert = _resolve_official_audit_alert(alert, sector_id)
     input_hash = compute_input_hash(file_content, mime_type, alert, operator_name, operator_id, sector_id)
     if DETERMINISTIC_MODE:
@@ -379,7 +438,15 @@ async def process_pdf_audit(
     )
     return data, input_hash, False
 async def reevaluate_audit(transcription: list[dict], alert: AuditAlert, operator_name: Optional[str], operator_id: Optional[str], sector_id: Optional[str], source_type: Optional[str] = "audio", audio_quality: Optional[dict] = None) -> AuditResult:
-    """Reprocesses the audit logic based on an edited transcription."""
+    """Reavalia uma auditoria a partir de uma transcrição já editada (sem re-transcrever).
+
+    Usado quando o auditor corrige a transcrição: resolve os critérios oficiais,
+    reconstrói a qualidade de diarização (só para ``source_type='audio'``) e roda
+    de novo a avaliação por IA sobre o texto fornecido.
+
+    CUSTO DE API: avaliação GPT-4o (não há transcrição de áudio aqui).
+    Retorna o ``AuditResult`` reavaliado. Não persiste; emite trace interno de qualidade.
+    """
     alert = _resolve_official_audit_alert(alert, sector_id)
     if (source_type or "audio") == "audio":
         audio_quality = build_diarization_quality(transcription, audio_quality)

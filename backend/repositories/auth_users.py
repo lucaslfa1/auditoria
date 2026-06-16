@@ -1,3 +1,16 @@
+"""Repositório de usuários de login (tabela `users` no Postgres/Neon).
+
+Responsável por CRUD dos usuários que autenticam no sistema (admin/supervisor),
+incluindo hash de senha com bcrypt. É a fonte canônica de credenciais — o antigo
+`backend/auth_users.json` foi descontinuado.
+
+Todas as funções recebem `get_connection` (factory de conexão psycopg2) por
+injeção; o lookup é case-insensitive por `LOWER(username)`. O `role` é normalizado
+via `normalize_user_role` para garantir um valor válido.
+
+Sem custo de API (apenas acesso a banco + hashing bcrypt em CPU).
+"""
+
 from typing import Callable, Optional, Any
 
 import bcrypt
@@ -10,6 +23,12 @@ ConnectionFactory = Callable[[], Any]
 
 
 def get_user_by_username(get_connection: ConnectionFactory, username: str) -> Optional[dict]:
+    """Busca um usuário por `username` (case-insensitive) e retorna a linha completa.
+
+    `username` é normalizado (trim + lowercase) antes do `WHERE LOWER(username)`.
+    Retorna o dict da linha (inclui `password_hash`) ou None se não existir.
+    Efeito colateral: abre e fecha conexão de leitura ao banco.
+    """
     normalized_username = str(username or "").strip().lower()
     conn = get_connection()
     try:
@@ -30,6 +49,16 @@ def create_user(
     sector_id: str = "",
     escala: str = "",
 ) -> bool:
+    """Cria um usuário com senha em texto claro convertida para hash bcrypt.
+
+    Params relevantes: `password_clear` é a senha em texto puro (será hasheada com
+    bcrypt antes de gravar); `role` é normalizado (default "admin"); demais campos
+    (`supervisor_name`, `sector_id`, `escala`) são gravados como vieram.
+
+    Retorna True em sucesso; False se `username` ficar vazio após trim ou se houver
+    violação de unicidade (`psycopg2.IntegrityError`, ex.: username duplicado).
+    Efeito colateral: INSERT em `users` + commit.
+    """
     normalized_role = normalize_user_role(role, default="admin")
     original_username = str(username or "").strip()
     if not original_username:
@@ -53,6 +82,12 @@ def create_user(
 
 
 def list_users(get_connection: ConnectionFactory) -> list[dict]:
+    """Lista todos os usuários ordenados por username (case-insensitive).
+
+    Retorna apenas campos não-sensíveis (id, username, role, supervisor_name,
+    sector_id, escala) — NÃO inclui `password_hash`. Efeito colateral: leitura no
+    banco.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -63,6 +98,11 @@ def list_users(get_connection: ConnectionFactory) -> list[dict]:
 
 
 def delete_user(get_connection: ConnectionFactory, username: str) -> bool:
+    """Remove o usuário com `username` correspondente (case-insensitive).
+
+    Retorna True se alguma linha foi deletada, False caso contrário.
+    Efeito colateral: DELETE em `users` + commit.
+    """
     normalized_username = str(username or "").strip().lower()
     conn = get_connection()
     try:
@@ -76,6 +116,11 @@ def delete_user(get_connection: ConnectionFactory, username: str) -> bool:
 
 
 def update_user_password(get_connection: ConnectionFactory, username: str, new_password: str) -> bool:
+    """Atualiza a senha do usuário (`new_password` em texto claro, hasheada com bcrypt).
+
+    Retorna True se a linha foi atualizada, False se o usuário não existir.
+    Efeito colateral: UPDATE em `users` + commit.
+    """
     password_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     normalized_username = str(username or "").strip().lower()
     conn = get_connection()
@@ -102,6 +147,18 @@ def update_user(
     sector_id: Optional[str] = None,
     escala: Optional[str] = None,
 ) -> bool:
+    """Atualiza campos selecionados de um usuário (UPDATE parcial dinâmico).
+
+    Só campos passados como não-None entram no SET; os demais ficam intactos.
+    Regras de cada campo opcional (keyword-only):
+    - `new_password`: ignorado se vazio/só espaços; senão hasheado com bcrypt.
+    - `role`: normalizado; se virar None (role inválido), retorna False sem gravar.
+    - `supervisor_name`, `sector_id`, `escala`: gravados como vieram.
+
+    Retorna False se nenhum campo for fornecido (nada a atualizar) ou se nenhuma
+    linha casar. Retorna True quando alguma linha é atualizada.
+    Efeito colateral: UPDATE em `users` + commit.
+    """
     normalized_username = str(username or "").strip().lower()
     sets = []
     params = []

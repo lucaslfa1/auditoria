@@ -56,11 +56,19 @@ class AliasUpdate(BaseModel):
 
 @router.get("/api/admin/sector-aliases")
 def admin_list_sector_aliases(_user: dict = Depends(require_admin)):
+    """Lista todas as regras de apelido de setor cadastradas. Somente admin."""
     return sa_repo.list_aliases(database.get_connection)
 
 
 @router.post("/api/admin/sector-aliases")
 def admin_create_sector_alias(req: AliasCreate, user: dict = Depends(require_admin)):
+    """Cria uma regra de apelido (mapeia padrao -> setor canonico).
+
+    Valida `pattern_type` contra `_VALID_PATTERN_TYPES` e exige `pattern_value` e
+    `canonical_sector_id` nao-vazios; senao retorna 400. `priority` ordena a aplicacao
+    das regras (o repositorio carrega/avalia por priority DESC, id ASC — maior
+    prioridade vence). Retorna o id criado; 400 em conflito/dado invalido.
+    """
     if req.pattern_type not in _VALID_PATTERN_TYPES:
         raise HTTPException(
             status_code=400,
@@ -98,6 +106,11 @@ def admin_update_sector_alias(
     req: AliasUpdate,
     user: dict = Depends(require_admin),
 ):
+    """Atualiza parcialmente uma regra de apelido (campos None sao ignorados).
+
+    Se `pattern_type` for informado, valida contra `_VALID_PATTERN_TYPES` (400 se
+    invalido). Retorna 404 se o alias nao existir. Registra autor/motivo no audit log.
+    """
     if req.pattern_type is not None and req.pattern_type not in _VALID_PATTERN_TYPES:
         raise HTTPException(
             status_code=400,
@@ -126,6 +139,10 @@ def admin_delete_sector_alias(
     motivo: Optional[str] = Query(default=None),
     user: dict = Depends(require_admin),
 ):
+    """Remove uma regra de apelido. `motivo` (query) vai pro audit log.
+
+    Retorna 404 se o alias nao existir.
+    """
     ok = sa_repo.delete_alias(
         database.get_connection,
         alias_id,
@@ -143,6 +160,11 @@ def admin_list_sector_aliases_audit_log(
     limit: int = Query(default=50, ge=1, le=500),
     _user: dict = Depends(require_admin),
 ):
+    """Lista o historico de mudancas das regras de apelido (mais recentes primeiro).
+
+    `entity_id` opcional filtra o historico de um alias especifico; `limit` entre 1 e
+    500 (default 50).
+    """
     return sa_repo.list_audit_log(
         database.get_connection,
         entity_id=entity_id,
@@ -152,5 +174,10 @@ def admin_list_sector_aliases_audit_log(
 
 @router.post("/api/admin/sector-aliases/cache/invalidate")
 def admin_invalidate_sector_aliases_cache(_user: dict = Depends(require_admin)):
+    """Invalida o cache em memoria das regras de apelido.
+
+    Forca a proxima resolucao de setor a reler do banco. Util apos seed externo ou
+    quando a mutacao ocorreu em outro pod (o cache vive por processo).
+    """
     sa_repo.clear_cache()
     return {"status": "invalidated", "caches": ["sector_aliases._rules_cache"]}

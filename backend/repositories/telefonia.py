@@ -1,3 +1,23 @@
+"""Repositório do histórico de sincronizações da Telefonia (Huawei).
+
+Persiste e consulta a tabela ``telefonia_sync_history``, que registra cada
+execução (run) do sync de ligações da Telefonia: quando começou/terminou, status,
+quantas ligações foram baixadas/enfileiradas, erros e o tipo de gatilho
+(manual/cron). Suporta runs longos e observáveis:
+
+- ``start_*``/``finalize_*`` abrem (``finished_at=NULL``) e fecham um run;
+- ``heartbeat_*`` atualiza ``last_heartbeat_at`` periodicamente;
+- ``set_*_pause``/``set_*_cancel`` persistem pedidos de pausa/cancelamento para
+  sobreviverem a um restart do pod;
+- ``reconcile_stale_*`` é chamado no bootstrap do app para fechar runs órfãos
+  (pod reiniciou no meio de um sync).
+
+Sem custo de API: só acesso a banco (PostgreSQL via psycopg2). Todas as funções
+recebem a fábrica de conexão ``get_connection`` por injeção e fecham a conexão no
+``finally``. Erros são logados e absorvidos (retornam -1/None/0 ou no-op) em vez
+de propagados, para não derrubar o pipeline de sync.
+"""
+
 import logging
 from typing import Optional
 
@@ -17,6 +37,18 @@ def save_telefonia_sync_history(
     mensagem_erro: Optional[str],
     trigger_type: str
 ) -> int:
+    """Insere um registro completo (já finalizado) de sync na history.
+
+    Diferente de ``start_telefonia_sync_run``/``finalize_telefonia_sync_run`` (que
+    abrem e fecham um run em duas etapas), esta função grava a row inteira de uma
+    vez, com início e fim já conhecidos.
+
+    ``horas_retroativas`` é arredondado e convertido para INTEGER (a coluna é
+    INTEGER, mas o código passa floats — ex.: 0.5h = 30min), com piso em 0.
+
+    Efeitos colaterais: INSERT + commit. Em erro, faz rollback, loga e retorna -1.
+    Retorna o ``id`` da row criada.
+    """
     # A coluna horas_retroativas e INTEGER mas o codigo agora aceita floats
     # (ex: 0.5h = 30min). Arredondamos para evitar falha de tipo no INSERT.
     try:
@@ -304,6 +336,16 @@ def reconcile_stale_telefonia_sync_runs(
 
 
 def list_telefonia_sync_history(get_connection, limit: int = 50) -> list[dict]:
+    """Lista os runs de sync mais recentes (ordenados por ``started_at`` DESC).
+
+    ``limit`` é normalizado para o intervalo [1, 500]. Cada item traz os campos da
+    row e também um sub-objeto ``result`` no formato legado (mantém compatibilidade
+    com o frontend que espera a chave ``message``). ``started_at``/``finished_at``
+    são serializados via ``.isoformat()`` quando presentes.
+
+    Efeito colateral: somente leitura no banco. Em erro, loga e retorna lista
+    vazia. A conexão é sempre fechada.
+    """
     limite = max(1, min(int(limit), 500))
     conn = get_connection()
     try:

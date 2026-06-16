@@ -1,3 +1,20 @@
+"""Fachada de auditoria — ponto de entrada histórico de transcrição/avaliação.
+
+Este módulo NÃO define lógica própria: ele só re-exporta nomes dos pacotes
+``core/`` (config, transcrição, avaliação, auditoria, export) e de alguns utils,
+para que código antigo que faz ``from services import X`` ou ``import services``
+continue funcionando após a refatoração que moveu a implementação para ``core/``.
+
+Cada módulo de ``core/`` define ``__all__`` (incluindo nomes com prefixo ``_``),
+então o ``from core.X import *`` aqui re-exporta exatamente o que está listado lá.
+Os imports nomeados no fim cobrem símbolos que callers historicamente importavam
+de ``services`` mas que vivem fora de ``core/``.
+
+Sem custo de API próprio (apenas re-exporta). As funções re-exportadas de
+transcrição/avaliação é que podem chamar Azure OpenAI/Speech — ver os módulos de
+``core/``.
+"""
+
 # services.py - Fachada para manter compatibilidade com imports existentes.
 # Callers que fazem `from services import X` ou `import services` continuam funcionando.
 #

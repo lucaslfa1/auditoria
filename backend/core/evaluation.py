@@ -1,3 +1,27 @@
+"""Avaliação de auditoria: ponte para a IA e montagem do resultado final.
+
+Este módulo é a fachada de avaliação consumida pelo restante do backend. Ele tem
+dois papéis:
+
+1. **Repassar** as chamadas de avaliação por IA para o cluster
+   ``core.audit_evaluator`` (que foi extraído daqui), injetando as dependências
+   resolvidas de configuração/banco via ``_get_audit_evaluation_dependencies``. As
+   funções ``evaluate_transcription`` / ``evaluate_with_azure`` /
+   ``evaluate_with_ai_priority`` e ``get_audit_system_prompt`` são wrappers finos
+   sobre esse cluster.
+2. **Transformar** o JSON cru devolvido pela IA em um ``AuditResult`` tipado
+   (``result_from_raw``): normaliza status por critério, calcula a nota ponderada
+   pela lógica da planilha BD (peso/deflator), aplica as redes de segurança
+   (``safety_nets`` de ``prompts.json``) e a zeragem por critério fatal em 3 camadas
+   (criterionId determinístico → ``fatal_flags`` da IA → fallback por substring),
+   respeitando o fallback legítimo de CPF quando o motorista confirma não ter senha.
+
+CUSTO DE API: as funções ``evaluate_*`` e ``get_audit_system_prompt`` disparam, por
+baixo, chamadas pagas ao Azure OpenAI / provedor de IA (via ``core.audit_evaluator``).
+Já ``result_from_raw``, ``validate_evaluation`` e os helpers de scoring são puros
+(CPU/memória) — não fazem rede nem chamam IA; o reparo de JSON foi extraído para
+``core.json_repair`` e é só reexportado aqui por compatibilidade de import.
+"""
 import json
 import logging
 import re
@@ -65,6 +89,12 @@ def _get_default_generation_config():
 
 
 def _normalize_audit_detail_status(raw_status: Any) -> str:
+    """Reduz o status de um critério ao binário ``pass``/``fail`` do sistema.
+
+    Mapeia status legados/ambíguos da IA: ``na``/``pending_manual`` viram ``pass``
+    (não penaliza), ``partial`` vira ``fail``, qualquer valor fora de
+    ``{pass, fail}`` cai em ``fail`` por segurança (default conservador).
+    """
     status = str(raw_status or "").strip().lower()
     if status in {"na", "pending_manual"}:
         return "pass"
@@ -257,6 +287,13 @@ def _pick_stricter_audit_detail(existing: dict[str, Any], candidate: dict[str, A
 
 
 def validate_evaluation(data: Any) -> bool:
+    """Valida o shape mínimo do JSON de avaliação devolvido pela IA.
+
+    Exige um dict com ``summary`` e ``details`` (lista), e que cada item de
+    ``details`` seja um dict com ``criterionId``, ``status`` e ``comment``, com
+    ``status`` em ``{"pass", "fail"}``. Retorna ``True``/``False``; não levanta nem
+    altera ``data``. Função pura (sem efeitos colaterais).
+    """
     if not isinstance(data, dict):
         return False
     if "summary" not in data or "details" not in data:
@@ -273,6 +310,14 @@ def validate_evaluation(data: Any) -> bool:
             return False
     return True
 def _get_audit_evaluation_dependencies() -> AuditEvaluationDependencies:
+    """Monta o pacote de dependências injetadas no cluster ``core.audit_evaluator``.
+
+    Resolve, no momento da chamada, os valores de configuração (prompts, modelo,
+    chaves/endpoint Azure, prioridade de provedores, flag de IA habilitada) e os
+    callables de acesso a banco (``get_config_value``, ``get_colaboradores_para_prompt``)
+    e de reparo de JSON. Não dispara IA por si só — apenas empacota o que as funções
+    de avaliação vão usar.
+    """
     return build_audit_evaluation_dependencies(
         prompts_config=PROMPTS_CONFIG,
         get_config_value=database.get_config_value,
@@ -297,6 +342,17 @@ def get_audit_system_prompt(
     alert_label: Optional[str] = None,
     feedback_query_embedding: Optional[list[float]] = None,
 ) -> str:
+    """Constrói o system prompt de auditoria para a IA (wrapper de ``core.audit_evaluator``).
+
+    Concatena contexto do alerta, texto dos critérios, qualidade de áudio, setor,
+    operador e (quando fornecido) embedding de consulta de feedback para incorporar
+    instruções/feedback relevantes ao prompt. Retorna o prompt pronto como string.
+
+    Efeitos colaterais: a montagem do prompt pode consultar banco (config, colaboradores
+    do setor) e, dependendo do feedback por embedding, buscar instruções relacionadas;
+    a chamada paga à IA ocorre só quando o prompt é efetivamente enviado pelas funções
+    ``evaluate_*``.
+    """
     return build_audit_system_prompt(
         alert_context,
         criteria_text,
@@ -309,6 +365,16 @@ def get_audit_system_prompt(
         feedback_query_embedding=feedback_query_embedding,
     )
 async def evaluate_transcription(transcription: list[dict], alert: AuditAlert, criteria_list: list[AuditCriterion], operator_name: Optional[str], driver_name: Optional[str], audio_quality: Optional[dict] = None, sector_id: Optional[str] = None) -> dict:
+    """Avalia a transcrição contra os critérios usando a IA (wrapper assíncrono).
+
+    Repassa para ``core.audit_evaluator.evaluate_transcription`` com as dependências
+    resolvidas. Recebe a transcrição diarizada, o alerta e a lista de critérios, e o
+    contexto de operador/motorista/qualidade/setor; devolve o dict de avaliação cru
+    (``summary``, ``details``, eventuais ``fatal_flags``) que depois alimenta
+    ``result_from_raw``.
+
+    CUSTO DE API: dispara chamada paga ao Azure OpenAI / provedor de IA.
+    """
     return await run_ai_audit_evaluation(
         transcription,
         alert,
@@ -320,6 +386,13 @@ async def evaluate_transcription(transcription: list[dict], alert: AuditAlert, c
         dependencies=_get_audit_evaluation_dependencies(),
     )
 async def evaluate_with_azure(transcription: list[dict], alert: AuditAlert, criteria_list: list[AuditCriterion], operator_name: Optional[str], audio_quality: Optional[dict] = None, sector_id: Optional[str] = None) -> dict:
+    """Avalia a transcrição forçando o provedor Azure OpenAI (wrapper assíncrono).
+
+    Variante de ``evaluate_transcription`` que ignora a prioridade de provedores e
+    usa o Azure diretamente. Devolve o mesmo dict de avaliação cru.
+
+    CUSTO DE API: dispara chamada paga ao Azure OpenAI.
+    """
     return await run_azure_audit_evaluation(
         transcription,
         alert,
@@ -330,6 +403,13 @@ async def evaluate_with_azure(transcription: list[dict], alert: AuditAlert, crit
         dependencies=_get_audit_evaluation_dependencies(),
     )
 async def evaluate_with_ai_priority(transcription: list[dict], alert: AuditAlert, criteria_list: list[AuditCriterion], operator_name: Optional[str], audio_quality: Optional[dict] = None, sector_id: Optional[str] = None) -> dict:
+    """Avalia a transcrição respeitando a ordem de prioridade de provedores de IA.
+
+    Wrapper assíncrono que segue ``AI_PROVIDER_PRIORITY`` (fallback entre provedores)
+    via ``core.audit_evaluator``. Devolve o mesmo dict de avaliação cru.
+
+    CUSTO DE API: dispara chamada(s) paga(s) ao provedor de IA selecionado.
+    """
     return await run_prioritized_audit_evaluation(
         transcription,
         alert,
@@ -340,6 +420,37 @@ async def evaluate_with_ai_priority(transcription: list[dict], alert: AuditAlert
         dependencies=_get_audit_evaluation_dependencies(),
     )
 def result_from_raw(raw: dict, criteria_list: list[AuditCriterion], transcription_data: Optional[list[dict]] = None, operator_name: Optional[str] = None, operator_id: Optional[str] = None, source_type: str = "audio", audio_quality: Optional[dict] = None, sector_id: Optional[str] = None) -> AuditResult:
+    """Converte o JSON cru da IA em um ``AuditResult`` tipado, com nota e zeragem.
+
+    É o coração do scoring. Passos principais:
+
+    - Monta a transcrição de saída a partir de ``transcription_data`` (ou de
+      ``raw['transcription']`` como fallback), deduplicando segmentos e removendo
+      emojis.
+    - Para cada critério em ``criteria_list``, casa o detalhe correspondente da IA
+      (por ``criterionId``), normaliza o status, escolhe o mais severo em caso de
+      duplicata e calcula ``obtainedScore``/``maxPossibleScore`` pela lógica de
+      peso/deflator (ver ``_resolve_audit_detail_scores``). Critério ausente na
+      resposta vira ``fail`` para manter a auditoria completa.
+    - Anota ``evidence_quality`` (se a IA enviou) e pode forçar
+      ``review_recommended``/``review_priority`` em ``audio_quality``.
+    - Aplica as ``safety_nets`` (de ``prompts.json``): em setores configurados, se não
+      houve comportamento hostil e a razão da nota caiu abaixo do limiar, eleva a nota
+      para o ``boost_ratio``.
+    - Aplica a ZERAGEM por critério fatal em 3 camadas (criterionId de senha em setores
+      de rastreamento → ``fatal_flags`` da IA por setor → fallback por substring em
+      label/comentário), respeitando o fallback legítimo de CPF
+      (``_has_legitimate_cpf_password_fallback``). Quando zera, anexa a explicação ao
+      ``summary`` e zera ``score``.
+
+    Parâmetros relevantes: ``raw`` é o dict da IA; ``criteria_list`` define os
+    critérios oficiais e seus pesos/deflators; ``source_type`` (``"audio"`` ou doc)
+    deriva o ``audit_scope``; ``sector_id`` determina quais regras fatais valem.
+
+    Retorno: ``AuditResult`` com ``score``, ``maxPossibleScore``, ``summary``,
+    ``details``, ``transcription``, ``fatal_flags`` e ``audio_quality`` enriquecido.
+    Função pura quanto a I/O: não faz rede nem banco (só CPU/memória).
+    """
     from schemas import TranscriptionSegment
     total_score, max_score, details, transcription = 0.0, 0.0, [], []
     

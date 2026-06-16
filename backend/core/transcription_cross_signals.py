@@ -1,3 +1,16 @@
+"""Sinais de concordância entre candidatos de transcrição (cross-signals).
+
+Papel no sistema: dado um conjunto de `TranscriptionCandidate` (transcrições
+concorrentes do mesmo áudio, produzidas por providers diferentes), calcula
+métricas de quão concordantes eles são entre si — sobreposição de tokens
+(Jaccard), sobreposição de sequências numéricas (importante para senhas/códigos
+ditados), concordância de speaker e taxa de alinhamento temporal de segmentos.
+Esses sinais alimentam o seletor/juiz de transcrição para decidir em qual
+candidato confiar ou se o item precisa de revisão humana.
+
+Sem custo de API: tudo é comparação de texto em CPU (regex/conjuntos). Não chama
+Azure/Speech, banco nem rede.
+"""
 from __future__ import annotations
 
 import re
@@ -22,6 +35,10 @@ def _tokens(text: str) -> set[str]:
 
 
 def _numeric_tokens(text: str) -> set[str]:
+    # Extrai "sequências numéricas" do texto: trechos com 3+ dígitos possivelmente
+    # separados por espaço/ponto/traço/dois-pontos/barra (ex.: "12 34 56",
+    # "1.234"); descarta os separadores e mantém só os dígitos. Foco em capturar
+    # senhas/códigos/protocolos ditados, para comparar entre candidatos.
     numbers: set[str] = set()
     for match in _NUMERIC_RE.finditer(text or ""):
         digits = re.sub(r"\D+", "", match.group(0))
@@ -31,6 +48,12 @@ def _numeric_tokens(text: str) -> set[str]:
 
 
 def compute_token_jaccard(first_text: str, second_text: str) -> float:
+    """Similaridade de Jaccard entre os conjuntos de tokens de dois textos.
+
+    Retorna interseção/união dos tokens (após normalização). Convenções de borda:
+    1.0 quando ambos vazios; 0.0 quando só um deles é vazio. Sem efeitos
+    colaterais.
+    """
     first = _tokens(first_text)
     second = _tokens(second_text)
     if not first and not second:
@@ -41,6 +64,17 @@ def compute_token_jaccard(first_text: str, second_text: str) -> float:
 
 
 def compute_numeric_overlap(first_text: str, second_text: str) -> dict[str, Any]:
+    """Compara as sequências numéricas (3+ dígitos) presentes em dois textos.
+
+    Útil para verificar se senhas/códigos ditados aparecem igualmente nos dois
+    candidatos. Retorna um dict com:
+        overlap_ratio: Jaccard das sequências numéricas.
+        min_recall: menor recall entre os dois lados (pior caso de cobertura).
+        first_only / second_only / shared: listas ordenadas de números.
+        has_numeric_evidence: False quando nenhum dos textos tem número (nesse
+            caso as métricas são neutras = 1.0).
+    Sem efeitos colaterais.
+    """
     first = _numeric_tokens(first_text)
     second = _numeric_tokens(second_text)
     if not first and not second:
@@ -79,6 +113,12 @@ def _speaker_sequence(candidate: TranscriptionCandidate) -> list[str]:
 
 
 def compute_speaker_agreement(first: TranscriptionCandidate, second: TranscriptionCandidate) -> float:
+    """Fração de posições em que os dois candidatos atribuem o mesmo speaker.
+
+    Compara as sequências de speaker segmento a segmento até o menor comprimento
+    comum (`zip`), ignorando posições em que algum dos lados não tem speaker.
+    Retorna 0.0 quando não há posições comparáveis. Sem efeitos colaterais.
+    """
     first_speakers = _speaker_sequence(first)
     second_speakers = _speaker_sequence(second)
     comparable = min(len(first_speakers), len(second_speakers))
@@ -108,6 +148,16 @@ def compute_segment_alignment_rate(
     tolerance_seconds: float = 2.0,
     content_threshold: float = 0.20,
 ) -> float:
+    """Fração de segmentos do 1º candidato que casam com algum do 2º.
+
+    Um segmento "casa" quando existe no outro candidato um segmento cujo `start`
+    difere em no máximo `tolerance_seconds` E cujo conteúdo tem Jaccard de tokens
+    >= `content_threshold`. É um alinhamento direcional (numerador = casamentos
+    do `first`; denominador = nº de segmentos do `first`).
+
+    Retorna 0.0 se algum dos candidatos não tiver segmentos. Sem efeitos
+    colaterais.
+    """
     first_segments = [segment for segment in first.segments if isinstance(segment, dict)]
     second_segments = [segment for segment in second.segments if isinstance(segment, dict)]
     if not first_segments or not second_segments:
@@ -128,6 +178,12 @@ def compute_segment_alignment_rate(
 
 
 def compute_pairwise_signals(first: TranscriptionCandidate, second: TranscriptionCandidate) -> dict[str, Any]:
+    """Agrega todos os sinais de concordância de um par de candidatos.
+
+    Retorna um dict com os providers e candidate_ids do par e as métricas
+    `token_jaccard`, `numeric_overlap`, `speaker_agreement` e
+    `segment_alignment_rate`. Sem efeitos colaterais.
+    """
     first_text = segments_to_text(first.segments)
     second_text = segments_to_text(second.segments)
     numeric = compute_numeric_overlap(first_text, second_text)
@@ -142,10 +198,20 @@ def compute_pairwise_signals(first: TranscriptionCandidate, second: Transcriptio
 
 
 def pair_key(first: TranscriptionCandidate, second: TranscriptionCandidate) -> str:
+    """Chave estável e simétrica de um par (candidate_ids ordenados, unidos por "__").
+
+    A ordenação garante a mesma chave independente da ordem dos argumentos.
+    """
     return "__".join(sorted([first.candidate_id, second.candidate_id]))
 
 
 def compute_cross_signals(candidates: list[TranscriptionCandidate]) -> dict[str, dict[str, Any]]:
+    """Calcula os sinais de concordância para todos os pares de candidatos.
+
+    Itera sobre as combinações 2 a 2 (cada par uma vez) e devolve um dict
+    indexado por `pair_key`, com os sinais de `compute_pairwise_signals` de cada
+    par. Sem efeitos colaterais.
+    """
     signals: dict[str, dict[str, Any]] = {}
     for index, first in enumerate(candidates):
         for second in candidates[index + 1 :]:

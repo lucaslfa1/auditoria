@@ -64,6 +64,12 @@ def _strip_left_zeroes(value: str) -> str:
 
 
 def _same_endpoint(endpoint: Any, work_no: Any) -> bool:
+    """True se `endpoint` (caller/callee) corresponde ao ramal do agente `work_no`.
+
+    Compara por texto e por dígitos, tolerando zeros à esquerda apenas quando
+    AMBOS são curtos (<=6 dígitos, ramais internos) ou ambos longos. Evita
+    casar um número externo só porque ele termina com os dígitos de um ramal.
+    """
     endpoint_text = _clean_text(endpoint)
     work_text = _clean_text(work_no)
     if not endpoint_text or not work_text:
@@ -135,6 +141,13 @@ def infer_huawei_is_call_in(caller_no: Any, callee_no: Any, work_no: Any) -> Opt
 
 
 def coerce_huawei_is_call_in(value: Any) -> Optional[bool]:
+    """Converte um rótulo de direção variado para bool (ou None se irreconhecível).
+
+    Aceita bool direto, ou strings/valores que, normalizados, batam com termos
+    de entrada (true/1/sim/inbound/receptiva/...) -> True, ou de saída
+    (false/0/nao/outbound/ativa/efetuada/...) -> False. Qualquer outra coisa
+    devolve None. True = inbound/receptiva, False = outbound/efetuada.
+    """
     if isinstance(value, bool):
         return value
     text = normalize_huawei_sector(value)
@@ -183,6 +196,11 @@ def resolve_huawei_is_call_in(payload: dict[str, Any]) -> Optional[bool]:
 
 
 def format_huawei_is_call_in(value: Optional[bool]) -> Optional[str]:
+    """Serializa a direção booleana para a string que a Huawei usa.
+
+    True -> "true" (inbound), False -> "false" (outbound), None -> None.
+    Inverso de `coerce_huawei_is_call_in` para os casos canônicos.
+    """
     if value is True:
         return "true"
     if value is False:

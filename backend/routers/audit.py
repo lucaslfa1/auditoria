@@ -1,3 +1,23 @@
+"""Router de auditoria manual — upload, rascunhos, ciclo de vida e exportacoes.
+
+Concentra as rotas do fluxo de auditoria acionado pelo usuario (upload de audio/PDF
+para avaliacao pela IA), o gerenciamento de rascunhos por usuario, as transicoes de
+status de uma auditoria (descartar/restaurar/promover), a re-avaliacao e a regeracao
+de resumo, alem dos endpoints de exportacao (Excel/DOCX/PDF de relatorio e
+transcricao) e o download do audio salvo.
+
+CUSTO DE API (Azure): `POST /api/audit` e `POST /api/audit/reevaluate` disparam o
+pipeline pago — transcricao (Azure Speech) e/ou avaliacao (Azure OpenAI GPT-4o) — via
+`services.process_audit_with_ai` / `process_pdf_audit` / `reevaluate_audit`.
+`POST /api/audit/regenerate-summary` tambem chama o modelo (resumo + feedback). As
+demais rotas (rascunhos, descarte/restauracao/promocao, exportacoes, download de audio)
+nao tem custo de API — so banco/CPU/arquivo.
+
+Antes de processar um upload novo, `run_audit` valida a cota mensal por operador e so
+prossegue se houver espaco (ou `force_override=True`). Todas as rotas exigem usuario
+autenticado; o descarte exige perfil admin.
+"""
+
 import asyncio
 from datetime import datetime
 import json
@@ -47,6 +67,12 @@ def _resolve_existing_audit_audio_path(
     media_record: dict | None,
     audit: dict | None = None,
 ):
+    """Resolve o caminho do arquivo de audio de uma auditoria, se ja existir em disco.
+
+    Le `audio_storage_path` do `media_record` e devolve o Path correspondente apenas
+    quando o arquivo existe; caso contrario retorna None (o chamador tenta entao
+    recuperar o audio da fila de classificados).
+    """
     if media_record is None or not media_record.get("audio_storage_path"):
         return None
     audio_path = resolve_stored_audit_audio_path(media_record.get("audio_storage_path"))
@@ -70,6 +96,12 @@ SENTIMENT_ANALYSIS_ENABLED = os.getenv("ENABLE_SENTIMENT_ANALYSIS", "false").low
 
 
 def _resolve_quota_reference_date(audio_date: str | None) -> datetime:
+    """Determina o mes/ano usado na checagem de cota a partir da data do audio.
+
+    Usa os 10 primeiros caracteres de `audio_date` no formato AAAA-MM-DD; quando
+    ausente/vazio cai para `datetime.now()`. Levanta HTTP 400 se a data vier num
+    formato invalido.
+    """
     if not isinstance(audio_date, str):
         return datetime.now()
     normalized = str(audio_date or "").strip()
@@ -95,6 +127,12 @@ def _draft_user_id(user: dict) -> str:
 
 
 def _coerce_draft_json(payload: dict, json_key: str, object_key: str) -> str:
+    """Normaliza um campo do rascunho para uma string JSON valida.
+
+    Aceita o valor ja serializado (em `json_key`) ou o objeto bruto (em `object_key`),
+    serializando-o quando necessario (default `[]`). Valida que o resultado e JSON
+    parseavel; senao levanta HTTP 400. Retorna a string JSON pronta para persistir.
+    """
     value = payload.get(json_key)
     if value is None:
         value = payload.get(object_key, [])
@@ -116,6 +154,12 @@ def _resolve_required_auditable_operator(
     operator_id: str | None,
     sector_id: str | None,
 ) -> dict:
+    """Resolve o colaborador auditavel correspondente ao operador informado.
+
+    Consulta `operators.resolve_auditable_colaborador` no banco. Se nenhum
+    colaborador ativo/auditavel casar com nome/id/setor, levanta HTTP 400 — o upload
+    so prossegue para operadores cadastrados como auditaveis.
+    """
     colab = operators.resolve_auditable_colaborador(database.get_connection, operator_name, operator_id, sector_id)
     if colab:
         return colab
@@ -129,6 +173,11 @@ def _resolve_required_auditable_operator(
 
 
 def _get_configured_monthly_audit_quota() -> int:
+    """Retorna a cota mensal de auditorias por operador configurada.
+
+    Delega para `core.automation._get_monthly_audit_quota`; se a leitura falhar,
+    cai para o default 2 (e loga o aviso).
+    """
     try:
         from core.automation import _get_monthly_audit_quota
 
@@ -139,6 +188,19 @@ def _get_configured_monthly_audit_quota() -> int:
 
 
 def _resolve_manual_upload_alert(alert: AuditAlert, sector_id: str | None) -> AuditAlert:
+    """Revalida o alerta do upload manual contra os criterios oficiais do catalogo.
+
+    Reconstroi o alerta a partir do catalogo (`_build_alert_from_classification`) para
+    garantir que a IA use os criterios oficiais do setor — nao os que vieram do
+    frontend. Regras:
+    - sem `sector_id` ou sem `alert.id`: devolve o alerta como veio.
+    - alerta sem criterios oficiais (`AlertWithoutOfficialCriteriaError`): HTTP 400.
+    - falha generica na revalidacao: HTTP 503, salvo quando o fallback de teste de
+      criterios oficiais esta habilitado (`allow_official_criteria_test_fallback`),
+      caso em que mantem o payload do frontend.
+    - catalogo sem criterios para o alerta: HTTP 400, exceto sob o mesmo fallback de
+      teste (mantem os criterios enviados).
+    """
     if not sector_id or not getattr(alert, "id", None):
         return alert
 
@@ -184,6 +246,13 @@ async def save_audit_draft(
     draft: dict,
     user: dict = Depends(require_authenticated_user)
 ):
+    """Salva (upsert) o rascunho de uma auditoria para o usuario atual.
+
+    Identificado por `input_hash` (hash do conteudo auditado) + id do usuario. O
+    `draft` traz `details`/`details_json` e `transcription`/`transcription_json`,
+    normalizados para JSON valido antes de gravar. Efeito: escreve em banco
+    (audit_drafts). Retorna `{"ok": True}`. Sem custo de API.
+    """
     from repositories.audits import upsert_audit_draft
     details_json = _coerce_draft_json(draft, "details_json", "details")
     transcription_json = _coerce_draft_json(draft, "transcription_json", "transcription")
@@ -195,6 +264,11 @@ async def get_audit_draft(
     input_hash: str,
     user: dict = Depends(require_authenticated_user)
 ):
+    """Recupera o rascunho do usuario atual para um `input_hash`.
+
+    Retorna `{"ok": True, "draft": None}` quando nao ha rascunho, ou os campos
+    `details_json`/`transcription_json`/`updated_at` quando existe. Sem custo de API.
+    """
     from repositories.audits import get_audit_draft as get_draft
     row = get_draft(database.get_connection, input_hash, _draft_user_id(user))
     if not row:
@@ -219,6 +293,24 @@ async def run_audit(
     audio_date: str = Form(None),
     force_override: bool = Form(False),
 ):
+    """Processa um upload manual (audio ou PDF) e devolve o resultado da auditoria.
+
+    Fluxo: valida o JSON do alerta e o operador, resolve o operador para um
+    colaborador auditavel, checa a cota mensal (HTTP 429 se excedida, salvo
+    `force_override=True`), valida tamanho do upload (max 50 MB, HTTP 413),
+    revalida os criterios do alerta contra o catalogo oficial e entao chama o
+    pipeline de IA (`process_pdf_audit` para PDF, `process_audit_with_ai` para audio).
+    Opcionalmente roda analise de sentimento se `ENABLE_SENTIMENT_ANALYSIS` estiver
+    ligado. Persiste o resultado em cache/banco com status `awaiting_pair`.
+
+    Params (multipart form): `file` (audio/PDF), `alert_json` (alerta serializado),
+    `operator_name` (obrigatorio para a cota), `operator_id`, `sector_id`,
+    `audio_date` (AAAA-MM-DD, referencia da cota), `force_override` (ignora a cota).
+
+    CUSTO DE API: SIM — dispara transcricao (Azure Speech) e/ou avaliacao
+    (Azure OpenAI). Efeitos colaterais: le o arquivo enviado, grava artefatos e audio
+    no storage/banco. Retorna `AuditResult`.
+    """
     MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
     try:
         try:
@@ -358,6 +450,14 @@ def get_saved_audit_audio(
     audit_id: int,
     user: dict = Depends(require_authenticated_user),
 ):
+    """Faz streaming/download do audio de uma auditoria ja salva.
+
+    Aplica o escopo do usuario via `get_supervisor_audit_for_user` (supervisor so ve
+    o proprio setor). Tenta resolver o arquivo a partir do `media_record`; se nao
+    achar, tenta recuperar da fila de classificados. HTTP 404 se nao houver registro
+    de midia ou o arquivo nao existir. Devolve o conteudo inline com o MIME e nome de
+    arquivo originais. Sem custo de API (so leitura de arquivo/banco).
+    """
     from routers.common import _safe_filename
     audit = get_supervisor_audit_for_user(user, audit_id)
     media_record = database.get_audit_media_record(audit_id)
@@ -540,6 +640,16 @@ async def run_reevaluate_audit(
     req: ReevaluateRequest,
     _user: dict = Depends(require_authenticated_user),
 ):
+    """Re-avalia uma auditoria a partir da transcricao (possivelmente editada).
+
+    Reexecuta a avaliacao da IA sobre `req.transcription` + alerta/operador/setor sem
+    refazer a transcricao. Se `req.input_hash` for informado, localiza a auditoria
+    correspondente (respeitando o escopo do usuario) e atualiza o resultado salvo no
+    banco; falha de persistencia e apenas logada, nao quebra o response.
+
+    CUSTO DE API: SIM — chama o modelo de avaliacao (Azure OpenAI). Retorna o novo
+    `AuditResult`.
+    """
     try:
         user = _user
         target_audit_id = None
@@ -586,6 +696,14 @@ async def run_regenerate_summary(
     req: RegenerateSummaryRequest,
     _user: dict = Depends(require_authenticated_user),
 ):
+    """Regera apenas o resumo e o feedback da IA para uma auditoria.
+
+    Usa transcricao + alerta + detalhes (criterios ja avaliados) + nome do operador
+    para produzir novo texto de resumo/feedback, sem reavaliar os criterios nem
+    refazer a transcricao. Nao persiste — so devolve o resultado.
+
+    CUSTO DE API: SIM — chama o modelo de geracao de texto (Azure OpenAI).
+    """
     try:
         from core.summary_regeneration import regenerate_summary_and_feedback
         result = await regenerate_summary_and_feedback(
@@ -601,6 +719,12 @@ async def run_regenerate_summary(
 
 @router.post("/api/export/excel")
 def export_excel(result: AuditResult, user: dict = Depends(require_authenticated_user)):
+    """Gera e devolve o relatorio da auditoria em Excel (.xlsx) como download.
+
+    Recebe o `AuditResult` no corpo, monta a planilha em memoria e a retorna via
+    StreamingResponse. Registra o export no log (`safe_log_report_export`). Sem custo
+    de API.
+    """
     try:
         excel_file = generate_excel_report(result)
         filename = f"auditoria_{_safe_filename(result.timestamp, 'audit')}.xlsx"
@@ -626,6 +750,11 @@ def export_excel(result: AuditResult, user: dict = Depends(require_authenticated
 
 @router.post("/api/export/report/docx")
 def export_report_docx(result: AuditResult, user: dict = Depends(require_authenticated_user)):
+    """Gera e devolve o relatorio da auditoria em Word (.docx) como download.
+
+    Recebe o `AuditResult` no corpo e retorna o documento via StreamingResponse.
+    Registra o export no log. Sem custo de API.
+    """
     try:
         docx_file = generate_docx_report(result)
         filename = f"auditoria_{_safe_filename(result.timestamp, 'audit')}.docx"
@@ -651,6 +780,11 @@ def export_report_docx(result: AuditResult, user: dict = Depends(require_authent
 
 @router.post("/api/export/report/pdf")
 def export_report_pdf(result: AuditResult, user: dict = Depends(require_authenticated_user)):
+    """Gera e devolve o relatorio da auditoria em PDF como download.
+
+    Recebe o `AuditResult` no corpo e retorna o PDF via StreamingResponse. Registra o
+    export no log. Sem custo de API.
+    """
     try:
         pdf_file = generate_pdf_report(result)
         filename = f"auditoria_{_safe_filename(result.timestamp, 'audit')}.pdf"
@@ -676,6 +810,11 @@ def export_report_pdf(result: AuditResult, user: dict = Depends(require_authenti
 
 @router.post("/api/export/transcription/docx")
 def export_transcription_docx(result: AuditResult, user: dict = Depends(require_authenticated_user)):
+    """Gera e devolve a transcricao da auditoria em Word (.docx) como download.
+
+    Recebe o `AuditResult` no corpo e retorna o documento via StreamingResponse.
+    Registra o export no log. Sem custo de API.
+    """
     try:
         docx_file = generate_docx_transcription(result)
         filename = f"transcricao_{_safe_filename(result.timestamp, 'transcricao')}.docx"
@@ -701,6 +840,11 @@ def export_transcription_docx(result: AuditResult, user: dict = Depends(require_
 
 @router.post("/api/export/transcription/pdf")
 def export_transcription_pdf(result: AuditResult, user: dict = Depends(require_authenticated_user)):
+    """Gera e devolve a transcricao da auditoria em PDF como download.
+
+    Recebe o `AuditResult` no corpo e retorna o PDF via StreamingResponse. Registra o
+    export no log. Sem custo de API.
+    """
     try:
         pdf_file = generate_pdf_transcription(result)
         filename = f"transcricao_{_safe_filename(result.timestamp, 'transcricao')}.pdf"

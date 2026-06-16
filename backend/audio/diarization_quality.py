@@ -1,8 +1,18 @@
-from __future__ import annotations
-"""Diarization quality scoring and audio utility functions.
+"""Scoring de qualidade de diarização e helpers de áudio.
 
-Extracted from services.py to reduce module size and improve cohesion.
+Roda DEPOIS da transcrição: recebe os segmentos já rotulados (operador/
+interlocutor/telefonia) e produz o bloco `diarization` dentro do dict de
+`audio_quality`, além de uma recomendação de revisão para a auditoria. O score
+de diarização (0..1) mede a confiança na separação de falantes — NÃO a qualidade
+do áudio bruto (volume/silêncio/clipping), que vem do QualityAnalyzer upstream.
+
+Também concentra helpers de parsing/normalização de texto e timestamps usados
+nesse cálculo. Extraído de services.py para reduzir tamanho e melhorar coesão.
+
+Sem custo de API (só CPU/processamento de texto); as chaves do dict `diarization`
+e `review_*` são contrato consumido pela UI/BI e pela auditoria — não renomear.
 """
+from __future__ import annotations
 
 import io
 import re
@@ -18,12 +28,22 @@ logger = logging.getLogger(__name__)
 # ── Text helpers ─────────────────────────────────────────────────────────────
 
 def normalize_lookup_text(text: str) -> str:
+    """Normaliza texto para comparação: minúsculas, sem acento e espaços colapsados.
+
+    Aplica NFKD + remoção de marcas diacríticas. Função pura.
+    """
     normalized = unicodedata.normalize("NFKD", text or "")
     without_marks = "".join(ch for ch in normalized if not unicodedata.combining(ch))
     return re.sub(r"\s+", " ", without_marks).strip().lower()
 
 
 def extract_segment_speaker(text: str) -> str:
+    """Extrai o rótulo do falante do prefixo "Falante: ..." de um segmento.
+
+    Considera apenas um prefixo de até 40 caracteres antes do primeiro ":".
+    Retorna o rótulo em minúsculas (ex.: "operador", "telefonia") ou "" se o
+    texto não tiver esse prefixo. Função pura.
+    """
     if not text:
         return ""
     match = re.match(r"^\s*([^:]{1,40}):\s*", text)
@@ -33,6 +53,10 @@ def extract_segment_speaker(text: str) -> str:
 
 
 def parse_float_value(value: Any) -> Optional[float]:
+    """Converte um valor para float aceitando vírgula decimal; None em falha.
+
+    Aceita int/float diretos e strings (troca "," por "."). Função pura.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -44,6 +68,10 @@ def parse_float_value(value: Any) -> Optional[float]:
 
 
 def extract_segment_body(text: str) -> str:
+    """Devolve o corpo do segmento, sem o prefixo "Falante:".
+
+    Se não houver ":", retorna o texto inteiro (apenas com strip). Função pura.
+    """
     if not text:
         return ""
     _speaker, separator, remainder = text.partition(":")
@@ -51,6 +79,11 @@ def extract_segment_body(text: str) -> str:
 
 
 def parse_timestamp_seconds(value: Any) -> float:
+    """Converte um timestamp em segundos (float).
+
+    Aceita "HH:MM:SS(.mmm)", "MM:SS(.mmm)" ou um número puro. Retorna 0.0 para
+    vazio ou formato inválido. Função pura.
+    """
     raw = str(value or "").strip()
     if not raw:
         return 0.0
@@ -72,6 +105,11 @@ def parse_timestamp_seconds(value: Any) -> float:
 
 
 def clone_transcription_segment(segment: dict, *, start: str, end: str, text: str) -> dict:
+    """Copia um segmento de transcrição sobrescrevendo start/end/text.
+
+    Faz cópia rasa do dict original (mantém demais chaves) e retorna o novo
+    segmento. Não muta o `segment` recebido. Função pura.
+    """
     cloned = dict(segment)
     cloned["start"] = start
     cloned["end"] = end
@@ -80,6 +118,11 @@ def clone_transcription_segment(segment: dict, *, start: str, end: str, text: st
 
 
 def coerce_segment_id_list(value: Any) -> list[int]:
+    """Normaliza um valor em lista de speaker_ids inteiros >= 0, únicos e ordenados.
+
+    Aceita list/tuple; ignora itens não conversíveis ou negativos. Para qualquer
+    outro tipo, retorna lista vazia. Função pura.
+    """
     if not isinstance(value, (list, tuple)):
         return []
     result: list[int] = []
@@ -96,11 +139,23 @@ def coerce_segment_id_list(value: Any) -> list[int]:
 # ── Telephony / handoff detection ────────────────────────────────────────────
 
 def is_telephony_segment(text: str) -> bool:
+    """Indica se o corpo do segmento é áudio de telefonia/URA (atendimento eletrônico).
+
+    Delega a `SpeakerDetectionService.eh_segmento_telefonia` após extrair e
+    normalizar o corpo do segmento. Função pura.
+    """
     normalized_body = normalize_lookup_text(extract_segment_body(text))
     return SpeakerDetectionService.eh_segmento_telefonia(normalized_body)
 
 
 def is_short_opening_human_exchange(start_value: Any, text: str, speaker_name: str) -> bool:
+    """Detecta uma saudação humana curta de abertura (alô/bom dia/etc.).
+
+    Usado para reduzir o peso de risco de troca de falante em trechos iniciais.
+    Só retorna True quando: há falante humano (não "" nem "telefonia"); o início
+    é até 40s; o corpo não é telefonia; tem no máximo 8 palavras; e começa por um
+    cumprimento genérico conhecido. Função pura.
+    """
     if speaker_name in {"", "telefonia"}:
         return False
     if parse_timestamp_seconds(start_value) > 40.0:
@@ -131,6 +186,13 @@ def is_short_opening_human_exchange(start_value: Any, text: str, speaker_name: s
 
 
 def is_support_point_handoff_segment(text: str, speaker_name: str, diarization_reference: dict) -> bool:
+    """Detecta passagem de chamada (handoff) a um ponto de apoio/posto.
+
+    Só vale quando: o falante é o interlocutor (não "", "operador" nem
+    "telefonia"); a referência de diarização indica conferência possível/esperada;
+    o rótulo do interlocutor menciona "ponto de apoio"/"posto"; e o corpo casa um
+    marcador de handoff (`eh_handoff_interlocutor`). Função pura.
+    """
     if speaker_name in {"", "operador", "telefonia"}:
         return False
     if not bool(diarization_reference.get("conference_possible") or diarization_reference.get("conference_expected")):
@@ -149,6 +211,24 @@ def build_diarization_reference(
     *,
     expected_max_speakers: Optional[int] = None,
 ) -> dict:
+    """Monta o dict de referência de diarização (expectativas de falantes).
+
+    A partir do rótulo do interlocutor e do máximo esperado de speakers, calcula
+    quantos falantes são esperados para operador e interlocutor e se há
+    possibilidade de conferência (ativada quando o rótulo cita "ponto de apoio"/
+    "posto"). É consumido por `build_diarization_quality` para julgar
+    fragmentação/risco.
+
+    Params:
+        interlocutor_label: rótulo do interlocutor (ex.: "Motorista",
+            "Ponto de apoio").
+        expected_max_speakers: total máximo esperado de falantes; se None ou
+            inválido, assume operador(1) + interlocutor(1).
+
+    Retorna dict com as chaves: interlocutor_label, expected_max_speakers,
+    expected_operator_speakers, expected_interlocutor_speakers,
+    conference_expected, conference_possible. Função pura.
+    """
     normalized_label = normalize_lookup_text(interlocutor_label or "")
     expected_operator_speakers = 1
     expected_interlocutor_speakers = 1
@@ -181,6 +261,20 @@ def build_diarization_reference(
 
 
 def build_audit_review_recommendation(audio_quality: Optional[dict]) -> dict[str, Any]:
+    """Deriva uma recomendação de revisão manual a partir da qualidade do áudio.
+
+    Inspeciona o bloco `diarization` (risco de troca, contagem de speakers,
+    fragmentação, trechos ambíguos, score) e o `transcription_provider`
+    (provedor selecionado por "best_candidate", falhas em tentativas) e acumula
+    motivos com prioridade crescente (low/medium/high).
+
+    Params:
+        audio_quality: dict de qualidade do áudio (pode ser None/sem chaves).
+
+    Retorna dict com: review_recommended (bool), review_priority (a maior
+    prioridade encontrada) e review_reasons (lista de códigos de motivo, em
+    PT-BR snake_case — contrato consumido downstream). Função pura.
+    """
     diarization = audio_quality.get("diarization") if isinstance(audio_quality, dict) else None
     provider_meta = audio_quality.get("transcription_provider") if isinstance(audio_quality, dict) else None
 
@@ -245,6 +339,28 @@ def build_audit_review_recommendation(audio_quality: Optional[dict]) -> dict[str
 
 
 def build_diarization_quality(transcription_segments: list[dict], audio_quality: Optional[dict] = None) -> Optional[dict]:
+    """Calcula o bloco `diarization` e anexa a recomendação de revisão.
+
+    Percorre os segmentos transcritos contando falantes humanos vs. telefonia,
+    risco por segmento, fragmentação por papel e trechos ambíguos; usa a
+    referência em `audio_quality["diarization_reference"]` (ver
+    `build_diarization_reference`) para os limites esperados. Produz um score
+    (0..1), um rótulo de qualidade ("boa"/"regular"/"baixa"/"muito_baixa"), o
+    risco de troca de falante ("low"/"medium"/"high") e notas de diagnóstico.
+
+    Importante: NÃO preenche os campos top-level `score`/`quality` (qualidade do
+    áudio bruto, populados upstream pelo QualityAnalyzer) — apenas enriquece com
+    `base["diarization"]` e os campos `review_*`.
+
+    Params:
+        transcription_segments: lista de segmentos (dicts com text, start, end,
+            speaker_source_ids, etc.). Vazio gera um bloco com
+            notes=["transcricao_vazia"].
+        audio_quality: dict base a enriquecer (não é mutado; é copiado).
+
+    Retorna uma cópia de `audio_quality` com as chaves `diarization` e `review_*`
+    adicionadas. As chaves do dict são contrato (UI/BI/auditoria). Função pura.
+    """
     base = dict(audio_quality or {})
     # score/quality top-level descrevem a qualidade do AUDIO BRUTO (volume, silencio,
     # clipping, sample rate, codec) e devem ser populados upstream via QualityAnalyzer.

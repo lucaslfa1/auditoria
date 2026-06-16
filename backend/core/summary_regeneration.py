@@ -1,3 +1,17 @@
+"""Regeneração do resumo e do feedback da IA após edição manual da auditoria.
+
+Papel no sistema: quando o auditor humano ajusta manualmente as notas/comentários
+dos critérios, este módulo pede à IA que reescreva APENAS o "Resumo da Auditoria"
+e o "Feedback para o operador" coerentes com as notas manuais. A IA não reavalia
+a ligação — só redige os textos a partir do que o humano já decidiu.
+
+CUSTO DE API: SIM. Cada chamada faz 1 requisição paga a um LLM — Azure OpenAI
+(deployment GPT-4o) quando `AI_PROVIDER_PRIORITY == "azure"` com chave/endpoint
+configurados, ou Gemini como fallback. A chamada Azure é registrada no
+`cost_guard`. A transcrição é truncada em `_MAX_TRANSCRIPTION_CHARS` para evitar
+estouro de contexto/OOM.
+"""
+
 import asyncio
 import json
 import logging
@@ -28,10 +42,28 @@ async def regenerate_summary_and_feedback(
     details: list[AuditResultDetail],
     operator_name: Optional[str] = None
 ) -> dict[str, str]:
+    """Regenera só o resumo e o feedback da IA a partir das notas manuais.
+
+    Monta um prompt com a transcrição (truncada em `_MAX_TRANSCRIPTION_CHARS`),
+    o contexto do alerta e os critérios já avaliados manualmente (status +
+    comentário), instrui o LLM a NÃO reavaliar e a apenas redigir os textos, e
+    pede a resposta como JSON com as chaves `summary` e `ai_feedback`.
+
+    Params:
+        transcription: segmentos da transcrição da ligação.
+        alert: alerta/contexto da auditoria (usa `.label` e `.context`).
+        details: critérios com status manual (PASS/FAIL/PARTIAL/NA) e comentário.
+        operator_name: nome do operador (opcional, entra no prompt).
+
+    Retorno: dict com `summary` e `ai_feedback` (strings; vazias se o JSON não
+    trouxer as chaves).
+
+    Efeitos colaterais: chamada de rede paga ao LLM (Azure OpenAI ou Gemini);
+    a chamada Azure é contabilizada no `cost_guard`. O parse com reparo do JSON
+    roda em thread separada (pode disparar HTTP bloqueante). É coroutine — deve
+    ser aguardada (`await`).
     """
-    Calls the AI to regenerate only the summary and AI feedback given the manually edited criteria details.
-    """
-    
+
     # Montar o prompt apenas para os textos
     transcription_text = []
     for i, seg in enumerate(transcription):

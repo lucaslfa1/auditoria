@@ -1,3 +1,19 @@
+"""Funções compartilhadas pelos provedores de transcrição (Azure Speech, GPT-4o diarize, SDK).
+
+Papel no fluxo: utilidades sem estado reaproveitadas pelos vários backends de
+transcrição. Cobre (1) normalização de texto transcrito (nome de empresa, filtro de
+alucinação, remoção de emoji), (2) montagem da lista de frases de domínio /
+do prompt de domínio para guiar o reconhecimento, e (3) o pós-processamento final
+dos turnos por locutor — classificação/correção/mesclagem de speakers — produzindo
+os segmentos no formato consumido pela auditoria.
+
+As dependências "pesadas" (normalizadores, deduplicador) chegam por injeção via
+parâmetros Callable, evitando import circular com o módulo de serviços.
+
+CUSTO DE API: nenhum. São transformações em memória (CPU); as chamadas pagas ao
+Azure ficam nos provedores que importam este módulo.
+"""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -18,6 +34,10 @@ def normalize_transcribed_text(
     filter_hallucinations: TextNormalizer,
     remove_emojis: TextNormalizer,
 ) -> str:
+    """Aplica, em ordem, as 3 limpezas de texto transcrito (nome de empresa → emoji → alucinação) e retorna o resultado strip().
+
+    Os normalizadores são injetados (Callables). Função pura, sem efeitos colaterais.
+    """
     normalized = normalize_company_name(str(text or "").strip())
     normalized = remove_emojis(normalized)
     normalized = filter_hallucinations(normalized)
@@ -29,6 +49,13 @@ def build_azure_domain_phrases(
     operator_name: str | None,
     driver_name: str | None,
 ) -> list[str]:
+    """Monta a lista de frases de domínio (phraseList) para enviesar o reconhecedor de fala.
+
+    Combina os `target` de `text_corrections_config["corrections"]`, um vocabulário
+    fixo do negócio (empresa, logística, telefonia, marcas etc.) e o primeiro nome do
+    operador e do motorista, sem duplicar. Função pura. Consumida pelo Azure Fast
+    Transcription (phraseList) e como base do prompt de domínio.
+    """
     phrase_list: list[str] = []
     for correction in text_corrections_config.get("corrections", []):
         target = correction.get("target")
@@ -137,6 +164,13 @@ def build_transcription_domain_prompt(
     *,
     max_phrases: int = 80,
 ) -> str:
+    """Monta o prompt textual de domínio para modelos que aceitam `prompt` (Whisper / GPT-4o diarize).
+
+    Descreve o contexto (ligação de monitoramento logístico da Opentech), cita os
+    locutores esperados, instrui transcrição literal em pt-BR preservando números/
+    senhas/placas e lista até `max_phrases` termos do vocabulário de domínio. Função
+    pura; retorna a string do prompt.
+    """
     phrases = build_azure_domain_phrases(
         text_corrections_config,
         operator_name,
@@ -173,6 +207,12 @@ def build_combined_segments(
     remove_emojis: TextNormalizer,
     deduplicate_transcription_segments: Deduplicator,
 ) -> list[dict]:
+    """Converte `combinedPhrases` (fallback do Azure Fast, sem diarização) em segmentos {start,end,text}.
+
+    Usado quando a resposta não traz frases diarizadas: normaliza cada texto, formata
+    os timestamps a partir do offset/duração em ms e deduplica. Segmentos não recebem
+    rótulo de speaker. Extratores/normalizadores/deduplicador são injetados.
+    """
     combined_segments: list[dict] = []
     for phrase in phrases:
         text = normalize_transcribed_text(
@@ -203,6 +243,15 @@ def finalize_speaker_segments(
     driver_label: str,
     deduplicate_transcription_segments: Deduplicator,
 ) -> list[dict]:
+    """Pós-processa as frases cruas em segmentos finais por locutor, prontos para a auditoria.
+
+    Ordena por tempo e roda o pipeline do SpeakerDetectionService (classificação de
+    speakers, correção de perguntas operacionais, quebra/rebalanceamento de turnos,
+    suavização, filtro de runs repetitivos, mescla e remoção de duplicatas). Rotula
+    cada turno com `operator_label`/`driver_label` (ou "Telefonia" para trechos de
+    URA/sistema) e emite {start, end, text, speaker_*}. Função CPU-only; deduplica no
+    final. NOTA: ordena `raw_phrases` in-place.
+    """
     raw_phrases.sort(key=lambda phrase: phrase.timestamp.total_seconds())
 
     segmentos = SpeakerDetectionService.classificar_speakers(raw_phrases, operator_label, driver_label)

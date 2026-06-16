@@ -1,3 +1,23 @@
+"""Gatekeepers de cache de auditoria e de qualidade de transcrição da automação.
+
+Extraído de ``core.automation``: agrupa dois "porteiros" usados por
+``_audit_single_item`` para decidir o destino de um item ANTES e DEPOIS da
+avaliação por IA.
+
+- ``AuditCacheGatekeeper``: dado o ``input_hash``, verifica se já existe auditoria
+  no banco. Se sim, reusa SEM novo custo de API — re-persistindo artefatos —, a
+  menos que a transcrição em cache precise de revisão (vai p/ triagem manual) ou
+  seja vazia/impossível (descarta).
+- ``TranscriptionFallbackGatekeeper``: avalia a qualidade da transcrição recém
+  gerada e padroniza o tratamento de erros de runtime da transcrição (retry /
+  descarte / triagem manual), conforme as flags ``AUTOMATION_*`` (default ON).
+
+Este módulo NÃO chama o Azure diretamente (sem custo de API próprio); ele decide
+se o item segue para o caminho pago em ``core.automation``. Efeitos colaterais:
+leitura/escrita no banco (busca de auditoria por hash, re-persistência de
+artefatos, atualização de status do item na fila).
+"""
+
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List

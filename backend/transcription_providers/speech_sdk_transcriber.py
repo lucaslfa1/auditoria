@@ -1,7 +1,17 @@
-"""
-Azure Speech SDK ConversationTranscriber - Diarização Superior
+"""Azure Speech SDK ConversationTranscriber - Diarização Superior.
+
 Usa o SDK nativo ao invés da Fast Transcription REST API para obter
 identificação de speakers muito mais precisa.
+
+Papel no fluxo: backend de transcrição ALTERNATIVO (engine `sdk`), usado como
+last-resort no fallback chain — segundo a memória do projeto, o SDK degrada a
+qualidade do TEXTO em telefonia, então não é o default. Recebe WAV em bytes,
+escreve um arquivo temporário (o SDK exige path), roda o ConversationTranscriber
+com phrase hints de domínio e diarização, e devolve os segmentos finais via
+finalize_speaker_segments. No Windows há retry no cleanup do .tmp por lock de arquivo.
+
+CUSTO DE API: ALTO — transcrição PAGA no Azure Speech (consumo cobrado pelo SDK).
+Diferente dos outros provedores deste pacote, NÃO registra no cost_guard.
 """
 import logging
 import os
@@ -55,8 +65,20 @@ def transcribe_with_conversation_transcriber(
     """
     Transcreve áudio WAV usando Azure Speech SDK ConversationTranscriber.
 
-    Retorna lista de segmentos no formato:
-    [{"start": "MM:SS", "end": "MM:SS", "text": "Speaker: texto"}]
+    Grava o WAV em arquivo temporário (o SDK precisa de path), habilita diarização
+    e word-level timestamps, adiciona phrase hints de domínio e aguarda a sessão
+    terminar (timeout em `timeout_seconds`). Mapeia os speaker_id ("Guest-1"...) para
+    inteiros, normaliza o texto (services.normalize_company_name/remove_emojis/
+    filter_hallucinations) e finaliza com a detecção de speakers.
+
+    Params: `audio_wav_bytes` (deve ser WAV), `operator_label`/`driver_label` rótulos
+    dos turnos, `speech_key`/`speech_region` sobrescrevem env (AZURE_SPEECH_KEY/
+    AZURE_SPEECH_REGION, default eastus2), `language` (default pt-BR).
+
+    Efeitos: chamada de REDE PAGA ao Azure Speech, escreve/apaga arquivo temporário
+    em disco. Levanta RuntimeError se a key faltar, em timeout/erro do SDK ou se não
+    sobrar transcrição/segmento válido. Retorna lista de segmentos no formato
+    [{"start": "MM:SS", "end": "MM:SS", "text": "Speaker: texto"}].
     """
     import azure.cognitiveservices.speech as speechsdk
 

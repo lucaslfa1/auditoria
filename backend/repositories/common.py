@@ -1,3 +1,21 @@
+"""Helpers compartilhados pela camada de repositórios (`repositories/*`).
+
+Concentra utilidades sem estado usadas por vários repositórios:
+
+- Serialização JSON segura para colunas json/jsonb do Postgres, com defesa contra
+  o escape de NUL (U+0000) que o `jsonb` rejeita (`strip_json_nul`, `json_dumps`,
+  `harden_jsonb_nul_cast`) — ver o bloco de comentário abaixo para o contexto do
+  incidente de produção.
+- Leitura tolerante de linhas vindas do banco (`get_row_value`, `extract_returning_id`),
+  que funcionam tanto com dict quanto com row factories do psycopg2.
+- Normalização de campos de domínio (role de usuário, source_type, audit_scope,
+  audit_status, prioridade da fila de revisão, setor, qualidade) contra os
+  conjuntos canônicos de `db.domain_constants`.
+- Conversão de uma linha de `audits` para o schema Pydantic `AuditResult`.
+
+Sem custo de API (apenas CPU + parsing; quem chama é que faz I/O de banco).
+"""
+
 import json
 import re
 import unicodedata
@@ -74,10 +92,22 @@ def harden_jsonb_nul_cast(sql: str) -> str:
 
 
 def json_dumps(value):
+    """Serializa `value` em JSON já saneado de NUL (U+0000) para colunas json/jsonb.
+
+    Retorna None se `value` for None (deixa a coluna nula em vez de gravar "null").
+    Ver `strip_json_nul` para o porquê do saneamento.
+    """
     return strip_json_nul(json.dumps(value)) if value is not None else None
 
 
 def json_loads(value, default=None):
+    """Desserializa JSON de forma tolerante a falhas, retornando `default` em erro.
+
+    Aceita None/"" (retorna `default`), dict/list já desserializados (retorna cópia
+    rasa) e strings JSON. Em `TypeError`/`JSONDecodeError` loga um warning truncado
+    e retorna `default` em vez de propagar — usado em listagens que não podem cair
+    por causa de uma linha malformada.
+    """
     if value in (None, ""):
         return default
     if isinstance(value, dict):
@@ -93,6 +123,12 @@ def json_loads(value, default=None):
 
 
 def get_row_value(row, key: str, default=None):
+    """Lê `key` de uma linha do banco independente do tipo de row.
+
+    Funciona com dict e com objetos tipo-row do psycopg2 (que expõem `.keys()` e
+    indexação por chave). Retorna `default` se a chave não existir ou se o tipo não
+    for suportado. Não acessa o banco.
+    """
     if isinstance(row, dict):
         return row.get(key, default)
     if hasattr(row, 'keys'):
@@ -101,6 +137,12 @@ def get_row_value(row, key: str, default=None):
 
 
 def extract_returning_id(row) -> int:
+    """Extrai o id retornado por um `INSERT ... RETURNING id`, robusto ao tipo de row.
+
+    Tenta `row["id"]`, depois `row[0]`, e por fim o próprio `row` como valor.
+    Levanta `ValueError` se `row` for None (o INSERT não retornou nada). Não acessa
+    o banco — só interpreta o resultado de `cursor.fetchone()`.
+    """
     if row is None:
         raise ValueError("insert did not return an id")
     value = get_row_value(row, "id")
@@ -113,11 +155,22 @@ def extract_returning_id(row) -> int:
 
 
 def normalize_lookup_text(value: str) -> str:
+    """Normaliza texto para comparação: trim + lowercase + remove acentos (NFD).
+
+    Usada para matching de nomes/identificadores sem sensibilidade a caixa ou
+    acentuação. Não acessa o banco.
+    """
     normalized = unicodedata.normalize("NFD", str(value or "").strip().lower())
     return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
 
 
 def normalize_huawei_agent_id(value) -> str:
+    """Normaliza um id de agente Huawei para string canônica, tratando floats.
+
+    Aceita int/float/str. Converte floats inteiros (ex.: 1234.0) para "1234" e
+    remove parte decimal só-zeros de strings ("1234.0" -> "1234"). Trata
+    "none"/"null"/"nan" (case-insensitive) e vazio como "". Não acessa o banco.
+    """
     if value is None:
         return ""
     if isinstance(value, float) and value.is_integer():
@@ -133,11 +186,22 @@ def normalize_huawei_agent_id(value) -> str:
 
 
 def extract_audio_quality(row) -> Optional[dict]:
+    """Lê e desserializa o campo `audio_quality` (JSON) da linha; None se ausente/inválido.
+
+    Retorna o dict de qualidade de áudio ou None quando não for um objeto JSON.
+    Não acessa o banco.
+    """
     parsed = json_loads(get_row_value(row, "audio_quality"), None)
     return parsed if isinstance(parsed, dict) else None
 
 
 def is_invalid_audio_quality(audio_quality: Optional[dict]) -> bool:
+    """Indica se a qualidade de áudio está abaixo do limiar mínimo aceitável.
+
+    Retorna True quando `audio_quality["score"]` (default 1.0) for menor que
+    `INVALID_AUDIO_QUALITY_THRESHOLD` (0.4). Tolerante a dict ausente ou score
+    não-numérico (retorna False nesses casos). Não acessa o banco.
+    """
     if not isinstance(audio_quality, dict):
         return False
     try:
@@ -147,10 +211,21 @@ def is_invalid_audio_quality(audio_quality: Optional[dict]) -> bool:
 
 
 def derive_audit_scope(source_type: Optional[str], audio_quality: Optional[dict]) -> str:
+    """Retorna o escopo de auditoria a usar — atualmente sempre `CALL_QUALITY_SCOPE`.
+
+    Os parâmetros são ignorados hoje (o sistema tem um único escopo ativo, qualidade
+    de ligação); a assinatura é mantida para compatibilidade. Não acessa o banco.
+    """
     return CALL_QUALITY_SCOPE
 
 
 def get_audit_scope(row) -> str:
+    """Retorna o escopo de auditoria de uma linha — efetivamente sempre `CALL_QUALITY_SCOPE`.
+
+    Lê e normaliza o campo `audit_scope` da linha, mas converge para
+    `CALL_QUALITY_SCOPE` independente do valor armazenado (único escopo ativo).
+    Não acessa o banco.
+    """
     stored_scope = normalize_audit_scope(get_row_value(row, "audit_scope"), default=None)
     if stored_scope == CALL_QUALITY_SCOPE:
         return stored_scope
@@ -158,6 +233,11 @@ def get_audit_scope(row) -> str:
 
 
 def normalize_user_role(role: Optional[str], default: Optional[str] = DEFAULT_USER_ROLE) -> Optional[str]:
+    """Normaliza `role` (trim+lowercase) e valida contra `USER_ROLES`.
+
+    Retorna o role normalizado se válido; senão retorna `default` (que pode ser
+    None para sinalizar role inválido ao caller). Não acessa o banco.
+    """
     normalized = str(role or "").strip().lower()
     if normalized in USER_ROLES:
         return normalized
@@ -165,6 +245,10 @@ def normalize_user_role(role: Optional[str], default: Optional[str] = DEFAULT_US
 
 
 def normalize_source_type(source_type: Optional[str], default: Optional[str] = DEFAULT_SOURCE_TYPE) -> Optional[str]:
+    """Normaliza `source_type` (trim+lowercase) e valida contra `SOURCE_TYPES`.
+
+    Retorna o valor normalizado se válido; senão `default`. Não acessa o banco.
+    """
     normalized = str(source_type or "").strip().lower()
     if normalized in SOURCE_TYPES:
         return normalized
@@ -172,6 +256,10 @@ def normalize_source_type(source_type: Optional[str], default: Optional[str] = D
 
 
 def normalize_audit_scope(scope: Optional[str], default: Optional[str] = DEFAULT_AUDIT_SCOPE) -> Optional[str]:
+    """Normaliza `scope` (trim+lowercase) e valida contra `AUDIT_SCOPES`.
+
+    Retorna o valor normalizado se válido; senão `default`. Não acessa o banco.
+    """
     normalized = str(scope or "").strip().lower()
     if normalized in AUDIT_SCOPES:
         return normalized
@@ -179,6 +267,10 @@ def normalize_audit_scope(scope: Optional[str], default: Optional[str] = DEFAULT
 
 
 def normalize_audit_status(status: Optional[str], default: Optional[str] = DEFAULT_AUDIT_STATUS) -> Optional[str]:
+    """Normaliza `status` (trim+lowercase) e valida contra `AUDIT_STATUSES`.
+
+    Retorna o valor normalizado se válido; senão `default`. Não acessa o banco.
+    """
     normalized = str(status or "").strip().lower()
     if normalized in AUDIT_STATUSES:
         return normalized
@@ -189,6 +281,11 @@ def normalize_review_priority(
     priority: Optional[str],
     default: Optional[str] = REVIEW_QUEUE_APPLICATION_DEFAULT_PRIORITY,
 ) -> Optional[str]:
+    """Normaliza a prioridade da fila de revisão e valida contra `REVIEW_QUEUE_PRIORITIES`.
+
+    Retorna o valor normalizado se válido; senão `default`
+    (`REVIEW_QUEUE_APPLICATION_DEFAULT_PRIORITY`). Não acessa o banco.
+    """
     normalized = str(priority or "").strip().lower()
     if normalized in REVIEW_QUEUE_PRIORITIES:
         return normalized
@@ -196,6 +293,11 @@ def normalize_review_priority(
 
 
 def normalize_quality_reference(qualidade: Optional[str]) -> str:
+    """Mapeia rótulos de qualidade variados para o vocabulário canônico.
+
+    Reduz sinônimos/plurais a um de: "boa", "ruim", "zerada" ou "indefinida".
+    Qualquer valor desconhecido (ou vazio) vira "indefinida". Não acessa o banco.
+    """
     if not qualidade:
         return "indefinida"
     valor = qualidade.strip().lower()
@@ -217,6 +319,13 @@ def normalize_sector_id(value: Optional[str]) -> Optional[str]:
 
 
 def normalize_review_status(status: Optional[str]) -> str:
+    """Normaliza o status da fila de revisão, traduzindo aliases legados.
+
+    Mapeia rótulos antigos (`classificado`, `auditado`, `ignorado`, `ready`) para os
+    status canônicos atuais antes de validar contra `REVIEW_QUEUE_QUERY_STATUSES`.
+    Valor desconhecido (ou vazio) vira `REVIEW_QUEUE_STATUS_PENDING`. Não acessa o
+    banco.
+    """
     valor = str(status or REVIEW_QUEUE_STATUS_PENDING).strip().lower()
     legacy_aliases = {
         "classificado": REVIEW_QUEUE_STATUS_AUTO_RESOLVED,
@@ -231,6 +340,15 @@ def normalize_review_status(status: Optional[str]) -> str:
 
 
 def row_to_audit_result(row) -> Optional[AuditResult]:
+    """Converte uma linha de `audits` no schema Pydantic `AuditResult`.
+
+    Desserializa as colunas JSON `details_json` e `transcription_json` em listas de
+    `AuditResultDetail`/`TranscriptionSegment` e mapeia os demais campos (score,
+    summary, operador, timestamp, source_type, escopo, qualidade de áudio,
+    ai_feedback). `ai_feedback` é opcional e lido de forma tolerante.
+
+    Retorna None se `row` for falsy. Não acessa o banco — assume a linha já lida.
+    """
     if not row:
         return None
     details = [AuditResultDetail(**detail) for detail in json.loads(row["details_json"])]

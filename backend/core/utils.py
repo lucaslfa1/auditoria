@@ -1,3 +1,12 @@
+"""Utilitarios genericos do nucleo (core).
+
+Centraliza pequenas funcoes reutilizaveis. Hoje contem a normalizacao canonica de
+nome de setor em "slug", usada por triagem/classificacao e demais modulos para
+comparar setores de forma consistente (sem acentos, minusculo, mapeando nomes
+historicos como GRS e as UTIs regionais para o id canonico "uti").
+
+Sem custo de API: so processamento de string em CPU.
+"""
 import re
 import unicodedata
 
