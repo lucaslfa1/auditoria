@@ -1,3 +1,0 @@
-34.171.63.68 - GCloud - VM Google
-35.199.111.152 - GCloud
-IP 189.38.107.13 - Local Opentech
