@@ -117,19 +117,6 @@ _AUTOMATION_CONFIDENCE_REVIEW_REASON = "confianca_insuficiente_automacao"
 # Timeout generoso o bastante para download via FS (audios podem ter ate 50MB).
 _OBS_HTTP_TIMEOUT = 120.0
 
-_DURATION_KEYS = (
-    "duration",
-    "duracao",
-    "callDuration",
-    "calllDuration",
-    "talkDuration",
-    "talkTime",
-    "durationSeconds",
-    "durationSec",
-    "recordDuration",
-    "recordTime",
-)
-
 
 # Setores de risco aceitam somente ligacoes ativas (outbound). Ligacoes
 # receptivas devem ser descartadas antes do download sempre que a Huawei
