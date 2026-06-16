@@ -29,22 +29,16 @@ da pasta é material complementar ou histórico (ver §3).
 | `manual-gestores/` | Manual operacional em linguagem gerencial (triagem, fluxo, regras de negócio) |
 | `infra/HUAWEI_NETWORK_MANIFEST.md` | Whitelist de IPs, modo de autenticação em produção e chaves Huawei no banco — referenciado pelo doc 06 |
 | `references/` | Fontes canônicas externas (critérios, dicionário operacional, manuais) |
+| `integracoes/huawei/` | Catálogo de funções, guia D-1 e coleção Postman da API Huawei AICC (complementa o doc 06) |
 | `../backend/.env.example` | Referência sempre atualizada das variáveis de ambiente |
 | `../logs/versions/` | Changelog técnico por versão (x.y.z.md) — histórico de toda mudança relevante |
 
-## 3. Documentos legados (material histórico — manter, não usar como fonte atual)
+## 3. Material histórico (movido para fora do repo)
 
-Os itens abaixo refletem estados anteriores do projeto (Supabase/SQLite,
-planos não executados, revisões pontuais). Úteis como contexto histórico;
-quando conflitarem com a suíte 01–12, **a suíte vence**.
-
-| Local | O que era |
-| --- | --- |
-| `architecture/` | Política de organização e fluxos de uma fase anterior do projeto |
-| `arquitetura/` | Levantamento antigo das APIs Azure (era "Sentinel") |
-| `database/`, `database.md`, `01-arquitetura-sqlite-testes.md` | Planos de SQL Server readonly, acoplamento SQLite e operação de banco de fases anteriores (o banco atual é PostgreSQL — doc 03/10) |
-| `reviews/`, `reports/`, `relatorio_*.md` | Relatórios de revisão e migração pontuais, já absorvidos |
-| `GUIA_DE_SOBREVIVENCIA_AUTOMACAO.md` | Manual de bolso informal da automação (mesmo espírito do doc 05) |
-| `SYSTEM_DOCUMENTATION.md`, `MIT_BEST_PRACTICES_REPORT.md` | Documentação geral e relatório de boas práticas de fases anteriores |
-| `backlog/` | Planejamento e specs de fases anteriores |
-| `branding/`, `integracoes/`, planilhas `.xlsx` | Referência visual e anexos operacionais |
+No enxugamento para o handover (2026-06), os documentos de valor apenas histórico
+— arquiteturas/planos de fases anteriores, revisões e relatórios datados, planilhas
+de anexo, PDFs de referência de API externa — foram **movidos para fora do repo**
+(pasta `../auditoria-arquivo/`, espelhando a estrutura). Continuam recuperáveis
+também pelo histórico git. O repositório mantém apenas a suíte canônica (01–13) e
+os complementares ativos da §2; quando algo histórico conflitar com a suíte, **a
+suíte vence**.

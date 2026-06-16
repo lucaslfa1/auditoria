@@ -37,5 +37,7 @@ Os demais modulos podem ser adicionados nesta pasta conforme avancarem as reviso
 
 ## Fonte tecnica de apoio
 
-- [triagem-review-2026-04-08.md](/C:/users/lucas.afonso/projetos/auditoria/docs/reviews/triagem-review-2026-04-08.md)
-- [process-flow.md](/C:/users/lucas.afonso/projetos/auditoria/docs/architecture/process-flow.md)
+Para o detalhe tecnico, ver a suite canonica em `docs/`:
+- [../01-visao-geral.md](../01-visao-geral.md) — visao geral e fluxo ponta a ponta
+- [../02-arquitetura.md](../02-arquitetura.md) — arquitetura do sistema
+- [../13-guia-do-codigo.md](../13-guia-do-codigo.md) — mapa do codigo p/ desenvolvedores
