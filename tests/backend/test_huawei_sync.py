@@ -76,7 +76,7 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_preserva_direcao_real(self):
         """
         Camada 2 - Integration test de round-trip (mock servidor + dedupe).
-        Garante que _buscar_chamadas_globais não embaralha as direções.
+        Garante que HuaweiDiscoveryService.buscar_chamadas_globais não embaralha as direções.
         """
         client = AsyncMock()
 
@@ -440,9 +440,9 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
                                 return_value=[],
                             ):
                                 with patch.object(
-                                    huawei_sync,
-                                    "_buscar_chamadas_globais",
-                                    AsyncMock(return_value=[]),
+                                    huawei_sync.HuaweiDiscoveryService,
+                                    "fetch_all",
+                                    AsyncMock(return_value=([], set(), set(), set())),
                                 ) as buscar_vdn:
                                     result = await huawei_sync.executar_sync_huawei(
                                         horas_retroativas=1,

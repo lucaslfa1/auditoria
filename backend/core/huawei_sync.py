@@ -353,59 +353,6 @@ def _manifest_row_to_interacao(row: dict[str, str]) -> dict:
         "source": "obs_contact_record",
     }
 
-async def _buscar_chamadas_globais(
-    client: HuaweiAICCClient,
-    begin_ms: int,
-    end_ms: int,
-    *,
-    limit_per_page: int = 100,
-    max_rows: int = 500,
-) -> list[dict]:
-    # Kept for backward-compatible internal callers; querycalls has no
-    # supported limit/offset pagination, so the collection window is split by
-    # time instead.
-    _ = (limit_per_page, max_rows)
-    chamadas_por_id: dict[str, dict] = {}
-    chamadas_sem_id: list[dict] = []
-
-    for window_begin_ms, window_end_ms in _query_time_windows(begin_ms, end_ms):
-        for direction in ("INBOUND", "OUTBOUND"):
-            chamadas = await client.buscar_historico_chamadas(
-                window_begin_ms,
-                window_end_ms,
-                call_direction=direction,
-            )
-            if not chamadas:
-                continue
-            for chamada in chamadas:
-                chamada = dict(chamada)
-                chamada.setdefault("isCallIn", "true" if direction == "INBOUND" else "false")
-                chamada["source"] = "vdn"
-                call_key = HuaweiDiscoveryService.resolve_call_key(chamada)
-                if not call_key:
-                    chamadas_sem_id.append(chamada)
-                    continue
-                chamadas_por_id.setdefault(call_key, chamada)
-
-    return list(chamadas_por_id.values()) + chamadas_sem_id
-
-async def _buscar_chamadas_obs_manifest(
-    obs_client: Optional[HuaweiOBSClient],
-    begin_ms: int,
-    end_ms: int,
-) -> list[dict]:
-    if obs_client is None:
-        return []
-
-    interacoes: list[dict] = []
-    for date_str in _window_date_strings(begin_ms, end_ms):
-        for row in await obs_client.listar_contact_record_rows(date_str):
-            interacao = _manifest_row_to_interacao(row)
-            begin_time = HuaweiDiscoveryService._coerce_huawei_time_ms(interacao.get("beginTime"))
-            if begin_time is not None and (begin_time < begin_ms or begin_time > end_ms):
-                continue
-            interacoes.append(interacao)
-    return interacoes
 
 _PROCESS_DELTA_INT_KEYS = (
     "tentativas_download",
