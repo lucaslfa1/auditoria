@@ -1567,7 +1567,16 @@ def _build_filename_hints(filename: str) -> str:
     return ""
 
 
+# ── Entrada principal: transcrição de triagem → classificação IA → guardrails ──
+# classify_audio é a porta de entrada; classify_with_gpt/classify_with_ai são as
+# rotas de provedor de IA (Azure é o caminho de produção, ver AI_PROVIDER_PRIORITY).
 async def classify_with_gpt(transcription: str, filename: str = "") -> dict:
+    """Classifica a transcrição de triagem via Azure OpenAI (rota de produção).
+
+    Produz o dict de classificação (setor/alerta/operador/confiança). Cada chamada
+    é paga (GPT-4o) e registrada no cost_guard. `classify_with_ai` é a rota gêmea
+    para o provedor alternativo — mesmo formato de dict de saída.
+    """
     if not AZURE_OPENAI_KEY: raise ValueError("Azure OpenAI key not configured")
     from openai import AsyncAzureOpenAI
     client = AsyncAzureOpenAI(
@@ -1637,6 +1646,13 @@ async def classify_with_gpt(transcription: str, filename: str = "") -> dict:
         raise Exception(f"Azure API error: {e}")
 
 async def classify_with_ai(transcription: str, filename: str = "") -> dict:
+    """Classifica via provedor de IA alternativo (ex.: Gemini), espelhando classify_with_gpt.
+
+    Mesmo prompt + feedback RAG e mesmo formato de dict de saída; a rota é escolhida
+    por AI_PROVIDER_PRIORITY (produção usa Azure via classify_with_gpt). A diferença
+    real é o client e o parsing do JSON (Azure usa response_format json_object; aqui
+    há fallback por regex).
+    """
     try:
         # Get classification feedback (com RAG semântico quando possível)
         feedback_calibration = ""
@@ -1692,6 +1708,14 @@ async def classify_with_ai(transcription: str, filename: str = "") -> dict:
     except Exception as e: logger.exception("AI classification error: %s", e); raise
 
 async def classify_audio(audio_bytes: bytes, filename: str) -> ClassificationResult:
+    """Entrada principal da triagem: do áudio ao ClassificationResult finalizado.
+
+    Etapas: (1) transcreve para triagem (provider priority); (2) classifica via IA
+    (classify_with_gpt); (3) alinha com o catálogo oficial; (4) aplica a cadeia de
+    guardrails (conteúdo → identidade do operador → fallback por nome do arquivo) e
+    finaliza. NÃO levanta para o caller normal: erros viram um ClassificationResult
+    com sector_id='erro' (via finalize_classification_result).
+    """
     transcription = ""; mime_type = get_mime_type(filename)
 
     # 1. Transcription with provider priority
@@ -1768,6 +1792,13 @@ async def classify_audio(audio_bytes: bytes, filename: str) -> ClassificationRes
     classification["_filename"] = filename
     classification = align_classification_with_catalog(classification)
     classification.pop("_filename", None)  # clean up internal key
+    # A ORDEM desta cadeia é load-bearing (não reordenar sem revalidar):
+    # 1) guardrails de CONTEÚDO — temperatura (força logística) → hierarquia de
+    #    alerta crítico → parada/desvio → contexto-não-auditável; em seguida
+    # 2) IDENTIDADE do operador, que resolve o cadastro e pode FORÇAR o setor
+    #    oficial do RH (remapeando o alerta); por fim
+    # 3) FALLBACK por sector_hint do nome do arquivo, só se o setor permaneceu
+    #    'desconhecido' depois de tudo.
     classification = enforce_temperature_guardrail(classification, transcription, filename)
     classification = enforce_alert_hierarchy_guardrail(classification, transcription, filename)
     classification = enforce_parada_desvio_guardrail(classification, transcription, filename)
