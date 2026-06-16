@@ -1,10 +1,10 @@
 # Documentação — índice canônico
 
-Atualizado em 2026-06-11 (handover). A suíte numerada 01–12 é a documentação
+Atualizado em 2026-06-16 (handover). A suíte numerada 01–13 é a documentação
 canônica do sistema: leia na ordem para entender, operar e migrar. O restante
 da pasta é material complementar ou histórico (ver §3).
 
-## 1. Suíte canônica (01–12)
+## 1. Suíte canônica (01–13)
 
 | Doc | Cobre |
 | --- | --- |
@@ -20,6 +20,7 @@ da pasta é material complementar ou histórico (ver §3).
 | [10-migracao-banco.md](10-migracao-banco.md) | Migração Neon → PostgreSQL gerenciado (destino indefinido): requisitos, scripts, janela, rollback |
 | [11-deploy.md](11-deploy.md) | O que o sistema exige de qualquer plataforma; mapeamento Cloud Run → Azure |
 | [12-checklist-handover.md](12-checklist-handover.md) | Checklist executável do handover, fase a fase, com responsáveis |
+| [13-guia-do-codigo.md](13-guia-do-codigo.md) | Mapa do código-fonte para um dev novo: camadas, fluxo→arquivos, convenções (fachada+reexport), onde testar, dívida técnica conhecida |
 
 ## 2. Complementares ativos
 
