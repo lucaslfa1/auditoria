@@ -15,6 +15,8 @@ import os
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
+from repositories.common import strip_json_nul
+
 logger = logging.getLogger(__name__)
 
 
@@ -519,7 +521,7 @@ def _marcar_classificacao_status(
             cursor.execute(
                 "UPDATE fila_revisao_classificacao SET metadata_json = %s, atualizado_em = %s WHERE input_hash = %s",
                 (
-                    json.dumps(meta_atual, ensure_ascii=False),
+                    strip_json_nul(json.dumps(meta_atual, ensure_ascii=False)),
                     datetime.now().isoformat(),
                     input_hash,
                 ),
@@ -648,7 +650,7 @@ def _aplicar_auto_classificacao(
                 float(confianca or 0.0),
                 erro,
                 prioridade,
-                json.dumps(motivos_atualizados, ensure_ascii=False),
+                strip_json_nul(json.dumps(motivos_atualizados, ensure_ascii=False)),
                 json.dumps(meta_atual, ensure_ascii=False),
                 novo_status,
                 datetime.now().isoformat(),

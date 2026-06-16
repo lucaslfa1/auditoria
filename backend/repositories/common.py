@@ -1,4 +1,5 @@
 import json
+import re
 import unicodedata
 from typing import Optional
 
@@ -28,8 +29,52 @@ INVALID_AUDIO_QUALITY_THRESHOLD = 0.4
 CALL_QUALITY_SCOPE = AUDIT_SCOPE_CALL_QUALITY
 
 
+# O `jsonb` do Postgres REJEITA o escape de NUL (U+0000) mesmo sendo JSON válido
+# em texto. STT/GPT/Huawei ocasionalmente emitem U+0000; `json.dumps` o grava como
+# o escape literal de 6 chars (barra-invertida + u0000), que persiste em colunas
+# TEXT (metadata_json, details_json, ...) e faz QUALQUER cast `::jsonb` estourar.
+# Como o cast roda linha-a-linha, UMA linha corrompida derruba a query inteira
+# (incidente prod 2026-06-15: GET /api/salvos retornava 500). Atacamos a raiz
+# sanitizando na escrita (`strip_json_nul`) e mantemos defesa na leitura
+# (`harden_jsonb_nul_cast`) para sobreviver a dados já gravados.
+_JSON_NUL_ESCAPE = chr(92) + "u0000"  # a sequência de 6 chars
+_JSON_NUL_CHAR = chr(0)  # o byte NUL real (defesa extra)
+
+
+def strip_json_nul(text: Optional[str]) -> Optional[str]:
+    """Remove o escape de NUL (U+0000) de um JSON já serializado.
+
+    No-op para JSON sem NUL (preserva os bytes). Use ao serializar para colunas
+    json/jsonb a partir de conteúdo de IA/transcrição/Huawei.
+    """
+    if text is None:
+        return None
+    return text.replace(_JSON_NUL_ESCAPE, "").replace(_JSON_NUL_CHAR, "")
+
+
+_METADATA_JSONB_CAST_RE = re.compile(
+    r"(?<![\w])(?P<alias>[A-Za-z_]\w*\.)?metadata_json::jsonb"
+)
+
+
+def harden_jsonb_nul_cast(sql: str) -> str:
+    """Protege casts `metadata_json::jsonb` contra o escape de NUL (U+0000).
+
+    Troca `<alias>.metadata_json::jsonb` por
+    `replace(<alias>.metadata_json, '\\u0000', '')::jsonb` em todo o SQL,
+    cobrindo qualquer alias de tabela. Defesa de leitura para linhas já gravadas
+    com NUL antes da sanitização na escrita (ver `strip_json_nul`).
+    """
+
+    def _repl(match: "re.Match[str]") -> str:
+        alias = match.group("alias") or ""
+        return f"replace({alias}metadata_json, '{_JSON_NUL_ESCAPE}', '')::jsonb"
+
+    return _METADATA_JSONB_CAST_RE.sub(_repl, sql)
+
+
 def json_dumps(value):
-    return json.dumps(value) if value is not None else None
+    return strip_json_nul(json.dumps(value)) if value is not None else None
 
 
 def json_loads(value, default=None):

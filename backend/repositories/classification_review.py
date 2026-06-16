@@ -68,6 +68,7 @@ from repositories.common import (
     normalize_review_priority,
     normalize_review_status,
     normalize_sector_id as _normalize_sector_id,
+    strip_json_nul,
 )
 
 # Dataset de benchmark (ground truth) extraido para modulo proprio; reexportado
@@ -171,8 +172,8 @@ def sincronizar_fila_revisao_classificacao(
         raise ValueError("input_hash e nome_arquivo são obrigatórios")
 
     now = datetime.now().isoformat()
-    motivos_json = json.dumps(motivos_revisao or [], ensure_ascii=False)
-    metadata_json = json.dumps(metadata or {}, ensure_ascii=False)
+    motivos_json = strip_json_nul(json.dumps(motivos_revisao or [], ensure_ascii=False))
+    metadata_json = strip_json_nul(json.dumps(metadata or {}, ensure_ascii=False))
     metadata_dict = metadata if isinstance(metadata, dict) else {}
     huawei_call_id = str(metadata_dict.get("huawei_call_id") or "").strip()
     origem_metadata = str(metadata_dict.get("origem") or "").strip().lower()

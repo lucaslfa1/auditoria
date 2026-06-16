@@ -3,12 +3,16 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Optional
 
+from repositories.common import strip_json_nul
+
 
 ConnectionFactory = Callable[[], Any]
 
 
 def _json_dumps(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, default=str)
+    # strip_json_nul: U+0000 (de segments/raw_response do provider) faria o
+    # INSERT %s::jsonb falhar e perder o candidato silenciosamente.
+    return strip_json_nul(json.dumps(value, ensure_ascii=False, default=str))
 
 
 def _candidate_rows_from_audio_quality(audio_quality: Optional[dict[str, Any]]) -> tuple[list[dict[str, Any]], Optional[str], Optional[str], dict[str, Any]]:

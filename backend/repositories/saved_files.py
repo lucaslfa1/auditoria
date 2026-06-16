@@ -3,13 +3,14 @@ from datetime import datetime
 from typing import Callable, Optional, Any
 
 from db.domain_constants import AUDIT_STATUS_DISCARDED
-from repositories.common import extract_returning_id, get_row_value
+from repositories.common import extract_returning_id, get_row_value, strip_json_nul
 
 ConnectionFactory = Callable[[], Any]
 
 
 def _json_dumps(value):
-    return json.dumps(value) if value is not None else None
+    # strip_json_nul: U+0000 quebraria o cast metadata_json::jsonb na listagem.
+    return strip_json_nul(json.dumps(value)) if value is not None else None
 
 
 def _json_loads(value, default=None):

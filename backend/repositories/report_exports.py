@@ -2,7 +2,7 @@ import json
 from typing import Callable, Optional, Any
 
 from db.runtime_schema import ensure_report_exports_table
-from repositories.common import extract_returning_id, json_loads, normalize_source_type
+from repositories.common import extract_returning_id, json_loads, normalize_source_type, strip_json_nul
 
 
 ConnectionFactory = Callable[[], Any]
@@ -58,7 +58,7 @@ def save_report_export(
                 normalized_source_type,
                 audit_timestamp,
                 file_size_bytes,
-                json.dumps(metadata or {}, ensure_ascii=False),
+                strip_json_nul(json.dumps(metadata or {}, ensure_ascii=False)),
             ),
         )
         export_id = extract_returning_id(cursor.fetchone())

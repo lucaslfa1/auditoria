@@ -20,7 +20,7 @@ dentro das funções (evita import circular e preserva o monkeypatch dos testes)
 
 from typing import Callable, Optional, Any
 
-from repositories.common import json_loads
+from repositories.common import harden_jsonb_nul_cast, json_loads
 
 
 ConnectionFactory = Callable[[], Any]
@@ -120,6 +120,7 @@ def limpar_fila_revisao_classificacao_antiga(get_connection: ConnectionFactory, 
     try:
         cursor = conn.cursor()
         cursor.execute(
+            harden_jsonb_nul_cast(
             """
             SELECT input_hash, metadata_json
             FROM fila_revisao_classificacao
@@ -128,7 +129,8 @@ def limpar_fila_revisao_classificacao_antiga(get_connection: ConnectionFactory, 
                     COALESCE(metadata_json::jsonb ->> 'archived', 'false') = 'true'
                  OR COALESCE(metadata_json::jsonb ->> 'cleanup_discardable', 'false') = 'true'
               )
-            """,
+            """
+            ),
             (cutoff_date,)
         )
         rows = cursor.fetchall()

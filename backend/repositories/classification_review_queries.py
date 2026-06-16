@@ -21,6 +21,7 @@ from db.domain_constants import (
     REVIEW_QUEUE_STATUS_READY_FOR_AUDIT,
 )
 from repositories.common import (
+    harden_jsonb_nul_cast,
     json_loads,
     normalize_review_status,
     normalize_sector_id as _normalize_sector_id,
@@ -162,7 +163,8 @@ def listar_fila_revisao_classificacao(
         if limit is not None:
             params.append(limit)
 
-        cursor.execute(query, params)
+        # Defesa de leitura: protege os casts metadata_json::jsonb contra U+0000.
+        cursor.execute(harden_jsonb_nul_cast(query), params)
         rows = cursor.fetchall()
     finally:
         conn.close()
@@ -234,6 +236,7 @@ def obter_fila_revisao_classificacao_por_hash(
         # is_oficial replicado de listar_fila_revisao_classificacao: huawei_sync
         # casa por id_huawei; demais origens casam por nome do operador.
         cursor.execute(
+            harden_jsonb_nul_cast(
             """
             SELECT f.*,
                    CASE
@@ -268,7 +271,8 @@ def obter_fila_revisao_classificacao_por_hash(
             ) official_by_huawei ON TRUE
             WHERE f.input_hash = %s
             LIMIT 1
-            """,
+            """
+            ),
             (input_hash,),
         )
         row = cursor.fetchone()
@@ -310,6 +314,7 @@ def obter_fila_revisao_classificacao_por_auditoria(
     try:
         cursor = conn.cursor()
         cursor.execute(
+            harden_jsonb_nul_cast(
             """
             SELECT *
             FROM fila_revisao_classificacao
@@ -320,7 +325,8 @@ def obter_fila_revisao_classificacao_por_auditoria(
                )
             ORDER BY atualizado_em DESC, id DESC
             LIMIT 1
-            """,
+            """
+            ),
             (str(audit_id), str(audit_input_hash or ""), str(audit_input_hash or "")),
         )
         row = cursor.fetchone()
