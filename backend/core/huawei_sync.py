@@ -306,54 +306,6 @@ async def _wait_if_paused(
     logger.info("Sync Huawei: retomado pelo usuario.")
 
 
-def _manifest_row_to_interacao(row: dict[str, str]) -> dict:
-    begin_ms = HuaweiDiscoveryService._coerce_huawei_time_ms(row.get("beginTime"))
-    end_ms = HuaweiDiscoveryService._coerce_huawei_time_ms(row.get("endTime"))
-    duration = _coerce_int(
-        row.get("calllDuration")
-        or row.get("callDuration")
-        or row.get("duration"),
-        0,
-    )
-    if duration <= 0 and begin_ms is not None and end_ms is not None and end_ms >= begin_ms:
-        duration = int((end_ms - begin_ms) / 1000)
-
-    caller_no = str(row.get("caller") or "").strip()
-    callee_no = str(row.get("called") or "").strip()
-    work_no = str(row.get("workNo") or "").strip()
-    direction_payload = {
-        **row,
-        "callerNo": caller_no,
-        "calleeNo": callee_no,
-        "workNo": work_no,
-    }
-    is_call_in = format_huawei_is_call_in(resolve_huawei_is_call_in(direction_payload))
-
-    return {
-        "callId": str(row.get("callId") or row.get("recordId") or "").strip(),
-        "recordId": str(row.get("recordId") or "").strip(),
-        "contactId": str(row.get("contactId") or "").strip(),
-        "callSerialno": str(row.get("callSerialno") or "").strip(),
-        "callerNo": caller_no,
-        "calleeNo": callee_no,
-        "isCallIn": is_call_in,
-        "beginTime": begin_ms if begin_ms is not None else row.get("beginTime"),
-        "endTime": end_ms if end_ms is not None else row.get("endTime"),
-        "duration": duration,
-        "duracao": duration,
-        "callReason": str(row.get("callReason") or row.get("talkReason") or row.get("talkRemark") or "").strip(),
-        "talkReason": str(row.get("talkReason") or "").strip(),
-        "talkRemark": str(row.get("talkRemark") or "").strip(),
-        "callReasonCode": str(row.get("callReasonCode") or row.get("leaveReason") or "").strip(),
-        "workNo": work_no,
-        "operatorName": str(row.get("countName") or "").strip(),
-        "skillId": str(row.get("skillId") or "").strip(),
-        "callSkill": str(row.get("callSkill") or "").strip(),
-        "mediaTypeId": str(row.get("mediaTypeId") or "").strip(),
-        "source": "obs_contact_record",
-    }
-
-
 _PROCESS_DELTA_INT_KEYS = (
     "tentativas_download",
     "ignoradas_direcao_incompativel",

@@ -164,8 +164,11 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    def test_manifest_row_to_interacao_mapeia_identificadores_do_obs(self):
-        result = huawei_sync._manifest_row_to_interacao(
+    def test_discovery_manifest_row_to_interacao_mapeia_identificadores_do_obs(self):
+        # Cobertura abrangente do mapeamento OBS-row -> interacao na versao canonica
+        # (HuaweiDiscoveryService). A copia morta em huawei_sync foi removida (v1.3.174);
+        # este teste passou a exercitar a unica implementacao viva.
+        result = HuaweiDiscoveryService._manifest_row_to_interacao(
             {
                 "callId": "1777093663-792075",
                 "recordId": "792075",
