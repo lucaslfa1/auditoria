@@ -63,7 +63,7 @@ def main() -> None:
         topMargin=18 * mm,
         bottomMargin=18 * mm,
         title="Prontidao para Apresentacao - nstech",
-        author="OpenAI Codex",
+        author="nstech",
     )
 
     story = [

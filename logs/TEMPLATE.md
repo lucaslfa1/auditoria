@@ -5,8 +5,7 @@ version: x.y.z
 date: YYYY-MM-DD
 time: "HH:MM TZ"
 authors:
-  - user
-  - codex | agent | claude
+  - dev
 status: done
 base_app_version: x.y.z
 ```

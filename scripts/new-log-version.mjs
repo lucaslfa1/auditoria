@@ -12,7 +12,7 @@ function parseArgs(rawArgs) {
         dryRun: false,
         force: false,
         version: null,
-        authors: ['user', 'codex'],
+        authors: ['dev'],
     };
 
     while (args.length > 0) {

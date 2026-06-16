@@ -1,7 +1,7 @@
 # Relatorio - Restricao de IP Huawei AICC e Caminho para Producao
 
 **Data:** 2026-04-19
-**Autor:** Claude (Opus 4.7)
+**Autor:** Lucas Afonso
 **Destinatario:** Lucas Afonso + TI Teledata Brasil (OPENTECH)
 **Contexto:** versao 1.3.52 - reconciliacao do cliente Huawei com a collection Postman oficial
 

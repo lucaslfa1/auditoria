@@ -54,7 +54,7 @@ def create_word_report():
     
     doc.add_heading('5. Fase 4: Refatoração para OAuth Direto (Arquitetura Atual)', level=1)
     doc.add_paragraph('Período: 27 de Abril (Ativo). | Status: Em Produção (Recomendado).').italic = True
-    doc.add_paragraph('- Abordagem: O cliente HTTP do backend (huawei_client.py) foi profundamente reescrito (via Codex) para adotar a comunicação direta. A aplicação realiza chamadas seguras para o AICC e possui um sistema robusto de Cache em Memória, que armazena o AccessToken por até 3300 segundos, evitando Rate Limiting por excesso de logins. O proxy da Teledata foi abandonado.', style='List Bullet')
+    doc.add_paragraph('- Abordagem: O cliente HTTP do backend (huawei_client.py) foi profundamente reescrito para adotar a comunicação direta. A aplicação realiza chamadas seguras para o AICC e possui um sistema robusto de Cache em Memória, que armazena o AccessToken por até 3300 segundos, evitando Rate Limiting por excesso de logins. O proxy da Teledata foi abandonado.', style='List Bullet')
     doc.add_paragraph('- Configuração Ativa no Google Cloud Run (Regiões: southamerica-east1 e us-central1):', style='List Bullet')
     doc.add_paragraph('  - HUAWEI_AUTH_MODE=oauth_direct')
     doc.add_paragraph('  - HUAWEI_DIRECT_APP_KEY=<HUAWEI_DIRECT_APP_KEY>')

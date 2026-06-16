@@ -63,7 +63,7 @@ def create_word_report():
     doc.add_paragraph('- Compilação PyCache local dos arquivos alterados: OK.', style='List Bullet')
     
     os.makedirs('relatorios_atividades', exist_ok=True)
-    file_path = os.path.join('relatorios_atividades', 'atualizacao_codex_huawei_sync.docx')
+    file_path = os.path.join('relatorios_atividades', 'atualizacao_huawei_sync.docx')
     doc.save(file_path)
     print(f"Documento Word gerado com sucesso em: {file_path}")
 
