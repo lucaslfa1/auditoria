@@ -121,5 +121,5 @@ Invoke-DeployStep "gcloud" @(
     "--region",
     $Region,
     "--update-env-vars",
-    "GIT_COMMIT_SHA=$CommitSha,APP_VERSION=$AppVersion"
+    "GIT_COMMIT_SHA=$CommitSha,APP_VERSION=$AppVersion,HUAWEI_SYNC_ENABLE_CLASSIFY=true"
 )

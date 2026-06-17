@@ -58,6 +58,7 @@ jobs:
           # estatica do servico e ficava defasada entre deploys).
           env_vars: |-
             GIT_COMMIT_SHA=${{ github.sha }}
+            HUAWEI_SYNC_ENABLE_CLASSIFY=true
 
       - name: Show Output
         run: |-

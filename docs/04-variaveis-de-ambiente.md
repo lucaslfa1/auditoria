@@ -27,6 +27,7 @@
 | `AZURE_OPENAI_*`, `AZURE_SPEECH_*` | Endpoints + keys (rotacionadas!) dos recursos de IA |
 | `CRON_SECRET_TOKEN` | Bearer dos endpoints de cron (fail-closed sem ele) |
 | `HUAWEI_*` | Credenciais AICC (AK/SK + app key/secret OAuth) |
+| `HUAWEI_SYNC_ENABLE_CLASSIFY=true` | Sync manual Huawei roda a Fase 2 e nao deixa itens automaticos pendurados na triagem |
 | `MEDIA_STORAGE_BACKEND` | `local` / `gcs` / `azure_blob` |
 
 ## Frontend

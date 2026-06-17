@@ -601,7 +601,7 @@ export function RemoteTriageQueue() {
               title="Remove todas as ligações pendentes de triagem"
             >
               <X className="w-4 h-4" />
-              Limpar Pendentes
+              Limpar Tudo
             </button>
           )}
           <button

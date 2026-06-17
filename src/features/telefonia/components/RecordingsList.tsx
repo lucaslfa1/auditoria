@@ -235,7 +235,7 @@ export function RecordingsList() {
               title="Remove todas as ligações da tela que ainda não foram auditadas"
             >
               <X className="w-3.5 h-3.5" />
-              Limpar Pendentes
+              Limpar Tudo
             </button>
           )}
           <button

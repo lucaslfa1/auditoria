@@ -69,6 +69,9 @@ def _apply_session_timeouts(conn) -> None:
     try:
         conn.autocommit = True
         cursor = conn.cursor()
+        # PgBouncer/Neon can hand us a backend session whose transaction defaults
+        # were changed by a previous client. The API must always start writable.
+        cursor.execute("SET SESSION default_transaction_read_only = off")
         cursor.execute(f"SET SESSION statement_timeout = {statement_timeout_ms}")
         cursor.execute(f"SET SESSION lock_timeout = {lock_timeout_ms}")
         cursor.execute(f"SET SESSION idle_in_transaction_session_timeout = {idle_timeout_ms}")

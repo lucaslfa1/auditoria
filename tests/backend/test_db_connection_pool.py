@@ -99,6 +99,7 @@ def test_pool_discards_stale_connection_on_checkout():
     assert fake_pool.put_calls[1] == (fresh, False)
     assert fresh.executed == [
         "SELECT 1",
+        "SET SESSION default_transaction_read_only = off",
         "SET SESSION statement_timeout = 120000",
         "SET SESSION lock_timeout = 10000",
         "SET SESSION idle_in_transaction_session_timeout = 60000",
