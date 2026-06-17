@@ -110,9 +110,12 @@ Todo `call_id` processado deixa rastro em **`huawei_sync_logs`**
 - **Descarte permanente (tombstone)**: o call_id NÃO reaparece em syncs
   futuros (ex.: receptiva em setor de risco, setor não-telefonia, lixo da
   triagem LLM).
-- **Descarte recuperável**: pode voltar num próximo sync; `discard_attempts`
-  limita o loop (default 3 — depois vira tombstone).
-- Falha técnica transitória: retry até o teto, depois descarte.
+- **Falha técnica reversível**: apenas estados de coleta/pre-filtro que ainda
+  não são decisão de descarte (`failed`, `skipped_quota`, `skipped_direction`)
+  podem ser tentados novamente se a regra ou a configuração mudar.
+- **Descarte operacional**: quando um item é removido/descartado pela
+  automação, Triagem ou Telefonia, o tombstone é permanente. Não promover
+  `discarded_*` de volta para `success`/`failed`/`skipped`.
 
 Semântica central em `core/automation_disposition.py`. Resultado: nada fica
 preso — todo item termina auditado ou descartado com motivo consultável.

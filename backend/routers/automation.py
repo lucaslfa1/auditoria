@@ -1,10 +1,13 @@
 """Automation Router — endpoints para a automacao de auditoria em lote.
 
 Controla o motor de automacao hibrida: liga/desliga, consulta status, dispara um
-ciclo manualmente (UI) ou via Cloud Scheduler (cron), e oferece operacoes de
+ciclo manualmente (UI) ou via scheduler externo, e oferece operacoes de
 manutencao (cancel/pause/resume, flush de itens presos em `awaiting_pair`). As rotas
 de gestao exigem perfil admin; a rota de cron e autorizada por bearer token
 (`CRON_SECRET_TOKEN`), nao por sessao.
+
+Scheduler atual: Google Cloud Scheduler. Equivalente Azure: Container Apps Job
+agendado ou Logic App chamando os mesmos endpoints HTTP com o mesmo bearer token.
 
 CUSTO DE API (Azure): rodar um ciclo (`/run-now`, `/cron/run`, `/audit-all`)
 dispara o pipeline de auditoria, que faz chamadas pagas de transcricao (Azure Speech)
@@ -57,7 +60,7 @@ def _clear_manual_cycle_task(task: asyncio.Task) -> None:
 
 
 def _require_cron_token(request: Request) -> None:
-    """Autoriza chamadas do Cloud Scheduler via bearer token.
+    """Autoriza chamadas do scheduler externo via bearer token.
 
     Compara o header `Authorization` com `Bearer <CRON_SECRET_TOKEN>`. Levanta HTTP 403
     se o token nao estiver configurado ou nao bater. As rotas de cron usam esta guarda
@@ -110,7 +113,7 @@ async def run_automation_cycle_now(
 
     Usa o mesmo lock do cron para impedir duas execucoes simultaneas. Aguarda a 
     conclusão do ciclo no mesmo request para evitar congelamento de CPU em 
-    ambientes serverless como o Cloud Run.
+    ambientes serverless como Cloud Run ou Azure Container Apps.
     """
     from core.automation_engine import get_engine_status, is_automation_enabled, run_automation_cycle
 
@@ -135,7 +138,7 @@ async def run_automation_cycle_now(
 
 @router.post("/cron/run")
 async def cron_run_automation_cycle(request: Request):
-    """Gatilho do Cloud Scheduler para um ciclo completo de automacao."""
+    """Gatilho HTTP do scheduler externo para um ciclo completo de automacao."""
     _require_cron_token(request)
 
     from core.automation_engine import is_automation_enabled, run_automation_cycle

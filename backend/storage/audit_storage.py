@@ -1,4 +1,4 @@
-"""Armazenamento do áudio das auditorias (Google Cloud Storage ou disco local).
+"""Armazenamento legado do audio das auditorias (Google Cloud Storage ou disco local).
 
 Papel no fluxo: persiste o WAV/áudio original de cada auditoria e devolve o caminho
 relativo gravado em `audits.audio_storage_path`. Quando há bucket GCS configurado
@@ -6,6 +6,11 @@ relativo gravado em `audits.audio_storage_path`. Quando há bucket GCS configura
 caso contrário, vai para o diretório local (env AUDIT_AUDIO_STORAGE_DIR ou
 backend/audits/audio). Toda gravação faz read-back para confirmar o tamanho antes
 de retornar o caminho — evita gravar no DB um ponteiro para um blob órfão/corrompido.
+
+Para o backend multi-cloud novo (`local`/`gcs`/`azure_blob`), use
+`core.media_storage`: o Azure Blob e configurado por
+`MEDIA_STORAGE_BACKEND=azure_blob`, `AZURE_STORAGE_CONNECTION_STRING` e
+`AZURE_STORAGE_CONTAINER`.
 
 CUSTO DE API: sem custo de IA. Há custo/latência de I/O de armazenamento (GCS ou
 disco), nunca chamadas a Azure OpenAI/Speech.

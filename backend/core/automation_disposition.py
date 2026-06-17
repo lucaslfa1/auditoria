@@ -26,7 +26,7 @@ class Disposition(str, Enum):
 
 
 def _discard_loop_limit() -> int:
-    """Quantos descartes recuperaveis do mesmo call_id antes de virar tombstone."""
+    """Limite legado mantido por env/assinatura; descarte agora vira tombstone imediato."""
     raw = os.getenv("AUTOMATION_DISCARD_LOOP_LIMIT", "3")
     try:
         return max(1, int(str(raw).strip()))

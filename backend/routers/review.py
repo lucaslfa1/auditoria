@@ -130,7 +130,8 @@ def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
     try:
         cursor = conn.cursor()
         
-        # Pega as hashes e os IDs do Huawei para apagar em lote
+        # Coleta hashes da fila e call_ids Huawei para remover em lote sem
+        # permitir reentrada em sync futuro.
         from db.domain_constants import REVIEW_QUEUE_MANUAL_TRIAGE_STATUSES
         cursor.execute(
             """
@@ -155,9 +156,9 @@ def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
             if meta.get("archived"):
                 continue
 
-            # Na fila de Triagem (Limpar Pendentes), não queremos apagar as ligações 
-            # que vieram da Telefonia e que ainda NÃO foram enviadas para a IA,
-            # EXCETO se o usuário mandou manualmente para a Triagem.
+            # Na fila de Triagem (Limpar Tudo), preserva ligacoes vindas da
+            # Telefonia que ainda nao passaram pela IA, exceto quando o usuario
+            # enviou manualmente para a Triagem.
             is_huawei = str(meta.get("origem") or "").lower() == "huawei_sync"
             is_manual = meta.get("is_manual") is True
             classification_done = meta.get("classification_status") == "done"

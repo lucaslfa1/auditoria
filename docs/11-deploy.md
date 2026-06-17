@@ -47,7 +47,24 @@ Parâmetros recomendados no Container Apps: porta 8080; probe de liveness
 `/api/health`; `minReplicas: 0`, `maxReplicas: 1`; CPU 1 / memória 2 GiB
 (transcrição usa ffmpeg + pydub em memória); timeout de ingress >= 600s.
 
-## 3.1 Prova de portabilidade da imagem
+## 3.1 Sincronização GCP → Azure
+
+| Serviço atual no Google | Como sincronizar no Azure |
+| --- | --- |
+| Cloud Run service `auditoria` | Buildar a mesma imagem Docker, publicar no ACR e atualizar o Azure Container App. Não mudar código para trocar plataforma. |
+| Cloud Scheduler | Criar um Container Apps Job agendado ou Logic App com método `POST`, header `Authorization: Bearer <CRON_SECRET_TOKEN>` e os mesmos horários do GCP. |
+| Cron Telefonia D-1 | Chamar `POST /api/telefonia/cron/sync` 1x/dia. É o coletor OBS/Huawei principal. |
+| Cron automação | Se a topologia atual mantiver ciclo completo separado, chamar também `POST /api/automation/cron/run` 1x/dia; ambos usam o mesmo token. |
+| GCS de mídia | Criar Storage Account + Blob Container, setar `MEDIA_STORAGE_BACKEND=azure_blob`, `AZURE_STORAGE_CONNECTION_STRING` e `AZURE_STORAGE_CONTAINER`; manter os objetos sob a chave gravada em `media_files.storage_key`. |
+| Segredos no serviço | Criar secrets no Key Vault com os nomes de `docs/08-seguranca.md` §3 e expor como env vars no Container App via managed identity/secretRef. |
+| Logs Cloud Run | Usar logs do Container App / Log Analytics. O app escreve em stdout; não há adapter específico de log no código. |
+
+Durante a transição, manter **um único scheduler ativo** para evitar duplicar
+download/auditoria. A sequência segura é: criar o cron Azure desabilitado,
+validar `/api/health`, desabilitar Cloud Scheduler, habilitar o cron Azure e
+acompanhar `GET /api/telefonia/sync/diagnostics`.
+
+## 3.2 Prova de portabilidade da imagem
 
 A imagem é buildada e executada em produção pelo CI a cada push na `main`
 (`deploy-cloudrun.yml`) — essa é a prova contínua de que o `Dockerfile`

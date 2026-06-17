@@ -21,7 +21,7 @@ Todos definidos via variáveis de ambiente (template: `backend/.env.example`). N
 | `AZURE_TEXT_ANALYTICS_KEY` | Azure Language Service | Alta |
 | `DATABASE_URL` | Connection string Neon PostgreSQL (contém usuário+senha) | Crítica (todos os dados) |
 | `SESSION_SECRET` | Chave HMAC dos tokens de sessão; quem a possui forja sessões válidas de qualquer usuário | Crítica |
-| `CRON_SECRET_TOKEN` | Bearer token dos endpoints de cron (Cloud Scheduler hoje) | Alta |
+| `CRON_SECRET_TOKEN` | Bearer token dos endpoints de cron (Cloud Scheduler hoje; Container Apps Job/Logic App no Azure) | Alta |
 | `HUAWEI_AK` / `HUAWEI_SK` | Access/Secret Key Huawei AICC (gravações de telefonia) | Alta |
 | `HUAWEI_DIRECT_APP_KEY` / `HUAWEI_DIRECT_APP_SECRET` | OAuth direto Huawei AICC | Alta |
 | `SENTRY_DSN` | Ingestão de eventos no Sentry | Baixa (permite poluir o projeto Sentry) |

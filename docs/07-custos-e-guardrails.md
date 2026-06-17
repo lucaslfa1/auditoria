@@ -34,7 +34,7 @@ reprocessos — compatível com o estouro do orçamento.
 | --- | --- |
 | Engine default `fast`, SEM fallback premium automático | v1.3.109 |
 | Falha de auditoria → descarte permanente, sem retry (`AUTOMATION_TRANSIENT_RETRY_LIMIT=1`) | v1.3.111 |
-| Cron reduzido para 1x/dia | infra (Cloud Scheduler) |
+| Cron reduzido para 1x/dia | infra (Cloud Scheduler hoje; Container Apps Job/Logic App no Azure) |
 | Cache do health-snapshot + polling adaptativo (pausa com aba oculta) | v1.3.110 / v1.3.117 |
 | **hybrid_dual DESCONTINUADO** — só roda com `AZURE_TRANSCRIPTION_ALLOW_LEGACY_HYBRID_DUAL` (não usar) | decisão 2026-06-11 |
 | Direção de chamada via consulta VDN (gratuita) em vez de Whisper+GPT por áudio | v1.3.115 |

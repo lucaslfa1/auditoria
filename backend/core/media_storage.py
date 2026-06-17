@@ -4,8 +4,9 @@ Backends fisicos suportados (selecionados por MEDIA_STORAGE_BACKEND):
 - ``local``      — disco local (dev; raiz em MEDIA_STORAGE_ROOT).
 - ``gcs``        — Google Cloud Storage (producao atual no Cloud Run).
 - ``azure_blob`` — Azure Blob Storage (deploy na infra Azure do time de
-                   engenharia; exige AZURE_STORAGE_CONNECTION_STRING e,
-                   opcionalmente, AZURE_STORAGE_CONTAINER).
+                   engenharia, equivalente ao GCS; exige
+                   AZURE_STORAGE_CONNECTION_STRING e, opcionalmente,
+                   AZURE_STORAGE_CONTAINER).
 
 O banco guarda apenas metadados/ponteiros (tabela ``media_files``) para os
 callers nao dependerem de caminhos especificos de provedor. Os SDKs de nuvem
@@ -89,7 +90,12 @@ def _get_gcs_bucket_name() -> str:
 
 def _get_azure_container_client():
     """ContainerClient do Azure Blob (import lazy — o SDK so e exigido quando
-    MEDIA_STORAGE_BACKEND=azure_blob esta ativo; a imagem GCP atual nao muda)."""
+    MEDIA_STORAGE_BACKEND=azure_blob esta ativo; a imagem GCP atual nao muda.
+
+    Na migração Azure, este e o ponto que sincroniza o app com o Blob Storage:
+    configure a connection string no Key Vault/secretRef e mantenha a chave dos
+    objetos igual a gravada em `media_files.storage_key`.
+    """
     from azure.storage.blob import BlobServiceClient
 
     connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "").strip()

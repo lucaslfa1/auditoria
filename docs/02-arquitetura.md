@@ -81,7 +81,7 @@ auditoria/
 
 - `automation.py` — auditoria em lote dos itens prontos da fila de triagem
 - `automation_engine.py` — ciclo do motor: lock, heartbeat, health snapshot, reconciliação de ciclos stale (`automation_cycle_runs`)
-- `automation_disposition.py` — estados terminais: `PROCEED`/`DISCARD_IMPOSSIBLE` (tombstone)/`DISCARD_RECOVERABLE` (anti-loop)/`RETRY`
+- `automation_disposition.py` — disposições do ciclo: `PROCEED`, descartes com tombstone permanente (`DISCARD_IMPOSSIBLE` e legado `DISCARD_RECOVERABLE`) e `RETRY` antes do descarte final
 - `automation_cache.py` — contexto/cache do pipeline de auditoria automática
 - `automation_rules.py`, `automation_operator.py` — regras por setor e resolução de operador
 - `cost_guard.py` — guardrails de custo: tetos diários + kill-switch (`docs/07` §4)

@@ -4,8 +4,9 @@ Papel no sistema: orquestra a baixa automática das gravações que a Huawei sob
 para o OBS referentes ao dia anterior (D-1). Como a Huawei pode demorar horas
 para finalizar o upload, o pipeline tem retry, janela de lookback (vários dias
 para trás) e horário programado, tudo configurável pela tabela `configuracoes`
-(ver `PIPELINE_CONFIG_DEFAULTS`). É acionado pelo Cloud Scheduler / loop
-residente e também manualmente pela UI (force=True bypassa os gates de retry).
+(ver `PIPELINE_CONFIG_DEFAULTS`). E acionado por scheduler HTTP externo
+(Cloud Scheduler no GCP; Container Apps Job ou Logic App no Azure) e tambem
+manualmente pela UI (force=True bypassa os gates de retry).
 
 Fluxo de `executar_d_minus_1`: adquire um lock em `configuracoes`
 ('huawei_d1_run_lock'), verifica no OBS se há áudio + manifesto CSV do dia, e
@@ -479,7 +480,8 @@ async def executar_d_minus_1(
 
 # ────────────────────────────────────────────────────────────────────
 # Wrapper de orquestração: aplica configs (horário, lookback, retry).
-# Chamado pelo Cloud Scheduler e pelo loop residente.
+# Chamado pelo scheduler externo (Cloud Scheduler/Container Apps Job/Logic App)
+# ou pela UI manual; nao ha loop residente.
 # ────────────────────────────────────────────────────────────────────
 
 def _parse_horario(raw: str, fallback: dt_time = dt_time(6, 0)) -> dt_time:

@@ -30,6 +30,10 @@
 | `HUAWEI_SYNC_ENABLE_CLASSIFY=true` | Sync manual Huawei roda a Fase 2 e nao deixa itens automaticos pendurados na triagem |
 | `MEDIA_STORAGE_BACKEND` | `local` / `gcs` / `azure_blob` |
 
+Para Azure Blob, defina também `AZURE_STORAGE_CONNECTION_STRING` e
+`AZURE_STORAGE_CONTAINER` no Key Vault/secretRef. O equivalente ao GCS atual
+fica descrito em `docs/11-deploy.md` §3.1.
+
 ## Frontend
 
 Única variável: `VITE_API_URL` (ver `.env.example` da raiz). Em produção o

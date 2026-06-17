@@ -1,10 +1,11 @@
 """
 Agendador de tarefas diárias do backend.
 
-Em Cloud Run (serverless), threads em background são congeladas quando não há
-requisições HTTP ativas (CPU throttling). Por isso, a execução é exposta como
-uma função síncrona chamada por uma rota HTTP, que deve ser disparada pelo
-Google Cloud Scheduler via gatilho HTTP.
+Em plataformas serverless (Cloud Run hoje; Azure Container Apps no destino),
+threads em background podem ser congeladas quando não há requisições HTTP
+ativas. Por isso, a execução é exposta como função síncrona chamada por rota
+HTTP. O disparo vem de um scheduler externo: Google Cloud Scheduler no GCP, ou
+Container Apps Job / Logic App no Azure.
 """
 
 import logging

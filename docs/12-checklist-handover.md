@@ -42,7 +42,9 @@
 ## Fase D — Operação contínua
 
 - [ ] [ENG] Agendar o cron: `POST /api/telefonia/cron/sync` 1x/dia com
-      `Authorization: Bearer <CRON_SECRET_TOKEN>` novo.
+      `Authorization: Bearer <CRON_SECRET_TOKEN>` novo. No Azure, usar
+      Container Apps Job agendado ou Logic App; deixar Cloud Scheduler
+      desabilitado para não duplicar sync/auditoria.
 - [ ] [ENG] Confirmar guardrails de custo ativos (`docs/07-custos-e-guardrails.md`;
       defaults: 1500 chamadas LLM/dia, 200 auditorias/dia) e
       treinar a operação no kill-switch (`cost_kill_switch` na tabela

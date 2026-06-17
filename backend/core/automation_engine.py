@@ -8,7 +8,8 @@ anterior). O caminho querycalls (executar_sync_huawei) continua disponível
 apenas no módulo Telefonia para coleta manual ad-hoc, fora deste motor.
 
 Conceitos-chave para quem chega agora:
-- O ciclo SÓ acorda por gatilho externo: Cloud Scheduler (1x/dia) -> endpoint
+- O ciclo SO acorda por gatilho externo: scheduler HTTP (Cloud Scheduler hoje;
+  no Azure, Container Apps Job agendado ou Logic App) -> endpoint
   `/api/automation/cron/run`, ou "Executar agora" na UI. O antigo loop
   residente em processo foi removido em 2026-06-12 (era o padrão de busca
   contínua que estourou o orçamento de IA em junho).
@@ -1784,8 +1785,9 @@ def get_engine_status() -> dict:
 
     status["latest_run"] = latest_run
     status["latest_run_is_stale"] = latest_run_stale
-    # O loop residente em processo foi removido em 2026-06-12 (revisao item 4):
-    # o ciclo so acorda por gatilho externo (Cloud Scheduler 1x/dia ou UI).
+    # O loop residente em processo foi removido em 2026-06-12: o ciclo acorda
+    # apenas por scheduler externo (Cloud Scheduler/Container Apps Job/Logic App)
+    # ou por acao manual na UI.
     status["mode"] = "external_cron"
     cycle_running = bool(status.get("is_cycle_running") or db_cycle_running)
     status["is_cycle_running"] = cycle_running

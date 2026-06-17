@@ -11,5 +11,5 @@ Huawei AICC.
 - `catalogo_funcoes_huawei.md`
 - `raw/documentacao_funcoes_huawei_aicc.docx`
 
-Pastas antigas como `telefonia/` e `backend/docs/huawei/` nao devem receber
-novas copias desses documentos.
+Nao recriar pastas paralelas para estes documentos; novas copias devem entrar
+nesta pasta canonica.

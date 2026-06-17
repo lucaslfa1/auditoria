@@ -23,11 +23,14 @@ async def sync_d_minus_1(
     request: Request,
     body: Optional[dict] = Body(default=None),
 ):
-    """Dispara o pipeline D-1 (lote diário do OBS) via Cloud Scheduler.
+    """Dispara o pipeline D-1 (lote diario do OBS) via scheduler externo.
 
     - Sem `date` no body: roda o pipeline orquestrado (respeita horário,
       lookback e retry configurados no banco).
     - Com `date`: força execução direta de uma data específica (uso legado).
+
+    GCP atual: Cloud Scheduler. Azure equivalente: Container Apps Job agendado
+    ou Logic App chamando este endpoint com `Authorization: Bearer <token>`.
     """
     from routers.automation import _require_cron_token
     _require_cron_token(request)
@@ -52,7 +55,7 @@ async def cron_sync_d_minus_1(
     request: Request,
     body: Optional[dict] = Body(default=None),
 ):
-    """Gatilho dedicado do Cloud Scheduler para o Coletor D-1/OBS.
+    """Gatilho dedicado do scheduler externo para o Coletor D-1/OBS.
 
     Agendado 1x/dia. Não há gate próprio aqui (a config
     `telefonia_cron_sync_ativa` foi removida em 2026-06-12): o pipeline

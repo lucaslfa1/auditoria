@@ -11,6 +11,9 @@
 #
 # Espelha o pipeline atual (deploy-cloudrun.yml): build da imagem única
 # multi-stage + deploy. O Dockerfile é o mesmo — nada muda no código.
+# Cron/sync NÃO é criado por este workflow: criar Container Apps Job agendado
+# ou Logic App para chamar /api/telefonia/cron/sync e, se mantido, /api/automation/cron/run
+# com Authorization: Bearer <CRON_SECRET_TOKEN>. Ver docs/11-deploy.md §3.1.
 # =============================================================================
 name: Build and Deploy to Azure Container Apps (EXAMPLE)
 

@@ -56,7 +56,7 @@ janela inteira cabe em ~15 minutos.
 
 1. **Congelar escrita** (nenhum dado novo durante a cópia):
    - Desabilitar o agendamento do cron (`/api/telefonia/cron/sync` — hoje
-     Cloud Scheduler, 1x/dia).
+     Cloud Scheduler; no Azure, Container Apps Job ou Logic App).
    - Desligar a automação: config `automacao_hibrida_ativa=false` (ou
      kill-switch de custo `cost_kill_switch=true` na tabela `configuracoes`).
    - Avisar usuários (auditoria manual também escreve).

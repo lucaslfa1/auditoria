@@ -6,7 +6,8 @@ Papel no fluxo: sync Huawei D-1 → triagem → classificação GPT → **este m
 humana → aprovação → fechamento.
 
 Esteira binária (v1.3.103): todo item READY termina em `audited` OU descartado
-(tombstone permanente p/ lixo; recuperável só p/ falha técnica transitória).
+(todo descarte Huawei vira tombstone permanente; retry so existe antes do descarte
+para falha tecnica transitoria).
 Nada fica preso na fila. As flags `AUTOMATION_DISCARD_*` (default ON) controlam
 cada gate de descarte e permitem rollback via env.
 
@@ -74,8 +75,8 @@ logger = logging.getLogger(__name__)
 class ClassifiedAudioUnavailableError(RuntimeError):
     """Fila referencia um áudio classificado que não pôde ser reaberto do storage.
 
-    Tratada como falha TRANSITÓRIA: o item volta para retry e, esgotado o
-    limite, é descartado como recuperável (pode voltar num próximo sync).
+    Tratada como falha TRANSITORIA: o item volta para retry e, esgotado o
+    limite, e descartado com tombstone permanente. Descarte nao volta em sync.
     """
 
 
@@ -905,8 +906,8 @@ async def _audit_single_item(item: dict) -> dict:
     if not operator_result.is_valid:
         if _discard_blocked_operator_enabled():
             # Operador nao auditavel ja e filtrado no download e nunca vira auditoria valida
-            # -> descarta PERMANENTE (tombstone); nao re-processa. So falhas tecnicas
-            # transitorias (timeout/transcricao) podem voltar num proximo sync.
+            # -> descarta PERMANENTE (tombstone); nao re-processa. Falhas tecnicas
+            # transitorias so fazem retry antes do descarte final.
             return execute_discard(
                 item,
                 Disposition.DISCARD_IMPOSSIBLE,

@@ -208,7 +208,8 @@ async def lifespan(app: FastAPI):
     Startup: inicializa o banco uma única vez e reconcilia runs de sync da
     Telefonia abandonados por restart do pod (marca como ``interrupted`` os com
     heartbeat stale). Não há loop residente de automação — o ciclo só acorda por
-    gatilho externo (Cloud Scheduler -> ``/api/automation/cron/run``) ou pela UI.
+    scheduler HTTP externo (GCP Cloud Scheduler; Azure Container Apps Job/Logic
+    App) em ``/api/automation/cron/run`` ou pela UI.
 
     Shutdown: aguarda (com timeout) o flush da fila de sincronização de
     saved-files. Falhas em startup/shutdown são logadas, não propagadas (exceto a
@@ -230,8 +231,8 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Bootstrap: falha ao reconciliar runs orfaos de sync da Telefonia.")
     logger.info("Servidor iniciado")
-    # Nao existe loop residente de automacao: o ciclo so acorda por gatilho
-    # externo (Cloud Scheduler -> /api/automation/cron/run, 1x/dia) ou pela UI.
+    # Nao existe loop residente de automacao: o ciclo so acorda por scheduler
+    # externo (/api/automation/cron/run, 1x/dia) ou pela UI.
     logger.info("Automacao por gatilho externo; use /api/automation/cron/run.")
     yield
     # Shutdown
@@ -428,15 +429,16 @@ async def global_rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# ── Internal cron endpoint (Cloud Scheduler) ─────────────────────────────────
+# ── Internal cron endpoint (scheduler externo) ────────────────────────────────
 
 
 @app.post("/api/internal/cron/knowledge-agent")
 async def cron_knowledge_agent(request: Request):
-    """Rota interna para o Cloud Scheduler executar o DB Knowledge Agent.
+    """Rota interna para o scheduler externo executar o DB Knowledge Agent.
 
     Protegida por token via header ``Authorization: Bearer <CRON_SECRET_TOKEN>``.
-    Configure o Cloud Scheduler do GCP para chamar esta URL diariamente às 18:00.
+    GCP atual: Cloud Scheduler. Azure equivalente: Container Apps Job agendado
+    ou Logic App chamando esta URL diariamente as 18:00 com o mesmo bearer token.
     """
     expected_token = os.getenv("CRON_SECRET_TOKEN", "").strip()
     if not expected_token:

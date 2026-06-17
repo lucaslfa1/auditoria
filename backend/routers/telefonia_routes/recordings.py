@@ -70,7 +70,8 @@ def remover_todas_gravacoes(_user: dict = Depends(require_admin)):
     try:
         cursor = conn.cursor()
 
-        # Pega as hashes e os IDs do Huawei para apagar em lote
+        # Coleta hashes da fila e call_ids Huawei para remover em lote sem
+        # permitir reentrada em sync futuro.
         cursor.execute(
             """
             SELECT input_hash, metadata_json
@@ -93,16 +94,16 @@ def remover_todas_gravacoes(_user: dict = Depends(require_admin)):
             if meta.get("archived"):
                 continue
 
-            # Apenas apagar gravações que vieram da integração Huawei
+            # Limpar Tudo da Telefonia remove apenas gravacoes da integracao Huawei.
             if str(meta.get("origem") or "").lower() != "huawei_sync":
                 continue
 
             # Depois do envio, a posse visual passa para a Triagem. O botao
-            # "Limpar Pendentes" da Telefonia nao deve apagar esses itens.
+            # "Limpar Tudo" da Telefonia nao deve remover esses itens.
             if meta.get("telefonia_triage_requested_at") or meta.get("telefonia_triage_requested_by"):
                 continue
 
-            # Não excluir itens que já estão na Triagem prontos para revisão manual
+            # Itens ja classificados pertencem a Triagem manual.
             if meta.get("classification_status") == "done":
                 continue
 
@@ -140,7 +141,7 @@ def remover_gravacao(input_hash: str, _user: dict = Depends(require_admin)):
     """
     Remove uma gravacao da fila.
     - Se estiver auditada/cota mensal: apenas marca como arquivada para sumir da tela.
-    - Se estiver pendente ou em outro status: apaga da fila e cria tombstone
+    - Se estiver pendente ou em outro status: remove da fila e cria tombstone
       permanente para nao voltar em novo sync.
     """
     item = tf._get_recording_queue_item_or_404(input_hash, require_audio=False)
@@ -184,8 +185,8 @@ def remover_gravacao(input_hash: str, _user: dict = Depends(require_admin)):
                     motivo="removido_telefonia",
                 )
             else:
-                # Option A: Operador sem cadastro. Se reimportarmos, volta com erro.
-                # Portanto, ignoramos permanentemente no sync log.
+                # Operador sem cadastro continua nao auditavel; reimportar so
+                # recriaria o mesmo erro operacional.
                 cursor.execute(
                     """
                     INSERT INTO huawei_sync_logs (call_id, status, failure_reason, sincronizado_em)
