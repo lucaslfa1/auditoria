@@ -43,6 +43,8 @@ interface TriageQueueItem {
   audio_url?: string | null;
   operator_name?: string;
   operator_id?: string;
+  operator_matricula?: string;
+  matricula?: string;
   operador_previsto?: string;
   setor_previsto?: string;
   alerta_previsto?: string;
@@ -187,6 +189,12 @@ export function RemoteTriageQueue() {
       const data = await apiFetchJson<TriageQueueItem[]>('/api/revisao/classificacao?status=pending');
       const mapped = (data || []).map(it => {
         const metadata = it.metadata || {};
+        const operatorMatricula =
+          it.operator_matricula
+          || it.matricula
+          || metadata.operator_matricula
+          || metadata.matricula
+          || '';
         return {
           ...it,
           operator_name:
@@ -196,6 +204,8 @@ export function RemoteTriageQueue() {
             || metadata.operator_name_real
             || metadata.huawei_operator_name
             || '',
+          operator_matricula: operatorMatricula,
+          matricula: operatorMatricula,
           operator_id:
             it.operator_id
             || metadata.operator_matricula
@@ -474,7 +484,7 @@ export function RemoteTriageQueue() {
     setEditSectorId(initialSectorId);
     setEditAlertId(initialAlertId);
     setEditOperatorName(item.operator_name || '');
-    setEditOperatorId(item.metadata?.operator_matricula || item.metadata?.matricula || item.metadata?.id_huawei || item.operator_id || '');
+    setEditOperatorId(item.operator_matricula || item.matricula || item.metadata?.operator_matricula || item.metadata?.matricula || item.metadata?.id_huawei || item.operator_id || '');
     setEditSupervisor(item.metadata?.operator_supervisor || '');
     setEditEscala(item.metadata?.operator_escala || '');
   };
@@ -621,7 +631,7 @@ export function RemoteTriageQueue() {
           </thead>
           <tbody className="divide-y divide-white/5">
             {items.map((item, idx) => {
-              const matricula = item.metadata?.operator_matricula || item.metadata?.matricula || item.metadata?.id_huawei || item.operator_id || '—';
+              const matricula = item.operator_matricula || item.matricula || item.metadata?.operator_matricula || item.metadata?.matricula || item.metadata?.id_huawei || item.operator_id || '—';
               
               let callTime = '—';
               const beginMs = item.metadata?.huawei_begin_time || item.metadata?.begin_time;

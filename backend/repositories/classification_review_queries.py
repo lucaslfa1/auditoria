@@ -32,6 +32,38 @@ from repositories.classification_review_helpers import _normalize_metadata_value
 ConnectionFactory = Callable[[], Any]
 
 
+_HUAWEI_OPERATOR_ID_METADATA_KEYS = (
+    "operator_id_huawei_real",
+    "id_huawei",
+    "operator_id",
+    "huawei_work_no",
+    "huawei_agent_id",
+    "agent_id",
+    "agentId",
+    "agentid",
+    "workNo",
+    "work_no",
+    "operatorId",
+    "operator_id_huawei",
+    "idHuawei",
+)
+
+
+def _normalize_huawei_id_sql(expr: str) -> str:
+    """SQL equivalente ao normalize_huawei_agent_id para ids numericos x.0."""
+
+    return f"regexp_replace(NULLIF(TRIM({expr}), ''), '^([0-9]+)\\.0+$', '\\1')"
+
+
+def _huawei_operator_id_candidates_sql() -> str:
+    """Lista SQL de candidatos Huawei vindos do metadata da fila."""
+
+    return ",\n                      ".join(
+        _normalize_huawei_id_sql(f"f.metadata_json::jsonb ->> '{key}'")
+        for key in _HUAWEI_OPERATOR_ID_METADATA_KEYS
+    )
+
+
 def listar_fila_revisao_classificacao(
     get_connection: ConnectionFactory,
     limit: Optional[int] = None,
@@ -126,29 +158,26 @@ def listar_fila_revisao_classificacao(
             SELECT f.*,
                    official_by_huawei.nome AS official_operator_name,
                    official_by_huawei.id_huawei AS official_operator_id_huawei,
+                   official_by_huawei.matricula AS official_operator_matricula,
+                   official_by_name.nome AS official_operator_name_by_name,
+                   official_by_name.id_huawei AS official_operator_id_huawei_by_name,
+                   official_by_name.matricula AS official_operator_matricula_by_name,
                    CASE
                        WHEN COALESCE(f.metadata_json::jsonb ->> 'origem', '') = 'huawei_sync'
                            THEN official_by_huawei.id_huawei IS NOT NULL
-                       ELSE EXISTS(SELECT 1
-                                      FROM colaboradores c
-                                      WHERE LOWER(TRIM(c.nome)) = LOWER(TRIM(COALESCE(NULLIF(f.operador_previsto, ''), f.metadata_json::jsonb ->> 'operator_name')))
-                                         AND c.status = 'ATIVO'
-                                    )
+                                OR official_by_name.nome IS NOT NULL
+                       ELSE official_by_name.nome IS NOT NULL
                    END as is_oficial
             FROM fila_revisao_classificacao f
             LEFT JOIN LATERAL (
-                SELECT c.nome, c.id_huawei
+                SELECT c.nome, c.id_huawei, c.matricula
                 FROM colaboradores c
                 WHERE c.status = 'ATIVO'
                   AND COALESCE(c.auditavel, 1) = 1
                   AND COALESCE(NULLIF(TRIM(c.id_huawei), ''), '') <> ''
-                  AND TRIM(c.id_huawei) = COALESCE(
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'operator_id_huawei_real'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'id_huawei'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'operator_id'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'huawei_work_no'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'huawei_agent_id'), '')
-                  )
+                  AND {_normalize_huawei_id_sql("c.id_huawei")} = ANY(ARRAY[
+                      {_huawei_operator_id_candidates_sql()}
+                  ])
                 ORDER BY
                     CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
                     CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
@@ -156,6 +185,26 @@ def listar_fila_revisao_classificacao(
                     c.nome
                 LIMIT 1
             ) official_by_huawei ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT c.nome, c.id_huawei, c.matricula
+                FROM colaboradores c
+                WHERE c.status = 'ATIVO'
+                  AND COALESCE(c.auditavel, 1) = 1
+                  AND c.nome IS NOT NULL
+                  AND c.nome <> ''
+                  AND LOWER(TRIM(c.nome)) = LOWER(TRIM(COALESCE(
+                      NULLIF(f.operador_previsto, ''),
+                      NULLIF(f.metadata_json::jsonb ->> 'operator_name', ''),
+                      NULLIF(f.metadata_json::jsonb ->> 'operator_name_real', ''),
+                      NULLIF(f.metadata_json::jsonb ->> 'huawei_operator_name', '')
+                  )))
+                ORDER BY
+                    CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
+                    CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
+                    c.atualizado_em DESC NULLS LAST,
+                    c.nome
+                LIMIT 1
+            ) official_by_name ON TRUE
             {where_clause}
             {order_clause}
             {limit_clause}
@@ -178,12 +227,29 @@ def listar_fila_revisao_classificacao(
         official_operator_id_huawei = (
             row["official_operator_id_huawei"] if "official_operator_id_huawei" in row.keys() else None
         )
+        official_operator_name_by_name = (
+            row["official_operator_name_by_name"] if "official_operator_name_by_name" in row.keys() else None
+        )
+        official_operator_matricula = (
+            row["official_operator_matricula"] if "official_operator_matricula" in row.keys() else None
+        )
+        official_operator_matricula_by_name = (
+            row["official_operator_matricula_by_name"] if "official_operator_matricula_by_name" in row.keys() else None
+        )
         operator_name = (
             official_operator_name
+            or official_operator_name_by_name
             or row["operador_previsto"]
             or metadata.get("operator_name")
             or metadata.get("operator_name_real")
             or metadata.get("huawei_operator_name")
+        )
+        operator_matricula = (
+            official_operator_matricula
+            or official_operator_matricula_by_name
+            or metadata.get("operator_matricula")
+            or metadata.get("matricula")
+            or ""
         )
         operator_id = (
             official_operator_id_huawei
@@ -205,6 +271,8 @@ def listar_fila_revisao_classificacao(
                 "operador_previsto": row["operador_previsto"],
                 "operator_name": operator_name,
                 "operator_id": operator_id,
+                "operator_matricula": operator_matricula,
+                "matricula": operator_matricula,
                 "erro": row["erro"],
                 "prioridade": row["prioridade"],
                 "motivos_revisao": json_loads(row["motivos_json"], []),
@@ -237,31 +305,30 @@ def obter_fila_revisao_classificacao_por_hash(
         # casa por id_huawei; demais origens casam por nome do operador.
         cursor.execute(
             harden_jsonb_nul_cast(
-            """
+            f"""
             SELECT f.*,
+                   official_by_huawei.nome AS official_operator_name,
+                   official_by_huawei.id_huawei AS official_operator_id_huawei,
+                   official_by_huawei.matricula AS official_operator_matricula,
+                   official_by_name.nome AS official_operator_name_by_name,
+                   official_by_name.id_huawei AS official_operator_id_huawei_by_name,
+                   official_by_name.matricula AS official_operator_matricula_by_name,
                    CASE
                        WHEN COALESCE(f.metadata_json::jsonb ->> 'origem', '') = 'huawei_sync'
                            THEN official_by_huawei.id_huawei IS NOT NULL
-                       ELSE EXISTS(SELECT 1
-                                      FROM colaboradores c
-                                      WHERE LOWER(TRIM(c.nome)) = LOWER(TRIM(COALESCE(NULLIF(f.operador_previsto, ''), f.metadata_json::jsonb ->> 'operator_name')))
-                                         AND c.status = 'ATIVO'
-                                    )
+                                OR official_by_name.nome IS NOT NULL
+                       ELSE official_by_name.nome IS NOT NULL
                    END as is_oficial
             FROM fila_revisao_classificacao f
             LEFT JOIN LATERAL (
-                SELECT c.id_huawei
+                SELECT c.nome, c.id_huawei, c.matricula
                 FROM colaboradores c
                 WHERE c.status = 'ATIVO'
                   AND COALESCE(c.auditavel, 1) = 1
                   AND COALESCE(NULLIF(TRIM(c.id_huawei), ''), '') <> ''
-                  AND TRIM(c.id_huawei) = COALESCE(
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'operator_id_huawei_real'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'id_huawei'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'operator_id'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'huawei_work_no'), ''),
-                      NULLIF(TRIM(f.metadata_json::jsonb ->> 'huawei_agent_id'), '')
-                  )
+                  AND {_normalize_huawei_id_sql("c.id_huawei")} = ANY(ARRAY[
+                      {_huawei_operator_id_candidates_sql()}
+                  ])
                 ORDER BY
                     CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
                     CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
@@ -269,6 +336,26 @@ def obter_fila_revisao_classificacao_por_hash(
                     c.nome
                 LIMIT 1
             ) official_by_huawei ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT c.nome, c.id_huawei, c.matricula
+                FROM colaboradores c
+                WHERE c.status = 'ATIVO'
+                  AND COALESCE(c.auditavel, 1) = 1
+                  AND c.nome IS NOT NULL
+                  AND c.nome <> ''
+                  AND LOWER(TRIM(c.nome)) = LOWER(TRIM(COALESCE(
+                      NULLIF(f.operador_previsto, ''),
+                      NULLIF(f.metadata_json::jsonb ->> 'operator_name', ''),
+                      NULLIF(f.metadata_json::jsonb ->> 'operator_name_real', ''),
+                      NULLIF(f.metadata_json::jsonb ->> 'huawei_operator_name', '')
+                  )))
+                ORDER BY
+                    CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
+                    CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
+                    c.atualizado_em DESC NULLS LAST,
+                    c.nome
+                LIMIT 1
+            ) official_by_name ON TRUE
             WHERE f.input_hash = %s
             LIMIT 1
             """
@@ -278,6 +365,46 @@ def obter_fila_revisao_classificacao_por_hash(
         row = cursor.fetchone()
         if not row:
             return None
+
+        metadata = json_loads(row["metadata_json"], {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        official_operator_name = row["official_operator_name"] if "official_operator_name" in row.keys() else None
+        official_operator_id_huawei = (
+            row["official_operator_id_huawei"] if "official_operator_id_huawei" in row.keys() else None
+        )
+        official_operator_name_by_name = (
+            row["official_operator_name_by_name"] if "official_operator_name_by_name" in row.keys() else None
+        )
+        official_operator_matricula = (
+            row["official_operator_matricula"] if "official_operator_matricula" in row.keys() else None
+        )
+        official_operator_matricula_by_name = (
+            row["official_operator_matricula_by_name"] if "official_operator_matricula_by_name" in row.keys() else None
+        )
+        operator_matricula = (
+            official_operator_matricula
+            or official_operator_matricula_by_name
+            or metadata.get("operator_matricula")
+            or metadata.get("matricula")
+            or ""
+        )
+        operator_name = (
+            official_operator_name
+            or official_operator_name_by_name
+            or row["operador_previsto"]
+            or metadata.get("operator_name")
+            or metadata.get("operator_name_real")
+            or metadata.get("huawei_operator_name")
+        )
+        operator_id = (
+            official_operator_id_huawei
+            or metadata.get("operator_id_huawei_real")
+            or metadata.get("id_huawei")
+            or metadata.get("operator_id")
+            or metadata.get("huawei_agent_id")
+            or ""
+        )
 
         return {
             "id": row["id"],
@@ -290,7 +417,11 @@ def obter_fila_revisao_classificacao_por_hash(
             "erro": row["erro"],
             "prioridade": row["prioridade"],
             "motivos_revisao": json_loads(row["motivos_json"], []),
-            "metadata": json_loads(row["metadata_json"], {}),
+            "metadata": metadata,
+            "operator_name": operator_name,
+            "operator_id": operator_id,
+            "operator_matricula": operator_matricula,
+            "matricula": operator_matricula,
             "status": row["status"],
             "criado_em": row["criado_em"],
             "atualizado_em": row["atualizado_em"],

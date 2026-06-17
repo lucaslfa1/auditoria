@@ -26,6 +26,7 @@ from db.domain_constants import (
 from repositories.classification_review import (
     corrigir_classificacao_fila_revisao,
     listar_fila_revisao_classificacao,
+    obter_fila_revisao_classificacao_por_hash,
     sincronizar_fila_revisao_classificacao,
     tentar_iniciar_processamento_auditoria,
 )
@@ -231,6 +232,10 @@ class TestReviewQueueContract(unittest.TestCase):
                     "is_oficial": True,
                     "official_operator_name": "Jhaves Daniel Marques",
                     "official_operator_id_huawei": "189",
+                    "official_operator_matricula": "11223",
+                    "official_operator_name_by_name": None,
+                    "official_operator_id_huawei_by_name": None,
+                    "official_operator_matricula_by_name": None,
                 }
             ]
         )
@@ -249,6 +254,125 @@ class TestReviewQueueContract(unittest.TestCase):
         self.assertTrue(result[0]["is_oficial"])
         self.assertEqual(result[0]["operator_name"], "Jhaves Daniel Marques")
         self.assertEqual(result[0]["operator_id"], "189")
+        self.assertEqual(result[0]["operator_matricula"], "11223")
+        self.assertEqual(result[0]["matricula"], "11223")
+
+    def test_huawei_queue_matches_any_normalized_huawei_identifier(self):
+        cursor = _FakeCursor(fetchall_results=[])
+        conn = _FakeConnection(cursor)
+
+        listar_fila_revisao_classificacao(
+            lambda: conn,
+            limit=10,
+            status=REVIEW_QUEUE_STATUS_PENDING,
+            origem="huawei_sync",
+        )
+
+        query, _ = cursor.executed[-1]
+        self.assertIn("official_by_huawei", query)
+        self.assertIn("= ANY(ARRAY[", query)
+        self.assertIn("regexp_replace", query)
+        self.assertNotIn("TRIM(c.id_huawei) = COALESCE", query)
+        for key in ("operator_id_huawei_real", "huawei_work_no", "agentId", "workNo", "operatorId", "idHuawei"):
+            self.assertIn(key, query)
+
+    def test_huawei_queue_uses_official_matricula_from_name_match(self):
+        cursor = _FakeCursor(
+            fetchall_results=[
+                {
+                    "id": 2102,
+                    "input_hash": "hash-huawei-name",
+                    "nome_arquivo": "call-name.wav",
+                    "setor_previsto": "cadastro",
+                    "alerta_previsto": "desconhecido",
+                    "confianca": 0.0,
+                    "operador_previsto": "Amanda Muslera",
+                    "erro": None,
+                    "prioridade": "medium",
+                    "motivos_json": "[]",
+                    "metadata_json": __import__("json").dumps(
+                        {
+                            "origem": "huawei_sync",
+                            "operator_id_huawei_real": "99999",
+                            "operator_name": "Amanda Muslera",
+                        }
+                    ),
+                    "status": REVIEW_QUEUE_STATUS_PENDING,
+                    "criado_em": None,
+                    "atualizado_em": None,
+                    "is_oficial": True,
+                    "official_operator_name": None,
+                    "official_operator_id_huawei": None,
+                    "official_operator_matricula": None,
+                    "official_operator_name_by_name": "Amanda Muslera",
+                    "official_operator_id_huawei_by_name": "189",
+                    "official_operator_matricula_by_name": "11223",
+                }
+            ]
+        )
+        conn = _FakeConnection(cursor)
+
+        result = listar_fila_revisao_classificacao(
+            lambda: conn,
+            limit=10,
+            status=REVIEW_QUEUE_STATUS_PENDING,
+            origem="huawei_sync",
+        )
+
+        query, _ = cursor.executed[-1]
+        self.assertIn("official_by_name", query)
+        self.assertTrue(result[0]["is_oficial"])
+        self.assertEqual(result[0]["operator_name"], "Amanda Muslera")
+        self.assertEqual(result[0]["operator_matricula"], "11223")
+        self.assertEqual(result[0]["matricula"], "11223")
+
+    def test_huawei_queue_hash_lookup_enriches_operator_matricula(self):
+        cursor = _FakeCursor(
+            fetchone_results=[
+                {
+                    "id": 2103,
+                    "input_hash": "hash-huawei",
+                    "nome_arquivo": "call.wav",
+                    "setor_previsto": "cadastro",
+                    "alerta_previsto": "desconhecido",
+                    "confianca": 0.0,
+                    "operador_previsto": "Operador Teste",
+                    "erro": None,
+                    "prioridade": "medium",
+                    "motivos_json": "[]",
+                    "metadata_json": __import__("json").dumps(
+                        {
+                            "origem": "huawei_sync",
+                            "operator_id_huawei_real": "189.0",
+                            "huawei_work_no": "189",
+                        }
+                    ),
+                    "status": REVIEW_QUEUE_STATUS_PENDING,
+                    "criado_em": None,
+                    "atualizado_em": None,
+                    "is_oficial": True,
+                    "official_operator_name": "Jhaves Daniel Marques",
+                    "official_operator_id_huawei": "189",
+                    "official_operator_matricula": "11223",
+                    "official_operator_name_by_name": None,
+                    "official_operator_id_huawei_by_name": None,
+                    "official_operator_matricula_by_name": None,
+                }
+            ]
+        )
+        conn = _FakeConnection(cursor)
+
+        result = obter_fila_revisao_classificacao_por_hash(lambda: conn, "hash-huawei")
+
+        query, params = cursor.executed[-1]
+        self.assertIn("= ANY(ARRAY[", query)
+        self.assertNotIn("{_normalize_huawei_id_sql", query)
+        self.assertEqual(params, ("hash-huawei",))
+        self.assertTrue(result["is_oficial"])
+        self.assertEqual(result["operator_name"], "Jhaves Daniel Marques")
+        self.assertEqual(result["operator_id"], "189")
+        self.assertEqual(result["operator_matricula"], "11223")
+        self.assertEqual(result["matricula"], "11223")
 
     def test_manual_correction_persists_reviewed_status_and_metadata_trace(self):
         existing_row = {
