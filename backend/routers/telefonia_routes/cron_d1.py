@@ -188,17 +188,14 @@ async def get_sync_d_minus_1_summary(_user: dict = Depends(require_admin)):
     proxima_iso = proxima.isoformat() if proxima else None
 
     try:
-        raw_audit_target = configuration.get_config_value(
+        audit_target_cfg = configuration.get_config_values(
             database.get_connection,
-            "automacao_audit_target_count",
-            "",
+            ("automacao_audit_target_count", "automacao_audit_batch_size"),
+            {"automacao_audit_target_count": "", "automacao_audit_batch_size": "10"},
         )
+        raw_audit_target = audit_target_cfg.get("automacao_audit_target_count") or ""
         if raw_audit_target in (None, ""):
-            raw_audit_target = configuration.get_config_value(
-                database.get_connection,
-                "automacao_audit_batch_size",
-                "10",
-            )
+            raw_audit_target = audit_target_cfg.get("automacao_audit_batch_size") or "10"
         limite_auditorias = max(1, tf._safe_int(raw_audit_target, 10))
     except Exception:
         limite_auditorias = 10

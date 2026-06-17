@@ -251,6 +251,28 @@ class TestTelefoniaRouter(unittest.TestCase):
         self.assertEqual(result["total"], 1)
         self.assertEqual(result["items"][0]["input_hash"], "hash-123")
 
+    def test_listar_gravacoes_aplica_limite_padrao_para_primeira_tela(self):
+        with patch.object(
+            telefonia.classification_review,
+            "listar_fila_revisao_classificacao",
+            return_value=[],
+        ) as listar:
+            result = asyncio.run(telefonia.listar_gravacoes(_user={"username": "admin"}))
+
+        self.assertEqual(result["items"], [])
+        self.assertEqual(listar.call_args.kwargs["limit"], 100)
+
+    def test_listar_gravacoes_limita_parametro_excessivo(self):
+        with patch.object(
+            telefonia.classification_review,
+            "listar_fila_revisao_classificacao",
+            return_value=[],
+        ) as listar:
+            result = asyncio.run(telefonia.listar_gravacoes(limit=999, _user={"username": "admin"}))
+
+        self.assertEqual(result["items"], [])
+        self.assertEqual(listar.call_args.kwargs["limit"], 300)
+
     def test_listar_gravacoes_omite_item_ja_enviado_para_triagem(self):
         with patch.object(
             telefonia.classification_review,

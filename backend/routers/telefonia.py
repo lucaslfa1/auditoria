@@ -641,10 +641,17 @@ def _credentials_status() -> Dict[str, Any]:
     def first_config_value(keys: tuple[str, ...]) -> str:
         """Primeiro valor não-vazio entre as chaves do cofre (tabela `configuracoes`)."""
         for db_key in keys:
-            value = str(configuration.get_config_value(database.get_connection, db_key, "") or "").strip()
+            value = str(config_values.get(db_key) or "").strip()
             if value:
                 return value
         return ""
+
+    config_keys = tuple(dict.fromkeys(
+        db_key
+        for (_env_keys, db_keys) in aliases.values()
+        for db_key in db_keys
+    ))
+    config_values = configuration.get_config_values(database.get_connection, config_keys, {})
 
     for k, (env_keys, db_keys) in aliases.items():
         env_val = first_env_value(env_keys)

@@ -1355,6 +1355,16 @@ def get_config_value(chave: str, default: str = "") -> str:
     return repository_get_config_value(get_connection, chave, default)
 
 
+def get_config_values(
+    chaves: list[str] | tuple[str, ...],
+    defaults: Optional[dict[str, str]] = None,
+) -> dict[str, str]:
+    """Fachada: leitura em lote de `configuracoes` preservando defaults."""
+    from repositories.configuration import get_config_values as repository_get_config_values
+
+    return repository_get_config_values(get_connection, chaves, defaults)
+
+
 # Backward-compatible alias
 
 

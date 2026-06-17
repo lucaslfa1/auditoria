@@ -25,6 +25,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+DEFAULT_RECORDINGS_LIMIT = 100
+MAX_RECORDINGS_LIMIT = 300
+
+
+def _coerce_recordings_limit(limit: Optional[int]) -> int:
+    if limit is None:
+        return DEFAULT_RECORDINGS_LIMIT
+    return max(1, min(int(limit), MAX_RECORDINGS_LIMIT))
+
 
 @router.get("/recordings")
 async def listar_gravacoes(
@@ -33,9 +42,10 @@ async def listar_gravacoes(
     _user: dict = Depends(require_admin),
 ) -> Dict[str, Any]:
     """Lista itens recentes vindos da Huawei na fila de revisao de triagem."""
+    safe_limit = _coerce_recordings_limit(limit)
     try:
         fila = classification_review.listar_fila_revisao_classificacao(database.get_connection,
-            limit=limit,
+            limit=safe_limit,
             status="all",
             origem="huawei_sync",
             order_by="recent"

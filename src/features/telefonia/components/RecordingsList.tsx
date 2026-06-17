@@ -60,6 +60,7 @@ const formatDuration = (value: number | string | undefined): string => {
 };
 
 const TERMINAL_STATUSES = new Set(['audited', 'monthly_capped']);
+const RECORDINGS_LIMIT = 100;
 
 const isTerminalStatus = (item: RecordingItem): boolean => {
   const status = String(item.triage_status || '').toLowerCase();
@@ -93,7 +94,9 @@ export function RecordingsList() {
     setIsLoading(true);
     setError(null);
     try {
-      const qs = searchOperator ? `?operator=${encodeURIComponent(searchOperator)}` : '';
+      const params = new URLSearchParams({ limit: String(RECORDINGS_LIMIT) });
+      if (searchOperator) params.set('operator', searchOperator);
+      const qs = `?${params.toString()}`;
       const data = await apiFetchJson<RecordingsResponse>(`/api/telefonia/recordings${qs}`);
       setItems(Array.isArray(data.items) ? data.items : []);
       setTotal(typeof data.total === 'number' ? data.total : 0);

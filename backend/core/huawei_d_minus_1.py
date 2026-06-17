@@ -67,10 +67,14 @@ _NON_TERMINAL_STATUSES = {
 
 def get_pipeline_config() -> dict[str, str]:
     """Lê todas as configs do D-1 do banco com defaults."""
-    cfg: dict[str, str] = {}
-    for key, default in PIPELINE_CONFIG_DEFAULTS.items():
-        cfg[key] = str(database.get_config_value(key, default) or default)
-    return cfg
+    cfg = database.get_config_values(
+        tuple(PIPELINE_CONFIG_DEFAULTS.keys()),
+        PIPELINE_CONFIG_DEFAULTS,
+    )
+    return {
+        key: str(cfg.get(key) or default)
+        for key, default in PIPELINE_CONFIG_DEFAULTS.items()
+    }
 
 
 class HuaweiDMinus1Tracker:

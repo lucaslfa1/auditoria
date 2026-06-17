@@ -220,6 +220,49 @@ def get_config_value(get_connection: ConnectionFactory, chave: str, default: str
         conn.close()
 
 
+def get_config_values(
+    get_connection: ConnectionFactory,
+    chaves: list[str] | tuple[str, ...],
+    defaults: Optional[dict[str, str]] = None,
+) -> dict[str, str]:
+    """Retorna várias chaves de configuração em uma única consulta.
+
+    Mantém a semântica fail-soft de `get_config_value`: chaves ausentes ou erro
+    de banco voltam com o default informado. Use para endpoints que carregam a
+    tela inicial e não devem abrir uma conexão por chave.
+    """
+    defaults = defaults or {}
+    clean_keys = [
+        str(chave).strip()
+        for chave in chaves
+        if str(chave or "").strip()
+    ]
+    result = {chave: str(defaults.get(chave, "")) for chave in clean_keys}
+    if not clean_keys:
+        return result
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT chave, valor FROM configuracoes WHERE chave = ANY(%s)",
+            (clean_keys,),
+        )
+        for row in cursor.fetchall():
+            try:
+                key = str(row["chave"])
+                value = row["valor"]
+            except (TypeError, KeyError, IndexError):
+                key = str(row[0])
+                value = row[1]
+            result[key] = str(value or "")
+        return result
+    except Exception:
+        return result
+    finally:
+        conn.close()
+
+
 def list_audit_log(
     get_connection: ConnectionFactory,
     *,
