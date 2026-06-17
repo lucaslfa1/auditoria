@@ -119,11 +119,12 @@ def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
       - itens vindos da Telefonia/Huawei (``origem == huawei_sync``) que ainda NÃO
         foram classificados pela IA e não foram enviados manualmente à triagem
         (i.e. ``classification_status != done`` e não ``is_manual``).
-    Para os itens removidos, também apaga os logs Huawei correspondentes
-    (``huawei_sync_logs`` por ``call_id``). Só admin.
+    Para os itens Huawei removidos, grava tombstone permanente no
+    ``huawei_sync_logs`` por ``call_id`` para impedir reentrada. Só admin.
 
-    Efeito: DELETE em ``fila_revisao_classificacao`` e ``huawei_sync_logs`` (commit
-    único). HTTP 500 em falha. Retorna a contagem de itens removidos.
+    Efeito: DELETE em ``fila_revisao_classificacao`` e UPSERT em
+    ``huawei_sync_logs`` (commit único). HTTP 500 em falha. Retorna a contagem
+    de itens removidos.
     """
     conn = database.get_connection()
     try:
@@ -142,7 +143,7 @@ def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
         rows = cursor.fetchall()
         
         hashes_to_delete = []
-        huawei_ids_to_delete = []
+        huawei_ids_to_tombstone = []
         
         for row in rows:
             input_hash = row["input_hash"]
@@ -166,7 +167,7 @@ def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
 
             hashes_to_delete.append(input_hash)
             if meta.get("huawei_call_id"):
-                huawei_ids_to_delete.append(str(meta.get("huawei_call_id")))
+                huawei_ids_to_tombstone.append(str(meta.get("huawei_call_id")))
                 
         if hashes_to_delete:
             cursor.execute(
@@ -174,10 +175,12 @@ def clear_pending_classification_queue(_user: dict = Depends(require_admin)):
                 (hashes_to_delete,)
             )
             
-        if huawei_ids_to_delete:
-            cursor.execute(
-                "DELETE FROM huawei_sync_logs WHERE call_id = ANY(%s)",
-                (huawei_ids_to_delete,)
+        for call_id in huawei_ids_to_tombstone:
+            database.huawei_sync_log_tombstone(
+                cursor,
+                call_id,
+                permanent=True,
+                motivo="removido_triagem_limpar_tudo",
             )
             
         conn.commit()

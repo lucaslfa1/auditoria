@@ -266,8 +266,9 @@ def _handle_transient_failure(
     step_retry: str,
 ) -> None:
     """Erro transitorio em audit_all_pending: re-tenta (volta a pending) ate
-    AUTOMATION_TRANSIENT_RETRY_LIMIT e, esgotado, DESCARTA (recuperavel) — acaba com a
-    "automacao zumbi" sem prender o item. Atualiza o _progress global."""
+    AUTOMATION_TRANSIENT_RETRY_LIMIT e, esgotado, DESCARTA permanente — acaba
+    com a "automacao zumbi" sem prender ou rebaixar o item. Atualiza o
+    _progress global."""
     input_hash = item.get("input_hash")
     metadata = _item_metadata(item)
     should_retry, next_count = transient_retry_state(metadata)

@@ -1,16 +1,14 @@
 """Purga e descarte de itens da fila de triagem (`fila_revisao_classificacao`).
 
-Remove linhas da fila liberando o UNIQUE `input_hash`, gerencia o tombstone em
-`huawei_sync_logs` (esteira binária v1.3.103: `discarded_permanent` para lixo
-definitivo, `discarded_recoverable` para falha técnica transitória) e apaga a
-mídia física do storage (melhor esforço, após o commit). Dois modos:
+Remove linhas da fila liberando o UNIQUE `input_hash`, gerencia o tombstone
+permanente em `huawei_sync_logs` (`discarded_permanent`) e apaga a mídia
+física do storage (melhor esforço, após o commit). Dois modos:
 - limpeza por idade (`limpar_fila_revisao_classificacao_antiga`): só itens
   explicitamente arquivados/descartáveis;
 - descarte em modo automação (`descartar_item_automacao`): braço de descarte da
-  esteira binária, com controle de tentativas anti-loop.
+  esteira binária, definitivo por call_id.
 
-Extraído de `repositories/classification_review.py` (v1.3.143) sem mudança de
-comportamento; os nomes seguem reexportados de
+Extraído de `repositories/classification_review.py` (v1.3.143); os nomes seguem reexportados de
 `repositories.classification_review` (e da fachada `db.database`).
 
 Os imports de `db.database.huawei_sync_log_tombstone` e
@@ -53,15 +51,15 @@ def _purgar_item_fila(
     input_hash: str,
     metadata: dict,
     *,
-    sync_log_action: str = "delete",
+    sync_log_action: str = "tombstone_permanent",
     tombstone_motivo: Optional[str] = None,
     loop_limit: int = 3,
     logger=None,
 ) -> tuple[Optional[str], Optional[tuple[int, str]]]:
     """Remove o item da fila (libera o UNIQUE input_hash) e trata o huawei_sync_logs
     conforme `sync_log_action`:
-      - "delete": apaga a linha (limpeza por idade) -> permite re-entrada via novo download.
-      - "tombstone_recoverable": marca 'discarded_recoverable' (rebaixa até o limite anti-loop).
+      - "delete": legado; hoje tambem vira tombstone para bloquear reentrada.
+      - "tombstone_recoverable": legado; hoje tambem deve bloquear reentrada.
       - "tombstone_permanent": marca 'discarded_permanent' (tombstone; nunca rebaixa).
 
     Roda dentro da transação do caller (recebe cursor; NÃO faz commit) — a
@@ -80,20 +78,14 @@ def _purgar_item_fila(
     )
     tombstone_result: Optional[tuple[int, str]] = None
     if huawei_call_id:
-        if sync_log_action == "delete":
-            cursor.execute(
-                "DELETE FROM huawei_sync_logs WHERE call_id = %s",
-                (str(huawei_call_id),),
-            )
-        else:
-            from db.database import huawei_sync_log_tombstone
-            tombstone_result = huawei_sync_log_tombstone(
-                cursor,
-                str(huawei_call_id),
-                permanent=(sync_log_action == "tombstone_permanent"),
-                motivo=tombstone_motivo,
-                loop_limit=loop_limit,
-            )
+        from db.database import huawei_sync_log_tombstone
+        tombstone_result = huawei_sync_log_tombstone(
+            cursor,
+            str(huawei_call_id),
+            permanent=(sync_log_action == "tombstone_permanent"),
+            motivo=tombstone_motivo,
+            loop_limit=loop_limit,
+        )
     return media_path, tombstone_result
 
 
@@ -106,9 +98,10 @@ def limpar_fila_revisao_classificacao_antiga(get_connection: ConnectionFactory, 
     limpeza automática NÃO remove estados pendentes, bloqueados ou em triagem
     manual apenas por idade.
 
-    O `huawei_sync_logs` correspondente é APAGADO (action "delete"), o que
-    permite re-entrada do call num próximo sync. A mídia física é removida
-    após o commit (melhor esforço). Retorna {"deleted": n}.
+    O `huawei_sync_logs` correspondente vira tombstone permanente quando há
+    call_id Huawei; limpeza/arquivo descartado não deve voltar em novo sync.
+    A mídia física é removida após o commit (melhor esforço). Retorna
+    {"deleted": n}.
     """
     from datetime import datetime, timedelta, timezone
     import logging
@@ -145,7 +138,14 @@ def limpar_fila_revisao_classificacao_antiga(get_connection: ConnectionFactory, 
             if not isinstance(metadata, dict):
                 metadata = {}
 
-            media_path, _ = _purgar_item_fila(cursor, input_hash, metadata, logger=logger)
+            media_path, _ = _purgar_item_fila(
+                cursor,
+                input_hash,
+                metadata,
+                sync_log_action="tombstone_permanent",
+                tombstone_motivo="limpeza_fila_antiga",
+                logger=logger,
+            )
             if media_path:
                 media_to_unlink.append((input_hash, media_path))
             deleted_count += 1
@@ -166,7 +166,7 @@ def descartar_item_automacao(
     input_hash: str,
     *,
     motivo: str,
-    tombstone: bool = False,
+    tombstone: bool = True,
     tombstone_motivo: Optional[str] = None,
     loop_limit: int = 3,
     log_fields: Optional[dict] = None,
@@ -176,9 +176,8 @@ def descartar_item_automacao(
     No-op idempotente se o item já não existir.
 
     tombstone=True  -> 'discarded_permanent' (impossível de auditar; nunca rebaixa).
-    tombstone=False -> 'discarded_recoverable' (pode voltar num próximo sync até o limite
-                       anti-loop `loop_limit`, quando vira permanent). Substitui o antigo
-                       DELETE do sync_log: a linha agora persiste para contar tentativas.
+    tombstone=False -> compatibilidade legada. A regra operacional atual é:
+                       item descartado nunca deve voltar em novo sync.
 
     Braço de descarte da esteira binária v1.3.103 (chamado via
     `core/automation_disposition.execute_discard`). Retorna
@@ -190,7 +189,7 @@ def descartar_item_automacao(
     if not input_hash:
         raise ValueError("input_hash e obrigatorio")
     log_fields = log_fields or {}
-    sync_log_action = "tombstone_permanent" if tombstone else "tombstone_recoverable"
+    sync_log_action = "tombstone_permanent"
 
     conn = get_connection()
     try:

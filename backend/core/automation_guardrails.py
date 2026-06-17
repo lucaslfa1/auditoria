@@ -66,11 +66,15 @@ class AutomationGatekeeper:
         if metadata.get("origem") != "huawei_sync":
             return None
 
-        # Resolve o setor normalizado (ex: de "UTI - RJ" para "uti")
+        # Para Huawei, o bloqueio de direcao deve usar o setor real do operador
+        # (cadastro RH/Huawei). A classificacao IA (`setor_previsto`) pode errar
+        # para "cadastro"/"logistica" e nao pode liberar receptiva de risco.
         raw_sector = (
-            item.get("setor_previsto")
-            or metadata.get("operator_sector_id")
+            metadata.get("operator_sector_id")
             or metadata.get("operator_sector_real")
+            or item.get("setor_previsto")
+            or metadata.get("sector_id")
+            or metadata.get("setor")
         )
         sector = normalize_huawei_sector(raw_sector)
 

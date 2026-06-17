@@ -1,7 +1,7 @@
 """Tombstone na huawei_sync_logs (db/database.py).
 
-Descarte permanente nunca rebaixa; recuperavel rebaixa ate o limite anti-loop. A linha
-e PRESERVADA (UPSERT), nao deletada, para o contador sobreviver ao DELETE da fila.
+Descarte nunca rebaixa. A linha e PRESERVADA (UPSERT), nao deletada, para o
+contador sobreviver ao DELETE da fila.
 """
 import os
 import sys
@@ -15,7 +15,7 @@ from repositories import classification_review
 
 
 class _FakeCursor:
-    def __init__(self, returning=(1, "discarded_recoverable")):
+    def __init__(self, returning=(1, "discarded_permanent")):
         self.queries = []
         self._returning = returning
 
@@ -38,16 +38,18 @@ class TestTombstoneHelper(unittest.TestCase):
         self.assertNotIn("DELETE", sql)
         self.assertEqual(status, "discarded_permanent")
 
-    def test_recoverable_incrementa_attempts_e_usa_loop_limit_no_case(self):
-        cur = _FakeCursor(returning=(2, "discarded_recoverable"))
+    def test_recoverable_legado_tambem_grava_permanent(self):
+        cur = _FakeCursor(returning=(2, "discarded_permanent"))
         attempts, status = database.huawei_sync_log_tombstone(
             cur, "C-2", permanent=False, motivo="x", loop_limit=3
         )
         sql, params = cur.queries[0]
-        self.assertIn("discarded_recoverable", sql)
+        self.assertIn("discarded_permanent", sql)
+        self.assertNotIn("discarded_recoverable", sql)
         self.assertIn("discard_attempts = huawei_sync_logs.discard_attempts + 1", sql)
-        self.assertIn(3, params)  # loop_limit usado no CASE de promocao a permanent
+        self.assertNotIn(3, params)  # loop_limit legado nao libera reentrada
         self.assertEqual(attempts, 2)
+        self.assertEqual(status, "discarded_permanent")
 
     def test_call_id_vazio_e_noop(self):
         cur = _FakeCursor()
@@ -65,7 +67,7 @@ class TestTombstoneHelper(unittest.TestCase):
 
 
 class TestSyncLogExistsAllowlist(unittest.TestCase):
-    """discarded_recoverable e reversivel (rebaixa); discarded_permanent nao (tombstone)."""
+    """discarded_* nao e reversivel; somente skips/falhas pre-descarte rebaixam."""
 
     def _captured_sql(self) -> str:
         captured = {}
@@ -88,17 +90,16 @@ class TestSyncLogExistsAllowlist(unittest.TestCase):
             database.huawei_sync_log_exists("C-1")
         return captured.get("sql", "")
 
-    def test_allowlist_inclui_recoverable_e_exclui_permanent(self):
+    def test_allowlist_exclui_descartes(self):
         sql = self._captured_sql()
         self.assertIn("NOT IN", sql)
-        # recoverable na lista de reversiveis -> rebaixa
-        self.assertIn("discarded_recoverable", sql)
-        # permanent FORA da lista -> tratado como "ja sincronizado" (nao rebaixa)
+        self.assertIn("skipped_direction", sql)
+        self.assertNotIn("discarded_recoverable", sql)
         self.assertNotIn("discarded_permanent", sql)
 
 
 class TestSyncLogRegistrarTombstone(unittest.TestCase):
-    def test_registrar_nao_promove_discarded_permanent(self):
+    def test_registrar_nao_promove_descartes_legados_ou_permanentes(self):
         captured = {}
 
         class _Cur:
@@ -121,7 +122,7 @@ class TestSyncLogRegistrarTombstone(unittest.TestCase):
 
         sql = captured.get("sql", "")
         self.assertIn("ON CONFLICT (call_id) DO UPDATE", sql)
-        self.assertIn("WHERE huawei_sync_logs.status IS DISTINCT FROM 'discarded_permanent'", sql)
+        self.assertIn("COALESCE(huawei_sync_logs.status, '') NOT LIKE 'discarded_%'", sql)
         self.assertTrue(captured.get("committed"))
 
 

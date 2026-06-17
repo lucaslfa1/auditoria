@@ -1384,9 +1384,9 @@ def huawei_sync_log_exists(call_id: str) -> bool:
     """Idempotencia: ja sincronizamos essa ligacao Huawei antes (e com sucesso ou cota)?
     Ignora skips reversiveis para permitir retentativa se cota/regra/direcao mudarem.
 
-    'discarded_recoverable' tambem e reversivel: o item foi descartado pela automacao
-    mas pode voltar num proximo sync (alerta desconhecido/sem criterio pode mudar).
-    'discarded_permanent' (tombstone) NAO esta na lista reversivel -> nunca rebaixa.
+    Descartes de automacao nao sao mais reversiveis: qualquer status
+    discarded_* deve bloquear redownload. A lista reversivel fica restrita a
+    falhas tecnicas de coleta/pre-filtro que ainda nao foram decisao de descarte.
     """
     if not call_id:
         return False
@@ -1395,7 +1395,7 @@ def huawei_sync_log_exists(call_id: str) -> bool:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT 1 FROM huawei_sync_logs WHERE call_id = %s AND status NOT IN ('failed', 'skipped_quota', 'skipped_direction', 'discarded_recoverable') LIMIT 1",
+            "SELECT 1 FROM huawei_sync_logs WHERE call_id = %s AND status NOT IN ('failed', 'skipped_quota', 'skipped_direction') LIMIT 1",
             (str(call_id),),
         )
         return cursor.fetchone() is not None
@@ -1418,45 +1418,26 @@ def huawei_sync_log_tombstone(
     do chamador (nao abre conexao, nao commita — o descarte e atomico com a fila).
 
     permanent=True  -> status 'discarded_permanent' (tombstone definitivo; nunca rebaixa).
-    permanent=False -> incrementa discard_attempts e mantem 'discarded_recoverable' (rebaixa
-                       no proximo sync) ate atingir loop_limit, quando vira 'discarded_permanent'.
+    permanent=False -> compatibilidade legada; tambem grava 'discarded_permanent'.
 
     Retorna (discard_attempts, status_final). Reusa a linha existente via ON CONFLICT, entao
     o contador sobrevive ao DELETE da fila.
     """
     if not call_id:
         return (0, "")
-    if permanent:
-        cursor.execute(
-            """
-            INSERT INTO huawei_sync_logs (call_id, status, failure_reason, discard_attempts)
-            VALUES (%s, 'discarded_permanent', %s, 1)
-            ON CONFLICT (call_id) DO UPDATE SET
-                status = 'discarded_permanent',
-                failure_reason = COALESCE(EXCLUDED.failure_reason, huawei_sync_logs.failure_reason),
-                discard_attempts = huawei_sync_logs.discard_attempts + 1,
-                sincronizado_em = CURRENT_TIMESTAMP
-            RETURNING discard_attempts, status
-            """,
-            (str(call_id), motivo),
-        )
-    else:
-        cursor.execute(
-            """
-            INSERT INTO huawei_sync_logs (call_id, status, failure_reason, discard_attempts)
-            VALUES (%s, 'discarded_recoverable', %s, 1)
-            ON CONFLICT (call_id) DO UPDATE SET
-                discard_attempts = huawei_sync_logs.discard_attempts + 1,
-                status = CASE
-                    WHEN huawei_sync_logs.discard_attempts + 1 >= %s THEN 'discarded_permanent'
-                    ELSE 'discarded_recoverable'
-                END,
-                failure_reason = COALESCE(EXCLUDED.failure_reason, huawei_sync_logs.failure_reason),
-                sincronizado_em = CURRENT_TIMESTAMP
-            RETURNING discard_attempts, status
-            """,
-            (str(call_id), motivo, int(loop_limit)),
-        )
+    cursor.execute(
+        """
+        INSERT INTO huawei_sync_logs (call_id, status, failure_reason, discard_attempts)
+        VALUES (%s, 'discarded_permanent', %s, 1)
+        ON CONFLICT (call_id) DO UPDATE SET
+            status = 'discarded_permanent',
+            failure_reason = COALESCE(EXCLUDED.failure_reason, huawei_sync_logs.failure_reason),
+            discard_attempts = huawei_sync_logs.discard_attempts + 1,
+            sincronizado_em = CURRENT_TIMESTAMP
+        RETURNING discard_attempts, status
+        """,
+        (str(call_id), motivo),
+    )
     row = cursor.fetchone()
     if row is None:
         return (0, "")
@@ -1519,8 +1500,8 @@ def huawei_sync_log_registrar(
     operador reportado pela Huawei para diagnostico e rastreabilidade.
     Preserve valores existentes via COALESCE para nao apagar dados quando um registro for
     promovido (ex.: skip -> success em retry).
-    Tombstone permanente e terminal: nenhuma redescoberta pode promover
-    discarded_permanent para success/skipped/failed.
+    Qualquer tombstone discarded_* e terminal: nenhuma redescoberta pode
+    promover descarte legado/permanente para success/skipped/failed.
     """
     if not call_id:
         return
@@ -1543,7 +1524,7 @@ def huawei_sync_log_registrar(
                 operator_name = COALESCE(EXCLUDED.operator_name, huawei_sync_logs.operator_name),
                 huawei_skill_id = COALESCE(EXCLUDED.huawei_skill_id, huawei_sync_logs.huawei_skill_id),
                 sincronizado_em = CURRENT_TIMESTAMP
-            WHERE huawei_sync_logs.status IS DISTINCT FROM 'discarded_permanent'
+            WHERE COALESCE(huawei_sync_logs.status, '') NOT LIKE 'discarded_%'
             """,
             (
                 str(call_id), agent_id, media_url, status, failure_reason,

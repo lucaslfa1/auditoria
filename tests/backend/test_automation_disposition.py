@@ -1,7 +1,7 @@
 """Camada central de disposicao da esteira de automacao (core/automation_disposition.py).
 
-execute_discard centraliza o descarte: IMPOSSIBLE -> tombstone permanente; RECOVERABLE ->
-tombstone reversivel com anti-loop. transient_retry_state decide retry vs esgotamento.
+execute_discard centraliza o descarte: qualquer descarte vira tombstone
+permanente. transient_retry_state decide retry vs esgotamento.
 """
 import os
 import sys
@@ -39,7 +39,7 @@ class TestExecuteDiscard(unittest.TestCase):
         return patch.object(
             database,
             "descartar_item_automacao",
-            return_value=result or {"discarded": True, "tombstone": "discarded_recoverable", "attempts": 1},
+            return_value=result or {"discarded": True, "tombstone": "discarded_permanent", "attempts": 1},
         )
 
     def test_impossible_usa_tombstone_true(self):
@@ -58,7 +58,7 @@ class TestExecuteDiscard(unittest.TestCase):
         self.assertEqual(mock_disc.call_args.args[0], "h1")
         self.assertEqual(mock_disc.call_args.kwargs["motivo"], "transcricao_impossivel")
 
-    def test_recoverable_usa_tombstone_false(self):
+    def test_recoverable_legado_tambem_usa_tombstone_true(self):
         with self._patch_db() as mock_disc:
             out = execute_discard(
                 {},
@@ -69,7 +69,7 @@ class TestExecuteDiscard(unittest.TestCase):
                 filename="c.wav",
             )
         self.assertEqual(out["status"], "discarded_unknown_alert")
-        self.assertFalse(mock_disc.call_args.kwargs["tombstone"])
+        self.assertTrue(mock_disc.call_args.kwargs["tombstone"])
 
     def test_loop_limit_vem_da_env(self):
         with self._patch_db() as mock_disc, patch.dict(

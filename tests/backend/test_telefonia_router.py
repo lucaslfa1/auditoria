@@ -107,6 +107,9 @@ class _FakeCleanupCursor:
     def fetchall(self):
         return self.rows
 
+    def fetchone(self):
+        return {"discard_attempts": 1, "status": "discarded_permanent"}
+
 
 class _FakeCleanupConnection:
     def __init__(self, rows: list[dict]):
@@ -293,8 +296,13 @@ class TestTelefoniaRouter(unittest.TestCase):
             params for query, params in conn.cursor_obj.executions
             if "DELETE FROM huawei_sync_logs" in query
         ]
+        tombstones = [
+            params for query, params in conn.cursor_obj.executions
+            if "INSERT INTO huawei_sync_logs" in query and "discarded_permanent" in query
+        ]
         self.assertEqual(delete_queue[0][0], ["hash-huawei"])
-        self.assertEqual(delete_logs[0][0], ["CALL-1"])
+        self.assertEqual(delete_logs, [])
+        self.assertEqual(tombstones[0][0], "CALL-1")
         self.assertTrue(conn.committed)
         self.assertTrue(conn.closed)
 
@@ -340,8 +348,13 @@ class TestTelefoniaRouter(unittest.TestCase):
             params for query, params in conn.cursor_obj.executions
             if "DELETE FROM huawei_sync_logs" in query
         ]
+        tombstones = [
+            params for query, params in conn.cursor_obj.executions
+            if "INSERT INTO huawei_sync_logs" in query and "discarded_permanent" in query
+        ]
         self.assertEqual(delete_queue[0][0], ["hash-triage", "hash-upload"])
-        self.assertEqual(delete_logs[0][0], ["CALL-2"])
+        self.assertEqual(delete_logs, [])
+        self.assertEqual(tombstones[0][0], "CALL-2")
         self.assertTrue(conn.committed)
         self.assertTrue(conn.closed)
 
@@ -374,6 +387,20 @@ class TestTelefoniaRouter(unittest.TestCase):
         self.assertEqual(
             telefonia._huawei_recording_direction_block(item),
             ("setor_nao_telefonia", "celula_atendimento"),
+        )
+
+    def test_bloqueio_direcao_prefere_setor_real_do_operador(self):
+        item = _queue_item("downloaded")
+        item["setor_previsto"] = "cadastro"
+        item["metadata"] = {
+            **item["metadata"],
+            "operator_sector_real": "DIST - VERDE",
+            "huawei_is_call_in": True,
+        }
+
+        self.assertEqual(
+            telefonia._huawei_recording_direction_block(item),
+            ("receptiva_setor_risco", "distribuicao"),
         )
 
     def test_obter_audio_gravacao_serve_bytes_do_audio_classificado(self):
@@ -498,9 +525,9 @@ class TestTelefoniaRouter(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertIn("sem ID Huawei", ctx.exception.detail)
 
-    def test_remover_gravacao_oficial_apaga_sync_log_para_permitir_redownload(self):
-        """Ao deletar gravacao de operador OFICIAL, o call_id deve sair de huawei_sync_logs
-        para que o proximo sync possa redescobrir e baixar de novo a chamada."""
+    def test_remover_gravacao_oficial_cria_tombstone_para_nao_redownload(self):
+        """Ao deletar gravacao de operador OFICIAL, o call_id vira tombstone
+        permanente para que o proximo sync nao redescubra a chamada."""
         item = _queue_item("pending")
         item["is_oficial"] = True
         item["metadata"] = {
@@ -526,8 +553,12 @@ class TestTelefoniaRouter(unittest.TestCase):
             params for query, params in conn.cursor_obj.executions
             if "INSERT INTO huawei_sync_logs" in query and "skipped_operator" in query
         ]
-        self.assertEqual(len(delete_logs), 1)
-        self.assertEqual(delete_logs[0][0], "CALL-OFICIAL")
+        tombstones = [
+            params for query, params in conn.cursor_obj.executions
+            if "INSERT INTO huawei_sync_logs" in query and "discarded_permanent" in query
+        ]
+        self.assertEqual(len(delete_logs), 0)
+        self.assertEqual(tombstones[0][0], "CALL-OFICIAL")
         self.assertEqual(len(insert_skips), 0)
         self.assertTrue(conn.committed)
 

@@ -404,10 +404,12 @@ def _huawei_recording_direction_block(item: dict) -> Optional[tuple[str, str]]:
         return None
 
     metadata = _queue_metadata(item)
+    # Usa primeiro o setor real do operador no metadata. O setor previsto pela
+    # classificacao pode estar errado e nao deve liberar receptiva de risco.
     sector = normalize_huawei_sector(
-        (item or {}).get("setor_previsto")
-        or metadata.get("operator_sector_id")
+        metadata.get("operator_sector_id")
         or metadata.get("operator_sector_real")
+        or (item or {}).get("setor_previsto")
         or metadata.get("sector_id")
         or metadata.get("setor")
     )

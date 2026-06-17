@@ -590,6 +590,23 @@ class TestReviewQueueContract(unittest.TestCase):
             ("setor_nao_telefonia", "celula_atendimento"),
         )
 
+    def test_huawei_queue_direction_block_prefere_setor_real_do_operador(self):
+        item = {
+            "setor_previsto": "cadastro",
+            "metadata": {
+                "origem": "huawei_sync",
+                "operator_sector_real": "DIST - VERDE",
+                "huawei_is_call_in": True,
+            },
+        }
+
+        from core.automation_guardrails import AutomationGatekeeper
+
+        self.assertEqual(
+            AutomationGatekeeper.check_eligibility(item),
+            ("receptiva_setor_risco", "distribuicao"),
+        )
+
     @patch.object(automation.database, "atualizar_status_fila_revisao_classificacao")
     @patch.object(automation, "compute_input_hash", return_value="audit-hash-1")
     @patch.object(automation.database, "persist_audit_artifacts", return_value=99)
@@ -1179,7 +1196,7 @@ class TestReviewQueueContract(unittest.TestCase):
         mock_descartar,
     ):
         # Novo contrato: operador nao auditavel nunca vira auditoria valida -> DESCARTA
-        # (recuperavel), nao prende em blocked_operator.
+        # permanente, nao prende em blocked_operator.
         item = {
             "input_hash": "queue-hash-ghost",
             "nome_arquivo": "ghost.wav",

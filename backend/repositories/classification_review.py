@@ -22,11 +22,9 @@ Ciclo de vida (constantes em `db/domain_constants.py`):
   elegível quando o período (YYYY-MM) gravado no metadata difere do corrente;
 - `ready_for_audit` e `all` são status VIRTUAIS de consulta — nunca persistidos.
 
-Descarte (esteira binária v1.3.103): item que não presta NÃO fica preso — a
-linha é removida da fila e o `huawei_sync_logs` vira tombstone:
-`discarded_permanent` (lixo definitivo; nunca reentra) ou
-`discarded_recoverable` (falha técnica transitória; pode voltar num próximo
-sync até o limite anti-loop, quando é promovido a permanente).
+Descarte: item que não presta NÃO fica preso e NÃO volta — a linha é removida
+da fila e o `huawei_sync_logs` vira tombstone permanente
+(`discarded_permanent`).
 
 CUSTO DE API: módulo é quase todo acesso a banco (sem custo Azure). Exceção
 pontual: `corrigir_classificacao_fila_revisao` dispara o gatilho RLHF quando

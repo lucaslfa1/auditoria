@@ -81,7 +81,7 @@ def remover_todas_gravacoes(_user: dict = Depends(require_admin)):
         rows = cursor.fetchall()
 
         hashes_to_delete = []
-        huawei_ids_to_delete = []
+        huawei_ids_to_tombstone = []
 
         for row in rows:
             input_hash = row["input_hash"]
@@ -108,7 +108,7 @@ def remover_todas_gravacoes(_user: dict = Depends(require_admin)):
 
             hashes_to_delete.append(input_hash)
             if meta.get("huawei_call_id"):
-                huawei_ids_to_delete.append(str(meta.get("huawei_call_id")))
+                huawei_ids_to_tombstone.append(str(meta.get("huawei_call_id")))
 
         if hashes_to_delete:
             cursor.execute(
@@ -119,10 +119,12 @@ def remover_todas_gravacoes(_user: dict = Depends(require_admin)):
                 (hashes_to_delete,)
             )
 
-        if huawei_ids_to_delete:
-            cursor.execute(
-                "DELETE FROM huawei_sync_logs WHERE call_id = ANY(%s)",
-                (huawei_ids_to_delete,)
+        for call_id in huawei_ids_to_tombstone:
+            database.huawei_sync_log_tombstone(
+                cursor,
+                call_id,
+                permanent=True,
+                motivo="removido_telefonia_limpar_tudo",
             )
 
         conn.commit()
@@ -138,7 +140,8 @@ def remover_gravacao(input_hash: str, _user: dict = Depends(require_admin)):
     """
     Remove uma gravacao da fila.
     - Se estiver auditada/cota mensal: apenas marca como arquivada para sumir da tela.
-    - Se estiver pendente ou em outro status: apaga do banco para permitir novo download.
+    - Se estiver pendente ou em outro status: apaga da fila e cria tombstone
+      permanente para nao voltar em novo sync.
     """
     item = tf._get_recording_queue_item_or_404(input_hash, require_audio=False)
     status = str(item.get("status") or "").strip().lower()
@@ -160,10 +163,8 @@ def remover_gravacao(input_hash: str, _user: dict = Depends(require_admin)):
             raise HTTPException(status_code=404, detail="Gravacao nao encontrada.")
         return {"status": "ok", "message": "Ligacao auditada foi ocultada da fila.", "action": "archived"}
 
-    # Exclui de fato para que a coleta possa baixa-la novamente (se for oficial).
-    # is_oficial vem do LATERAL JOIN em obter_fila_revisao_classificacao_por_hash;
-    # default True garante que ao redownload nao seja bloqueado quando o campo
-    # nao puder ser calculado (ex: testes legados sem o JOIN).
+    # Exclui da fila, mas nao libera redownload: descarte operacional deve ser
+    # definitivo. is_oficial ainda diferencia o motivo gravado no log.
     conn = database.get_connection()
     try:
         cursor = conn.cursor()
@@ -176,10 +177,11 @@ def remover_gravacao(input_hash: str, _user: dict = Depends(require_admin)):
         )
         if huawei_call_id:
             if is_oficial:
-                # Permite que o proximo sync redescubra esta chamada na Huawei.
-                cursor.execute(
-                    "DELETE FROM huawei_sync_logs WHERE call_id = %s",
-                    (huawei_call_id,),
+                database.huawei_sync_log_tombstone(
+                    cursor,
+                    huawei_call_id,
+                    permanent=True,
+                    motivo="removido_telefonia",
                 )
             else:
                 # Option A: Operador sem cadastro. Se reimportarmos, volta com erro.

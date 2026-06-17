@@ -307,7 +307,7 @@ class TranscriptionFallbackGatekeeper:
 
         Falha de transcricao costuma ser transitoria (instabilidade do Azure): com
         AUTOMATION_TRANSCRIPTION_FAILURE_RETRY ON (default) re-tenta ate o limite e,
-        esgotado, DESCARTA (recuperavel) em vez de prender. OFF (rollback) ->
+        esgotado, DESCARTA permanente em vez de prender. OFF (rollback) ->
         needs_manual_triage imediato (comportamento legado).
         """
         from core.automation import (
@@ -352,7 +352,8 @@ class TranscriptionFallbackGatekeeper:
                 # Falha de transcricao no automatico: descarte PERMANENTE (tombstone)
                 # na 1a falha por politica (auditar e so uma vez; sem retry), igual
                 # ao tratamento de transcricao vazia. Reversivel via
-                # AUTOMATION_DISCARD_IMPOSSIBLE_TRANSCRIPTION=false (-> recuperavel).
+                # AUTOMATION_DISCARD_IMPOSSIBLE_TRANSCRIPTION=false fica como
+                # rollback de classificacao, mas descarte segue tombstone permanente.
                 return execute_discard(
                     None,
                     (

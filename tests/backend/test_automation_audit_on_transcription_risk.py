@@ -133,7 +133,7 @@ class TestCachedTranscriptionGate(unittest.TestCase):
 
 class TestTranscriptionFailureRetry(unittest.TestCase):
     """Falha de transcricao e transitoria (instabilidade do Azure): re-tenta ate o limite
-    e, esgotado, DESCARTA (recuperavel) — nao prende em triagem. Rollback via
+    e, esgotado, DESCARTA permanente — nao prende em triagem. Rollback via
     AUTOMATION_TRANSCRIPTION_FAILURE_RETRY=false."""
 
     def test_primeira_falha_retenta_com_flag_on(self):

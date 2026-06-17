@@ -106,11 +106,11 @@ class TestDescartarRepo(unittest.TestCase):
         sqls = " | ".join(q for q, _ in cur.queries)
         self.assertNotIn("automation_discards", sqls)
         self.assertIn("DELETE FROM fila_revisao_classificacao", sqls)
-        # Novo contrato: descarte recuperavel NAO deleta o sync_log; faz UPSERT (tombstone)
-        # preservando a linha para contar tentativas (anti-loop por call_id).
+        # Novo contrato: descarte NAO deleta o sync_log; faz UPSERT de tombstone
+        # permanente para impedir reentrada por call_id.
         self.assertNotIn("DELETE FROM huawei_sync_logs", sqls)
         self.assertIn("INSERT INTO huawei_sync_logs", sqls)
-        self.assertIn("discarded_recoverable", sqls)
+        self.assertIn("discarded_permanent", sqls)
         fake_file.unlink.assert_called_once()
         self.assertEqual(conn.commits, 1)
         self.assertTrue(out["discarded"])
@@ -148,7 +148,7 @@ class TestDescartarRepo(unittest.TestCase):
         self.assertFalse(out["discarded"])
         self.assertEqual(conn.commits, 0)
 
-    def test_limpar_antiga_ainda_deleta_via_helper(self):
+    def test_limpar_antiga_cria_tombstone_permanente(self):
         # regressao: a extracao de _purgar_item_fila nao pode quebrar o cleanup de 24h
         row = {
             "input_hash": "old1",
@@ -164,7 +164,8 @@ class TestDescartarRepo(unittest.TestCase):
             out = classification_review.limpar_fila_revisao_classificacao_antiga(lambda: conn, 24)
         sqls = " | ".join(q for q, _ in cur.queries)
         self.assertIn("DELETE FROM fila_revisao_classificacao", sqls)
-        self.assertIn("DELETE FROM huawei_sync_logs", sqls)
+        self.assertNotIn("DELETE FROM huawei_sync_logs", sqls)
+        self.assertIn("discarded_permanent", sqls)
         self.assertEqual(out["deleted"], 1)
         fake_file.unlink.assert_called_once()
 
@@ -278,7 +279,7 @@ class TestAuditSingleItemHook(unittest.TestCase):
         self.assertEqual(mock_mark.call_args.args[1], automation.REVIEW_QUEUE_STATUS_NEEDS_MANUAL_TRIAGE)
 
     def test_setor_ausente_com_alerta_valido_e_descartado(self):
-        # Novo contrato: setor ausente nunca vira auditoria valida -> DESCARTA (recuperavel),
+        # Novo contrato: setor ausente nunca vira auditoria valida -> DESCARTA permanente,
         # nao prende em triagem. Gateado por AUTOMATION_DISCARD_MISSING_SECTOR (default ON).
         item = _desconhecido_item()
         with contextlib.ExitStack() as stack:

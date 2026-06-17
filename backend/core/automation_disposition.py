@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class Disposition(str, Enum):
     PROCEED = "proceed"                            # segue e e auditado
     DISCARD_IMPOSSIBLE = "discard_impossible"      # nunca vira auditavel -> tombstone permanente
-    DISCARD_RECOVERABLE = "discard_recoverable"    # pode voltar num proximo sync -> anti-loop
+    DISCARD_RECOVERABLE = "discard_recoverable"    # legado: tambem vira tombstone permanente
     RETRY = "retry"                                # transitorio: volta a pending ate esgotar
 
 
@@ -41,8 +41,9 @@ def _transient_retry_limit() -> int:
     vez; se falhar, vai para triagem manual e o humano edita'. Com limite 1, a
     falha de transcricao cai direto em needs_manual_triage (nao re-transcreve =
     nao gasta Azure de novo); falha de infra (timeout/audio ausente) e descartada
-    recuperavel. Reversivel via env (AUTOMATION_TRANSIENT_RETRY_LIMIT=3 restaura o
-    retry anterior). Ver logs/versions/1.3.111.
+    definitivamente apos esgotar retries. Reversivel via env
+    (AUTOMATION_TRANSIENT_RETRY_LIMIT=3 restaura o retry anterior). Ver
+    logs/versions/1.3.111.
     """
     raw = os.getenv("AUTOMATION_TRANSIENT_RETRY_LIMIT", "1")
     try:
@@ -92,9 +93,10 @@ def execute_discard(
     status para _audit_single_item. `status_result` DEVE comecar com 'discarded'
     (a telemetria do lote soma por startswith('discarded')).
 
-    DISCARD_IMPOSSIBLE  -> descartar_item_automacao(tombstone=True)  — nunca rebaixa.
-    DISCARD_RECOVERABLE -> descartar_item_automacao(tombstone=False) — rebaixa ate o
-                           limite anti-loop por call_id, quando vira tombstone.
+    DISCARD_IMPOSSIBLE  -> descartar_item_automacao(tombstone=True) — nunca rebaixa.
+    DISCARD_RECOVERABLE -> mantido por compatibilidade, mas tambem grava
+                           tombstone permanente. Regra operacional atual:
+                           descartou, nao volta em sync futuro.
     """
     if disposition not in (Disposition.DISCARD_IMPOSSIBLE, Disposition.DISCARD_RECOVERABLE):
         raise ValueError(f"execute_discard nao aceita disposition={disposition!r}")
@@ -105,7 +107,7 @@ def execute_discard(
     metadata = metadata if isinstance(metadata, dict) else {}
     if loop_limit is None:
         loop_limit = _discard_loop_limit()
-    tombstone = disposition == Disposition.DISCARD_IMPOSSIBLE
+    tombstone = True
 
     log_fields = {
         "nome_arquivo": filename,
