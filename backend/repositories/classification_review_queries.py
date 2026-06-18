@@ -55,16 +55,18 @@ def _normalize_huawei_id_sql(expr: str) -> str:
     return f"regexp_replace(NULLIF(TRIM({expr}), ''), '^([0-9]+)\\.0+$', '\\1')"
 
 
-def _huawei_operator_id_candidates_sql() -> str:
+def _huawei_operator_id_candidates_sql(jsonb_src: str) -> str:
     """Lista SQL de candidatos Huawei vindos do metadata da fila.
 
-    Lê do jsonb já materializado em ``f._mj`` (ver CTE ``f_base`` em
-    ``listar_fila_revisao_classificacao``), evitando re-parsear o metadata por
-    linha de colaborador dentro do LATERAL.
+    ``jsonb_src`` é a expressão SQL do metadata JÁ como jsonb. A listagem passa
+    ``f._mj`` (cast materializado uma vez na CTE ``f_base``, ver
+    ``listar_fila_revisao_classificacao``); a busca por hash passa
+    ``f.metadata_json::jsonb`` (consulta de 1 linha, sem CTE). Hardcodar ``f._mj``
+    aqui quebrava a busca por hash (``column f._mj does not exist``).
     """
 
     return ",\n                      ".join(
-        _normalize_huawei_id_sql(f"f._mj ->> '{key}'")
+        _normalize_huawei_id_sql(f"{jsonb_src} ->> '{key}'")
         for key in _HUAWEI_OPERATOR_ID_METADATA_KEYS
     )
 
@@ -196,7 +198,7 @@ def listar_fila_revisao_classificacao(
                   AND COALESCE(c.auditavel, 1) = 1
                   AND COALESCE(NULLIF(TRIM(c.id_huawei), ''), '') <> ''
                   AND {_normalize_huawei_id_sql("c.id_huawei")} = ANY(ARRAY[
-                      {_huawei_operator_id_candidates_sql()}
+                      {_huawei_operator_id_candidates_sql("f._mj")}
                   ])
                 ORDER BY
                     CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
@@ -345,7 +347,7 @@ def obter_fila_revisao_classificacao_por_hash(
                   AND COALESCE(c.auditavel, 1) = 1
                   AND COALESCE(NULLIF(TRIM(c.id_huawei), ''), '') <> ''
                   AND {_normalize_huawei_id_sql("c.id_huawei")} = ANY(ARRAY[
-                      {_huawei_operator_id_candidates_sql()}
+                      {_huawei_operator_id_candidates_sql("f.metadata_json::jsonb")}
                   ])
                 ORDER BY
                     CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,

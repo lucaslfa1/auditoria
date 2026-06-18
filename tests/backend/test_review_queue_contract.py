@@ -295,6 +295,21 @@ class TestReviewQueueContract(unittest.TestCase):
         self.assertIn("f._mj ->> 'operator_id_huawei_real'", query)
         self.assertIn("f._mj ->> 'operator_name'", query)
 
+    def test_hash_lookup_does_not_reference_materialized_mj(self):
+        # Regressao real (v1.3.191): a busca por hash NAO tem a CTE f_base, logo
+        # nao existe coluna f._mj. Quando o helper de candidatos passou a emitir
+        # f._mj hardcoded, esta query quebrou em runtime com "column f._mj does
+        # not exist" (fake cursor nao executa SQL, por isso passou batido). Os
+        # candidatos aqui devem ler f.metadata_json::jsonb direto.
+        cursor = _FakeCursor(fetchone_results=[None])
+        conn = _FakeConnection(cursor)
+        result = obter_fila_revisao_classificacao_por_hash(lambda: conn, "hash-x")
+        self.assertIsNone(result)
+        query, params = cursor.executed[-1]
+        self.assertNotIn("f._mj", query)
+        self.assertIn("= ANY(ARRAY[", query)
+        self.assertIn("hash-x", params)
+
     def test_huawei_queue_uses_official_matricula_from_name_match(self):
         cursor = _FakeCursor(
             fetchall_results=[
