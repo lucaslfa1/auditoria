@@ -122,6 +122,8 @@ from core.automation_config import (  # noqa: E402,F401
     _get_automation_expected_audit_item_seconds,
     _derive_automation_audit_batch_size,
     _get_automation_audit_time_budget_seconds,
+    DEFAULT_AUTOMATION_AUDIT_CONCURRENCY,
+    _get_automation_audit_concurrency,
     _config_flag,
     _env_flag_default_on,
     _discard_unknown_alerts_enabled,
@@ -466,6 +468,7 @@ async def audit_all_pending(
         time_budget_seconds=time_budget,
         item_timeout_seconds=item_timeout_seconds,
     )
+    audit_concurrency = _get_automation_audit_concurrency()
     started_monotonic = time.monotonic()
     deadline = started_monotonic + time_budget
     time_budget_exhausted = False
@@ -701,6 +704,84 @@ async def audit_all_pending(
                     }
                 )
 
+    async def _can_start_next_item() -> Optional[str]:
+        """Reavalia os gates ANTES de iniciar um item (mesma ordem do caminho
+        serial legado): meta atingida → orçamento de tempo → teto pago →
+        pause/cancel. Retorna None se pode iniciar, ou um rótulo de parada."""
+        nonlocal budget_blocked_reason
+        if processed_count >= target_count:
+            return "target"
+        if deadline - time.monotonic() <= 1:
+            mark_time_budget_exhausted()
+            return "deadline"
+        budget_blocked_reason = cost_guard.budget_exceeded()
+        if budget_blocked_reason:
+            with _progress_lock:
+                _progress.current_step = "budget_exceeded"
+                _progress.last_heartbeat_at = datetime.now(timezone.utc).isoformat()
+            logger.warning(
+                "Automacao: lote encerrado pelo guardrail de orcamento (%s). "
+                "Itens restantes permanecem na fila.",
+                budget_blocked_reason,
+            )
+            return "budget"
+        if not await wait_if_paused_or_cancelled():
+            return "cancel"
+        return None
+
+    async def _process_batch(batch_items: list) -> None:
+        """Processa o lote: serial (`audit_concurrency<=1`, legado) ou com até
+        `audit_concurrency` auditorias EM PARALELO.
+
+        Os gates (meta/orçamento/pause/cancel) são reavaliados ANTES de iniciar
+        cada item nos dois caminhos. Itens já em voo terminam naturalmente — a
+        mesma tolerância de overshoot que o guardrail de orçamento serial já
+        aceita. A concorrência é limitada por um pool de no máximo
+        `audit_concurrency` tasks; cada item solta o event loop nas chamadas
+        pagas (transcrição/avaliação via `asyncio.to_thread`), então o paralelo
+        é real."""
+        nonlocal processed_count
+
+        if audit_concurrency <= 1:
+            for item in batch_items:
+                if await _can_start_next_item() is not None:
+                    break
+                await process_ready_item(item)
+                processed_count += 1
+                await asyncio.sleep(0.5)
+            return
+
+        pending: set = set()
+
+        async def _guarded(it: dict) -> None:
+            fname = it.get("nome_arquivo", "?")
+            with _progress_lock:
+                _progress.current_filenames.append(fname)
+            try:
+                await process_ready_item(it)
+            except Exception:
+                logger.exception(
+                    "Automacao: erro inesperado no item paralelo '%s'", fname
+                )
+            finally:
+                with _progress_lock:
+                    try:
+                        _progress.current_filenames.remove(fname)
+                    except ValueError:
+                        pass
+
+        for item in batch_items:
+            if await _can_start_next_item() is not None:
+                break
+            pending.add(asyncio.create_task(_guarded(item)))
+            processed_count += 1
+            if len(pending) >= audit_concurrency:
+                _done, pending = await asyncio.wait(
+                    pending, return_when=asyncio.FIRST_COMPLETED
+                )
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
     try:
         while processed_count < target_count:
             remaining_budget = deadline - time.monotonic()
@@ -708,7 +789,10 @@ async def audit_all_pending(
                 mark_time_budget_exhausted()
                 break
 
-            fetch_limit = min(batch_size, target_count - processed_count)
+            fetch_limit = min(
+                max(batch_size, audit_concurrency),
+                target_count - processed_count,
+            )
             items = list(
                 database.listar_fila_revisao_classificacao(
                     limit=fetch_limit,
@@ -729,10 +813,11 @@ async def audit_all_pending(
 
             logger.info(
                 "Automacao: iniciando lote operacional com %d item(ns) "
-                "(target=%d, batch_size=%d, budget=%ss, item_timeout=%ss)",
+                "(target=%d, batch_size=%d, concurrency=%d, budget=%ss, item_timeout=%ss)",
                 len(items),
                 target_count,
                 batch_size,
+                audit_concurrency,
                 time_budget,
                 item_timeout_seconds,
             )
@@ -748,35 +833,12 @@ async def audit_all_pending(
                 )
                 control_flags_reset = True
 
-            for item in items:
-                if processed_count >= target_count:
-                    break
-                remaining_budget = deadline - time.monotonic()
-                if remaining_budget <= 1:
-                    mark_time_budget_exhausted()
-                    break
-                # Guardrail de orcamento: teto diario de consumo pago atingido
-                # -> encerra o lote graciosamente ANTES do proximo item. Os
-                # itens restantes continuam ready_for_audit (nada e descartado)
-                # e serao processados quando o contador diario resetar.
-                budget_blocked_reason = cost_guard.budget_exceeded()
-                if budget_blocked_reason:
-                    with _progress_lock:
-                        _progress.current_step = "budget_exceeded"
-                        _progress.last_heartbeat_at = datetime.now(timezone.utc).isoformat()
-                    logger.warning(
-                        "Automacao: lote encerrado pelo guardrail de orcamento (%s). "
-                        "Itens restantes permanecem na fila.",
-                        budget_blocked_reason,
-                    )
-                    break
-                if not await wait_if_paused_or_cancelled():
-                    break
-
-                await process_ready_item(item)
-                processed_count += 1
-
-                await asyncio.sleep(0.5)
+            # Guardrail de orcamento (teto diario de consumo pago) e gates de
+            # meta/tempo/pause-cancel sao reavaliados ANTES de iniciar cada item
+            # dentro de `_process_batch` (caminho serial e paralelo). Os itens
+            # restantes continuam `ready_for_audit` (nada e descartado) quando um
+            # gate corta o lote.
+            await _process_batch(items)
 
             with _progress_lock:
                 cancelled = _progress.is_cancelled

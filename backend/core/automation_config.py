@@ -137,6 +137,32 @@ def _get_automation_audit_time_budget_seconds() -> int:
         parsed = 480
     return max(60, min(parsed, 1800))
 
+
+DEFAULT_AUTOMATION_AUDIT_CONCURRENCY = 5
+
+
+def _get_automation_audit_concurrency() -> int:
+    """Quantas auditorias rodam EM PARALELO na fase de auditoria (clamp [1, 10]).
+
+    `1` = serial (comportamento legado / rollback). O teto `10` protege a cota do
+    GPT-4o da avaliação e o pool de conexões do banco (`DB_POOL_MAX_CONN=20`);
+    como a classificação já roda a 3 sem throttle, 5 é a aposta segura.
+    Precedência: env `AUTOMATION_AUDIT_CONCURRENCY` > config no banco
+    `automacao_audit_concurrency` > default 5.
+    """
+    raw = os.getenv("AUTOMATION_AUDIT_CONCURRENCY")
+    if raw in (None, ""):
+        raw = database.get_config_value(
+            "automacao_audit_concurrency",
+            str(DEFAULT_AUTOMATION_AUDIT_CONCURRENCY),
+        )
+    try:
+        parsed = int(str(raw).strip())
+    except (TypeError, ValueError):
+        parsed = DEFAULT_AUTOMATION_AUDIT_CONCURRENCY
+    return max(1, min(parsed, 10))
+
+
 def _config_flag(key: str) -> bool:
     """Lê uma flag booleana da tabela de config do banco ('true' literal = ligada)."""
     return str(database.get_config_value(key, "false") or "").strip().lower() == "true"
