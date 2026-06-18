@@ -38,6 +38,7 @@ _SKIP_REASON_COUNTERS = {
     "non_telefonia_sector": "ignoradas_setor_nao_telefonia",
     "receptiva_setor_desconhecido": "ignoradas_receptiva_setor_desconhecido",
     "operator_huawei_not_registered": "ignoradas_operador_huawei_nao_cadastrado",
+    "oitiva_bas": "ignoradas_oitiva_bas",
 }
 # Contadores ADICIONAIS incrementados junto com o principal: alguns motivos
 # contam em duas estatísticas ao mesmo tempo (ex.: uma receptiva em setor de

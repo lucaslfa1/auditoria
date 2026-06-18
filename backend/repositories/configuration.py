@@ -263,6 +263,26 @@ def get_config_values(
         conn.close()
 
 
+def get_bas_police_numbers(get_connection: ConnectionFactory) -> set[str]:
+    """Números 'policiais' da BAS (a auditar) — não são oitiva — normalizados em dígitos.
+
+    Config `bas_police_numbers`: lista separada por vírgula/ponto-e-vírgula/quebra
+    de linha (espaços dentro do número são tolerados). A oitiva da BAS é, em regra,
+    ligação para celular do caminhoneiro; estes números (ex: 011190) são mantidos
+    mesmo quando parecem celular. Default inclui 011190.
+    """
+    import re
+    raw = get_config_value(get_connection, "bas_police_numbers", "011190")
+    numbers: set[str] = set()
+    for part in re.split(r"[,;\n]+", str(raw or "")):
+        digits = re.sub(r"\D+", "", part)
+        if digits:
+            numbers.add(digits)
+    if not numbers:
+        numbers.add("011190")
+    return numbers
+
+
 def list_audit_log(
     get_connection: ConnectionFactory,
     *,

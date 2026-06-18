@@ -129,9 +129,30 @@ def _resolve_huawei_is_call_in(interacao: dict) -> Optional[bool]:
     return resolve_huawei_is_call_in(interacao)
 
 
+_BAS_POLICE_NUMBERS_CACHE: Optional[set] = None
+
+
+def _get_bas_police_numbers() -> set:
+    """Whitelist de números policiais da BAS (cacheada por execução de sync).
+
+    Lê uma vez de `configuracoes` por ciclo (reset em `executar_sync_huawei`);
+    fail-soft para set vazio se a leitura falhar — sem whitelist, oitiva por
+    celular continua sendo descartada normalmente.
+    """
+    global _BAS_POLICE_NUMBERS_CACHE
+    if _BAS_POLICE_NUMBERS_CACHE is None:
+        try:
+            from repositories import configuration
+            _BAS_POLICE_NUMBERS_CACHE = configuration.get_bas_police_numbers(database.get_connection)
+        except Exception:
+            logger.debug("Sync Huawei: falha ao ler whitelist policial da BAS.", exc_info=True)
+            _BAS_POLICE_NUMBERS_CACHE = set()
+    return _BAS_POLICE_NUMBERS_CACHE
+
+
 def _should_skip_call(interacao: dict, operador: dict) -> Optional[str]:
     from core.huawei_sync_gatekeeper import SyncDownloadGatekeeper
-    gatekeeper = SyncDownloadGatekeeper(AUTOMATION_RULES)
+    gatekeeper = SyncDownloadGatekeeper(AUTOMATION_RULES, police_numbers=_get_bas_police_numbers())
     return gatekeeper.check_eligibility(interacao, operador)
 
 _SKIP_REASON_COUNTERS = {
@@ -211,6 +232,11 @@ def _register_direction_skip(call_id: str, interacao: dict, operador: dict, reas
     elif reason == "operator_huawei_not_registered":
         status = "skipped_operator"
         failure_reason = "operador_huawei_nao_cadastrado"
+    elif reason == "oitiva_bas":
+        # Descarte definitivo: oitiva (celular) da BAS não é auditável. Status
+        # fora da lista reversível de huawei_sync_log_exists evita re-download.
+        status = "skipped_oitiva_bas"
+        failure_reason = "oitiva_bas_celular"
     else:
         return
     agent_id = (

@@ -208,6 +208,52 @@ def format_huawei_is_call_in(value: Optional[bool]) -> Optional[str]:
     return None
 
 
+def is_brazilian_mobile(value: Any) -> bool:
+    """Heurística: o número parece um celular brasileiro?
+
+    Oitiva da BAS é, em regra, ligação para o celular do caminhoneiro; números
+    policiais/institucionais são fixos ou códigos curtos (ex: 011190). Normaliza
+    os dígitos, remove DDI 55 e zeros de tronco/operadora à esquerda e reconhece
+    o 9º dígito do celular (DDD + 9 + 8 dígitos, ou 9 + 8 dígitos sem DDD).
+    """
+    digits = _digits(value)
+    if not digits:
+        return False
+    if digits.startswith("55") and len(digits) >= 12:
+        digits = digits[2:]
+    digits = digits.lstrip("0")
+    if len(digits) == 11 and digits[2] == "9":
+        return True
+    if len(digits) == 9 and digits[0] == "9":
+        return True
+    return False
+
+
+def resolve_counterpart_number(payload: dict[str, Any]) -> Optional[str]:
+    """Número da outra ponta da ligação (não o ramal do agente).
+
+    Em ligação ativa (outbound) é o número discado (callee); em receptiva
+    (inbound) é o número de origem (caller). Com direção desconhecida, devolve a
+    ponta que NÃO casa com o ramal do agente (workNo), caindo no callee/caller.
+    """
+    caller = payload.get("callerNo") or payload.get("caller") or payload.get("caller_no") or payload.get("huawei_caller_no")
+    callee = payload.get("calleeNo") or payload.get("called") or payload.get("callee_no") or payload.get("huawei_callee_no")
+    work = payload.get("workNo") or payload.get("work_no") or payload.get("huawei_work_no") or payload.get("huawei_agent_id")
+
+    direction = resolve_huawei_is_call_in(payload)
+    if direction is False:
+        return str(callee or "").strip() or None
+    if direction is True:
+        return str(caller or "").strip() or None
+
+    if work:
+        if _same_endpoint(caller, work) and not _same_endpoint(callee, work):
+            return str(callee or "").strip() or None
+        if _same_endpoint(callee, work) and not _same_endpoint(caller, work):
+            return str(caller or "").strip() or None
+    return str(callee or caller or "").strip() or None
+
+
 def extract_is_call_in_from_response(data: Any) -> Optional[bool]:
     """Varre recursivamente uma resposta da Huawei (querydetailcallinfo/
     querybasiccallinfo) procurando o campo `isCallIn` em qualquer nivel e

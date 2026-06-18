@@ -19,6 +19,7 @@ Sem custo de API (so logica/leitura de cadastro em memoria via
 
 from typing import Optional, Dict, Any, List
 import logging
+import re
 from abc import ABC, abstractmethod
 
 from repositories import operators
@@ -26,10 +27,45 @@ from core.huawei_direction import (
     NON_TELEFONIA_SECTORS,
     OUTBOUND_ONLY_RISK_SECTORS,
     resolve_huawei_is_call_in,
+    resolve_counterpart_number,
+    is_brazilian_mobile,
     normalize_huawei_sector,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_operator_sector_slug(operador: Dict[str, Any]) -> str:
+    """Resolve o slug de setor canônico do operador (setor cru + escala/supervisor).
+
+    Centraliza a lógica usada por SectorDirectionRule e BasOitivaRule: usa o setor
+    cru (vários aliases de chave); se já for um setor de risco/não-telefonia
+    conhecido devolve direto; senão mapeia via cadastro e normaliza.
+    """
+    raw_setor = str(
+        operador.get("setor")
+        or operador.get("sectorId")
+        or operador.get("displaySector")
+        or operador.get("sector")
+        or ""
+    ).strip()
+    escala = str(operador.get("escala") or "").strip()
+    supervisor = str(operador.get("supervisor") or "").strip()
+
+    raw_sector_slug = normalize_huawei_sector(raw_setor)
+    if raw_sector_slug in OUTBOUND_ONLY_RISK_SECTORS or raw_sector_slug in NON_TELEFONIA_SECTORS:
+        return raw_sector_slug
+
+    mapped_sector: Optional[str] = None
+    try:
+        mapped_sector = operators.map_db_sector_to_classification_sector(
+            raw_setor,
+            escala,
+            supervisor,
+        )
+    except Exception:
+        logger.debug("Sync Huawei: falha ao mapear setor do operador.", exc_info=True)
+    return normalize_huawei_sector(mapped_sector or raw_setor)
 
 
 def _normalize_identity_text(text: object) -> str:
@@ -136,38 +172,8 @@ class SectorDirectionRule(BaseSyncRule):
         self.automation_rules = automation_rules
 
     def _operator_sector_id(self, operador: Dict[str, Any]) -> str:
-        """Resolve o slug de setor canonico do operador.
-
-        Usa o setor cru (varios aliases de chave) e, se ele ja for um setor de
-        risco ou nao-telefonia conhecido, devolve direto. Caso contrario tenta
-        mapear via `operators.map_db_sector_to_classification_sector` (usando
-        escala/supervisor) e normaliza com `normalize_huawei_sector`. Retorna
-        string vazia quando nao resolve.
-        """
-        raw_setor = str(
-            operador.get("setor")
-            or operador.get("sectorId")
-            or operador.get("displaySector")
-            or operador.get("sector")
-            or ""
-        ).strip()
-        escala = str(operador.get("escala") or "").strip()
-        supervisor = str(operador.get("supervisor") or "").strip()
-        
-        raw_sector_slug = normalize_huawei_sector(raw_setor)
-        if raw_sector_slug in OUTBOUND_ONLY_RISK_SECTORS or raw_sector_slug in NON_TELEFONIA_SECTORS:
-            return raw_sector_slug
-
-        mapped_sector: Optional[str] = None
-        try:
-            mapped_sector = operators.map_db_sector_to_classification_sector(
-                raw_setor,
-                escala,
-                supervisor,
-            )
-        except Exception:
-            logger.debug("Sync Huawei: falha ao mapear setor do operador.", exc_info=True)
-        return normalize_huawei_sector(mapped_sector or raw_setor)
+        """Resolve o slug de setor canonico do operador (ver _resolve_operator_sector_slug)."""
+        return _resolve_operator_sector_slug(operador)
 
     def check(self, interacao: Dict[str, Any], operador: Dict[str, Any]) -> Optional[str]:
         """Avalia setor e direcao da chamada e devolve o motivo de skip, ou None.
@@ -219,19 +225,51 @@ class SectorDirectionRule(BaseSyncRule):
         return None
 
 
+class BasOitivaRule(BaseSyncRule):
+    """
+    A BAS audita SOMENTE ligação policial. Oitiva (ligação com caminhoneiro), que
+    em regra é feita para celular, deve ser descartada. Números institucionais/
+    policiais (ex: 011190) e fixos são mantidos; a whitelist `police_numbers`
+    permite manter eventuais ligações policiais feitas para celular.
+    """
+
+    def __init__(self, police_numbers: Optional[set] = None):
+        self.police_digits = {
+            re.sub(r"\D+", "", str(number))
+            for number in (police_numbers or set())
+            if re.sub(r"\D+", "", str(number))
+        }
+
+    def check(self, interacao: Dict[str, Any], operador: Dict[str, Any]) -> Optional[str]:
+        """Retorna "oitiva_bas" quando a contraparte de uma ligação da BAS é
+        celular e não está na whitelist policial; caso contrário None."""
+        if _resolve_operator_sector_slug(operador) != "bas":
+            return None
+        counterpart = resolve_counterpart_number(interacao)
+        if not counterpart:
+            return None
+        counterpart_digits = re.sub(r"\D+", "", counterpart)
+        if counterpart_digits and counterpart_digits in self.police_digits:
+            return None
+        if is_brazilian_mobile(counterpart):
+            return "oitiva_bas"
+        return None
+
+
 class SyncDownloadGatekeeper:
     """
     Orquestrador responsável por decidir se uma ligação recém-encontrada na Huawei
     deve ser baixada ou não (se for ignorada, será salva como `status=skipped`).
     Utiliza uma Chain of Responsibility onde a primeira Strategy a falhar define o motivo.
     """
-    
-    def __init__(self, automation_rules: dict):
+
+    def __init__(self, automation_rules: dict, police_numbers: Optional[set] = None):
         self.rules: List[BaseSyncRule] = [
             HuaweiRegistrationRule(),
             MondelezExclusionRule(),
             TestOperatorRule(),
             UnregisteredOperatorRule(),
+            BasOitivaRule(police_numbers),
             SectorDirectionRule(automation_rules),
         ]
 
