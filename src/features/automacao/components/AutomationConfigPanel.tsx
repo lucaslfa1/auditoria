@@ -33,8 +33,8 @@ export function AutomationConfigPanel({
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <ConfigField
-          label="Horário de início"
-          hint="Hora em que a automação inicia"
+          label="Não iniciar antes de"
+          hint="Trava de segurança — o disparo diário é agendado na infraestrutura, não por este campo"
           saving={pending.savingConfig === 'horario_execucao'}
         >
           <input
