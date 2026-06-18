@@ -271,10 +271,42 @@ async def sync_status(_user: dict = Depends(require_admin)) -> Dict[str, Any]:
     engine_enabled = (os.getenv("ENABLE_HUAWEI_SYNC", "false") or "").strip().lower() == "true"
     cron_token_configured = bool((os.getenv("CRON_SECRET_TOKEN", "") or "").strip())
 
+    # A coleta manual roda como task de segundo plano (asyncio.create_task). No
+    # Cloud Run (scale-to-zero / CPU throttle) ela pode morrer logo apos a resposta;
+    # o run no banco fica orfao (finished_at NULL) e ate v1.3.184 so era reconciliado
+    # no proximo boot do app (podia ser na manha seguinte). Reconciliar na leitura faz
+    # o run virar 'interrupted' em ~10min em vez de so no proximo restart. Nao-fatal;
+    # finalize_telefonia_sync_run sobrescreve por run_id, entao se a task ainda estiver
+    # viva o resultado real prevalece.
+    try:
+        telefonia.reconcile_stale_telefonia_sync_runs(
+            database.get_connection, stale_after_seconds=600
+        )
+    except Exception:
+        logger.warning("Reconcile de runs orfaos de sync falhou (nao-fatal).", exc_info=True)
+
     status_dict = dict(tf._LAST_SYNC)
-    if tf._is_sync_running() and status_dict.get("status") not in ("running", "cancelling"):
+    running = tf._is_sync_running()
+    if running:
+        # _is_sync_running() pode dar True so pelo sync_lock (TTL 30min) mesmo depois
+        # da task de segundo plano morrer. Cross-check no banco: sem run ativo fresco
+        # (apos o reconcile acima), o "running" e fantasma — nao ha coleta de fato.
+        try:
+            if telefonia.get_active_telefonia_sync_run(database.get_connection) is None:
+                running = False
+        except Exception:
+            pass
+
+    if running and status_dict.get("status") not in ("running", "cancelling"):
         status_dict["status"] = "running"
         status_dict["message"] = "Coleta em andamento (background/outro worker)."
+    elif not running and status_dict.get("status") in ("running", "cancelling"):
+        # Estado em memoria diz 'running' mas nao ha task viva nem run ativo no banco:
+        # a coleta de segundo plano foi interrompida (pod reciclado / CPU throttled).
+        status_dict["status"] = "interrupted"
+        status_dict["message"] = (
+            "Coleta interrompida (processo reiniciado/encerrado). Tente novamente."
+        )
 
     return {
         **status_dict,
@@ -288,6 +320,14 @@ async def sync_status(_user: dict = Depends(require_admin)) -> Dict[str, Any]:
 async def sync_history(_user: dict = Depends(require_admin)) -> Dict[str, Any]:
     """Retorna historico de execucoes."""
     try:
+        # Fecha runs orfaos (task de segundo plano morta no Cloud Run) antes de listar,
+        # pra historico nao mostrar coleta 'running' fantasma ate o proximo restart.
+        try:
+            telefonia.reconcile_stale_telefonia_sync_runs(
+                database.get_connection, stale_after_seconds=600
+            )
+        except Exception:
+            logger.warning("Reconcile de runs orfaos de sync falhou (nao-fatal).", exc_info=True)
         items = telefonia.list_telefonia_sync_history(database.get_connection, limit=50)
         return {"items": items, "total": len(items)}
     except Exception as e:
