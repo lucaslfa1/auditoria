@@ -33,16 +33,21 @@ export function AutomationConfigPanel({
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <ConfigField
-          label="Não iniciar antes de"
-          hint="Trava de segurança — o disparo diário é agendado na infraestrutura, não por este campo"
-          saving={pending.savingConfig === 'horario_execucao'}
+          label="Automações"
+          hint="Horário em que o ciclo de automações começa"
+          saving={false}
         >
+          {/* Somente leitura: o disparo diário é agendado na infraestrutura
+              (Cloud Scheduler), não editável pela tela. O valor reflete o horário
+              do agendamento. */}
           <input
             type="time"
             value={draft.horario_execucao}
-            onChange={(event) => onUpdateField('horario_execucao', event.target.value)}
-            onBlur={() => onSaveField('horario_execucao')}
-            className="glass-input w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+            readOnly
+            disabled
+            aria-readonly="true"
+            title="Horário definido no agendamento da infraestrutura"
+            className="glass-input w-full cursor-not-allowed rounded-xl px-3 py-2.5 text-sm opacity-60 outline-none"
           />
         </ConfigField>
 

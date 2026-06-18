@@ -86,9 +86,9 @@ export function AutomacaoPage() {
       <ModuleInstructions
         storageKey="instructions:automacao"
         steps={[
-          'Defina a meta de auditorias e os horários do ciclo.',
+          'Defina a meta de auditorias do ciclo.',
           'Ligue ou pause a esteira de automação.',
-          'Acompanhe o progresso (baixando, classificando, auditando) em tempo real.',
+          'O ciclo roda automaticamente 1x por dia, no horário mostrado em Configurações; acompanhe o progresso (baixando, classificando, auditando) em tempo real.',
         ]}
       />
 
