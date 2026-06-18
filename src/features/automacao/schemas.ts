@@ -33,7 +33,6 @@ export const PipelineConfigSchema = z
     retry_intervalo_minutos: numberValue(60),
     lookback_dias: numberValue(3),
     cota_max_por_operador_mes: numberValue(5),
-    limite_ligacoes: numberValue(20),
     limite_auditorias: numberValue(10),
   })
   .catch({
@@ -43,7 +42,6 @@ export const PipelineConfigSchema = z
     retry_intervalo_minutos: 60,
     lookback_dias: 3,
     cota_max_por_operador_mes: 5,
-    limite_ligacoes: 20,
     limite_auditorias: 10,
   });
 

@@ -102,7 +102,6 @@ const CONFIG_KEY_BY_FIELD: Partial<Record<ConfigField, string>> = {
   retry_intervalo_minutos: 'huawei_d1_retry_intervalo_minutos',
   lookback_dias: 'huawei_d1_lookback_dias',
   cota_max_por_operador_mes: 'huawei_cota_max_por_operador_mes',
-  limite_ligacoes: 'huawei_d1_limite_ligacoes',
   limite_auditorias: 'automacao_audit_target_count',
 };
 
@@ -112,8 +111,6 @@ const FIELD_LIMITS: Partial<Record<ConfigField, { min: number; max?: number }>> 
   retry_intervalo_minutos: { min: 5, max: 480 },
   lookback_dias: { min: 1, max: 30 },
   cota_max_por_operador_mes: { min: 1, max: 50 },
-  // sem teto de UI: o valor passa a ser 100% definido pela config (o backend só garante mínimo 1).
-  limite_ligacoes: { min: 1 },
   limite_auditorias: { min: 1 },
 };
 
@@ -124,7 +121,6 @@ const CONFIG_FIELDS: ConfigField[] = [
   'retry_intervalo_minutos',
   'lookback_dias',
   'cota_max_por_operador_mes',
-  'limite_ligacoes',
   'limite_auditorias',
 ];
 
