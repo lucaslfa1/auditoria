@@ -1,5 +1,22 @@
+let logsSentInLastMinute = 0;
+let windowStartTime = Date.now();
+const MAX_LOGS_PER_MINUTE = 20;
+
 export const logToTelemetry = async (level: 'info' | 'warn' | 'error', message: string, stack?: string) => {
     try {
+        const now = Date.now();
+        if (now - windowStartTime > 60000) {
+            logsSentInLastMinute = 0;
+            windowStartTime = now;
+        }
+
+        if (logsSentInLastMinute >= MAX_LOGS_PER_MINUTE) {
+            // Silently drop log to prevent network flooding and API abuse
+            return;
+        }
+
+        logsSentInLastMinute++;
+
         const payload = {
             level,
             message,

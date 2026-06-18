@@ -373,6 +373,7 @@ _RATE_LIMIT_EXEMPT_PATHS = frozenset({
     "/api/auth/logout",
     "/api/health",
     "/api/ui/theme",
+    "/api/system/client-logs",
 })
 
 
