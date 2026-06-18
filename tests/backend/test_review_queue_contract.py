@@ -276,6 +276,25 @@ class TestReviewQueueContract(unittest.TestCase):
         for key in ("operator_id_huawei_real", "huawei_work_no", "agentId", "workNo", "operatorId", "idHuawei"):
             self.assertIn(key, query)
 
+    def test_listar_query_materializes_metadata_jsonb_once(self):
+        # Perf guard: a listagem materializa metadata_json::jsonb UMA vez por linha
+        # (CTE f_base._mj) antes dos LATERAL joins. Antes, o candidato Huawei
+        # `= ANY(ARRAY[...13 chaves...])` re-parseava o JSONB de cada linha da fila
+        # a cada linha de colaboradores (seq scan), levando a listagem a ~30s. Se
+        # alguem reintroduzir o re-parse no LATERAL, o `f._mj ->> ...` some e este
+        # teste quebra.
+        cursor = _FakeCursor(fetchall_results=[])
+        conn = _FakeConnection(cursor)
+        listar_fila_revisao_classificacao(
+            lambda: conn, limit=100, status="all", origem="huawei_sync", order_by="recent"
+        )
+        query, _ = cursor.executed[-1]
+        self.assertIn("MATERIALIZED", query)
+        self.assertIn("AS _mj", query)
+        # candidatos Huawei e match por nome leem o jsonb ja materializado em _mj
+        self.assertIn("f._mj ->> 'operator_id_huawei_real'", query)
+        self.assertIn("f._mj ->> 'operator_name'", query)
+
     def test_huawei_queue_uses_official_matricula_from_name_match(self):
         cursor = _FakeCursor(
             fetchall_results=[

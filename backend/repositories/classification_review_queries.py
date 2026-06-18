@@ -56,10 +56,15 @@ def _normalize_huawei_id_sql(expr: str) -> str:
 
 
 def _huawei_operator_id_candidates_sql() -> str:
-    """Lista SQL de candidatos Huawei vindos do metadata da fila."""
+    """Lista SQL de candidatos Huawei vindos do metadata da fila.
+
+    Lê do jsonb já materializado em ``f._mj`` (ver CTE ``f_base`` em
+    ``listar_fila_revisao_classificacao``), evitando re-parsear o metadata por
+    linha de colaborador dentro do LATERAL.
+    """
 
     return ",\n                      ".join(
-        _normalize_huawei_id_sql(f"f.metadata_json::jsonb ->> '{key}'")
+        _normalize_huawei_id_sql(f"f._mj ->> '{key}'")
         for key in _HUAWEI_OPERATOR_ID_METADATA_KEYS
     )
 
@@ -154,7 +159,22 @@ def listar_fila_revisao_classificacao(
 
         limit_clause = "LIMIT %s" if limit is not None else ""
 
+        # Perf (v1.3.x): materializa o cast `metadata_json::jsonb` UMA vez por
+        # linha em `f._mj` (CTE MATERIALIZED) ANTES dos LATERAL joins. Sem isso, o
+        # candidato Huawei `= ANY(ARRAY[...13 chaves...])` re-parseava o JSONB de
+        # cada linha da fila a cada linha de `colaboradores` (seq scan), levando a
+        # listagem a ~30s (137 linhas x 208 colaboradores x 13 casts). Com `_mj`
+        # parseado uma vez, cai para ~0.15s. Resultado idêntico (LEFT JOINs não
+        # alteram quais linhas nem a ordem; mover ORDER/LIMIT para a CTE só evita
+        # rodar os laterais em linhas que seriam descartadas).
         query = f"""
+            WITH f_base AS MATERIALIZED (
+                SELECT f.*, f.metadata_json::jsonb AS _mj
+                FROM fila_revisao_classificacao f
+                {where_clause}
+                {order_clause}
+                {limit_clause}
+            )
             SELECT f.*,
                    official_by_huawei.nome AS official_operator_name,
                    official_by_huawei.id_huawei AS official_operator_id_huawei,
@@ -163,12 +183,12 @@ def listar_fila_revisao_classificacao(
                    official_by_name.id_huawei AS official_operator_id_huawei_by_name,
                    official_by_name.matricula AS official_operator_matricula_by_name,
                    CASE
-                       WHEN COALESCE(f.metadata_json::jsonb ->> 'origem', '') = 'huawei_sync'
+                       WHEN COALESCE(f._mj ->> 'origem', '') = 'huawei_sync'
                            THEN official_by_huawei.id_huawei IS NOT NULL
                                 OR official_by_name.nome IS NOT NULL
                        ELSE official_by_name.nome IS NOT NULL
                    END as is_oficial
-            FROM fila_revisao_classificacao f
+            FROM f_base f
             LEFT JOIN LATERAL (
                 SELECT c.nome, c.id_huawei, c.matricula
                 FROM colaboradores c
@@ -194,9 +214,9 @@ def listar_fila_revisao_classificacao(
                   AND c.nome <> ''
                   AND LOWER(TRIM(c.nome)) = LOWER(TRIM(COALESCE(
                       NULLIF(f.operador_previsto, ''),
-                      NULLIF(f.metadata_json::jsonb ->> 'operator_name', ''),
-                      NULLIF(f.metadata_json::jsonb ->> 'operator_name_real', ''),
-                      NULLIF(f.metadata_json::jsonb ->> 'huawei_operator_name', '')
+                      NULLIF(f._mj ->> 'operator_name', ''),
+                      NULLIF(f._mj ->> 'operator_name_real', ''),
+                      NULLIF(f._mj ->> 'huawei_operator_name', '')
                   )))
                 ORDER BY
                     CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
@@ -205,9 +225,7 @@ def listar_fila_revisao_classificacao(
                     c.nome
                 LIMIT 1
             ) official_by_name ON TRUE
-            {where_clause}
             {order_clause}
-            {limit_clause}
         """
         if limit is not None:
             params.append(limit)
