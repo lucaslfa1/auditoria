@@ -570,9 +570,15 @@ export function useAutomacaoDashboard() {
         queryClient.refetchQueries({ queryKey: AUDITORIAS_MES_QUERY_KEY });
         return;
       } else if (status === 'skipped') {
+        // "skipped" pode vir de um ciclo em andamento OU do sync_lock (30min,
+        // compartilhado com a coleta da Telefonia) estar preso. A mensagem cobre
+        // os dois casos e aponta a recuperação; se o backend mandar um motivo
+        // específico em response.message, ele prevalece.
         showToast({
-          title: 'Já existe um ciclo em andamento',
-          description: response.message ?? 'Aguarde o ciclo atual terminar.',
+          title: 'Já há uma coleta ou ciclo em andamento',
+          description:
+            response.message ??
+            "Aguarde o término. Se a coleta parecer travada, use 'Destravar Coleta' na aba Telefonia.",
           variant: 'warning',
         });
       } else if (status === 'disabled') {
