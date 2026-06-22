@@ -19,10 +19,13 @@ export interface SpeakerOption {
  */
 export const SPEAKER_OPTIONS: SpeakerOption[] = [
   { value: 'Operador', label: 'Operador' },
+  { value: 'Interlocutor', label: 'Interlocutor' },
   { value: 'Cliente', label: 'Cliente' },
   { value: 'Motorista', label: 'Motorista' },
-  { value: 'Polícia', label: 'Polícia' },
+  { value: 'Policia', label: 'Polícia' },
   { value: 'Apoio', label: 'Ponto de Apoio' },
+  { value: 'Central', label: 'Central' },
+  { value: 'Bot', label: 'Bot (URA/automático)' },
   { value: 'Telefonia', label: 'Telefonia' },
 ];
 
