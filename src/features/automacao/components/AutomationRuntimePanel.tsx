@@ -173,8 +173,8 @@ export function AutomationRuntimePanel({
           </div>
 
           <dl className="grid grid-cols-2 gap-3 text-sm">
-            <Metric label="Iniciado" value={formatDateTimeBR(engineStatus.started_at)} />
-            <Metric label="Origem" value={sourceLabel(engineStatus.current_run_source ?? engineStatus.last_run_source)} />
+            <Metric label={engineStatus.is_running ? 'Iniciado' : 'Última coleta'} value={formatDateTimeBR(engineStatus.started_at)} />
+            <Metric label={engineStatus.is_running ? 'Origem' : 'Última origem'} value={sourceLabel(engineStatus.current_run_source ?? engineStatus.last_run_source)} />
             <Metric label="Baixadas (Hoje)" value={String(engineStatus.baixadas_total ?? 0)} />
             <Metric label="Auditadas (Hoje)" value={String(engineStatus.auditadas_total ?? 0)} />
           </dl>
