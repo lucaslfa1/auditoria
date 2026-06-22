@@ -228,6 +228,8 @@ assert.match(useReauditSource, /export function useReaudit/);
 // helpers puros de locutor
 assert.match(speakerLabelsSource, /export function setSegmentSpeaker/);
 assert.match(speakerLabelsSource, /export const SPEAKER_OPTIONS/);
+// troca global de interlocutor (de X para Y em todas as falas)
+assert.match(speakerLabelsSource, /export function renameSpeakerEverywhere/);
 // helpers do catalogo de alerta (em arquivo proprio, nao no componente)
 assert.match(alertCatalogSource, /export function buildAuditAlertFromCriteria/);
 assert.match(alertCatalogSource, /export function findAlertIdByLabel/);
@@ -240,6 +242,7 @@ for (const source of [savedFilesSource, auditModalSource]) {
   assert.match(source, /<AlertTypeSelect/);
   assert.match(source, />Refazer Auditoria</);
   assert.match(source, /setSegmentSpeakerAt/);
+  assert.match(source, /<SpeakerRenameControl/);
   // nota da IA prevalece quando ha reavaliacao (senao recalculo local)
   assert.match(source, /reevaluatedScore != null/);
   // o PUT carrega o alerta trocado

@@ -46,8 +46,9 @@ import { formatOperationalLabel } from '../../../shared/lib/operationalLabels';
 import { useAuditCriteria } from '../../../contexts/AuditCriteriaContext';
 import { useReaudit } from '../../audit/hooks/useReaudit';
 import { AlertTypeSelect } from '../../audit/components/AlertTypeSelect';
+import { SpeakerRenameControl } from '../../audit/components/SpeakerRenameControl';
 import { buildAuditAlertFromCriteria, findAlertIdByLabel } from '../../audit/lib/alertCatalog';
-import { SPEAKER_OPTIONS, parseSpeakerPrefix, setSegmentSpeaker } from '../../audit/lib/speakerLabels';
+import { SPEAKER_OPTIONS, parseSpeakerPrefix, setSegmentSpeaker, renameSpeakerEverywhere } from '../../audit/lib/speakerLabels';
 import {
   getAuditStatusBadgeClass,
   getAuditStatusLabel,
@@ -1083,6 +1084,14 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
                     Transcrição ({editTranscription.length})
                   </p>
+                  <SpeakerRenameControl
+                    segments={editTranscription}
+                    disabled={isReauditing}
+                    onApply={(from, to) => {
+                      setEditTranscription((prev) => renameSpeakerEverywhere(prev, from, to));
+                      setReevaluatedScore(null);
+                    }}
+                  />
                   <div className="space-y-3">
                     {editTranscription.map((segment, idx) => (
                       <div key={`edit-ts-${idx}`} className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-3 theme-light:bg-slate-50 theme-light:border-slate-200">

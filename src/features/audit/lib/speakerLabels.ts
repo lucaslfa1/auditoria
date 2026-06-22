@@ -44,3 +44,36 @@ export function setSegmentSpeaker(text: string, speaker: string): string {
   const trimmed = speaker.trim();
   return trimmed ? `${trimmed}: ${body}` : body;
 }
+
+/** Lista os locutores presentes na transcrição (rótulos distintos, na ordem de aparição). */
+export function listSpeakers(segments: { text: string }[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const seg of segments) {
+    const sp = parseSpeakerPrefix(seg.text).speaker;
+    if (sp && !seen.has(sp.toLowerCase())) {
+      seen.add(sp.toLowerCase());
+      out.push(sp);
+    }
+  }
+  return out;
+}
+
+/**
+ * Troca GLOBAL de locutor: todas as falas cujo rótulo é `from` passam a `to`
+ * (ex.: "Polícia" → "Motorista" em toda a transcrição). Case-insensitive no
+ * `from`. Falas de outros locutores ficam intactas.
+ */
+export function renameSpeakerEverywhere<T extends { text: string }>(
+  segments: T[],
+  from: string,
+  to: string,
+): T[] {
+  const f = from.trim().toLowerCase();
+  const t = to.trim();
+  if (!f || !t) return segments;
+  return segments.map((seg) => {
+    const { speaker, body } = parseSpeakerPrefix(seg.text);
+    return speaker && speaker.toLowerCase() === f ? { ...seg, text: `${t}: ${body}` } : seg;
+  });
+}
