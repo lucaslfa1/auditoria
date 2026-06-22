@@ -47,7 +47,7 @@ import { useAuditCriteria } from '../../../contexts/AuditCriteriaContext';
 import { useReaudit } from '../../audit/hooks/useReaudit';
 import { AlertTypeSelect } from '../../audit/components/AlertTypeSelect';
 import { buildAuditAlertFromCriteria, findAlertIdByLabel } from '../../audit/lib/alertCatalog';
-import { SPEAKER_OPTIONS, parseSpeakerPrefix, setSegmentSpeaker, swapOperatorClient } from '../../audit/lib/speakerLabels';
+import { SPEAKER_OPTIONS, parseSpeakerPrefix, setSegmentSpeaker } from '../../audit/lib/speakerLabels';
 import {
   getAuditStatusBadgeClass,
   getAuditStatusLabel,
@@ -614,14 +614,8 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     setReevaluatedScore(null);
   };
 
-  /** Inverte operador↔cliente em todas as falas (diarização trocada na ligação). */
-  const handleInvertSpeakers = () => {
-    setEditTranscription((prev) => swapOperatorClient(prev));
-    setReevaluatedScore(null);
-  };
-
   /**
-   * "Reavaliar": refaz a auditoria com IA usando o alerta selecionado + a
+   * "Refazer Auditoria": refaz a auditoria com IA usando o alerta selecionado + a
    * transcrição (com interlocutor corrigido). Atualiza nota/critérios/resumo no
    * formulário de edição; o auditor revisa e clica em Salvar. TEM CUSTO de IA.
    */
@@ -641,7 +635,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
       sourceType: selectedAuditView?.sourceType === 'pdf' ? 'pdf' : 'audio',
     });
     if (!result) {
-      showToast({ variant: 'error', title: 'Falha ao reavaliar', description: reauditError || 'Tente novamente.' });
+      showToast({ variant: 'error', title: 'Falha ao refazer', description: reauditError || 'Tente novamente.' });
       return;
     }
     setEditSummary(result.summary || '');
@@ -658,7 +652,7 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
     setReevaluatedScore(result.score);
     setReevaluatedMax(result.maxPossibleScore);
     setEditAlertLabel(alert.label);
-    showToast({ variant: 'success', title: 'Reavaliado', description: 'Nota e critérios atualizados pela IA. Revise e clique em Salvar.' });
+    showToast({ variant: 'success', title: 'Auditoria refeita', description: 'Nota e critérios atualizados pela IA. Revise e clique em Salvar.' });
   };
 
   /** Promove ao supervisor; HTTP 429 (cota mensal) abre confirm() e repete com force=true. */
@@ -1007,26 +1001,17 @@ export function AuditModal({ auditId, isOpen, onClose, onUpdate }: AuditModalPro
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={handleInvertSpeakers}
-                        disabled={isReauditing}
-                        className="btn-secondary px-3 py-1.5 text-xs"
-                        title="Inverter operador e cliente em todas as falas"
-                      >
-                        Inverter operador/cliente
-                      </button>
-                      <button
-                        type="button"
                         onClick={handleReaudit}
                         disabled={isReauditing}
                         className="btn-primary px-4 py-1.5 text-xs font-medium"
                       >
                         {isReauditing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                        {isReauditing ? 'Reavaliando...' : 'Reavaliar'}
+                        {isReauditing ? 'Refazendo...' : 'Refazer Auditoria'}
                       </button>
                     </div>
                   </div>
                   <p className="text-[11px] text-slate-500 theme-light:text-slate-500">
-                    Troque o alerta ou corrija o interlocutor e clique em <span className="font-semibold">Reavaliar</span> — a IA refaz a nota e os critérios. Depois clique em Salvar.
+                    Troque o alerta ou corrija o interlocutor e clique em <span className="font-semibold">Refazer Auditoria</span> — a IA refaz a nota e os critérios. Depois clique em Salvar.
                   </p>
                 </div>
 

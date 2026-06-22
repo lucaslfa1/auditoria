@@ -44,18 +44,3 @@ export function setSegmentSpeaker(text: string, speaker: string): string {
   const trimmed = speaker.trim();
   return trimmed ? `${trimmed}: ${body}` : body;
 }
-
-/**
- * Inverte operador ↔ cliente em todos os segmentos. Atalho para o caso comum em
- * que a diarização trocou os dois interlocutores na ligação inteira. Falas de
- * outros locutores (motorista, polícia, telefonia...) ficam intactas.
- */
-export function swapOperatorClient<T extends { text: string }>(segments: T[]): T[] {
-  return segments.map((seg) => {
-    const { speaker, body } = parseSpeakerPrefix(seg.text);
-    const low = speaker.toLowerCase();
-    if (low.includes('operador')) return { ...seg, text: `Cliente: ${body}` };
-    if (low.includes('cliente')) return { ...seg, text: `Operador: ${body}` };
-    return seg;
-  });
-}

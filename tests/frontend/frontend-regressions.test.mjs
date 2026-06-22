@@ -226,7 +226,6 @@ const useReauditSource = read('src/features/audit/hooks/useReaudit.ts');
 assert.match(useReauditSource, /\/api\/audit\/reevaluate/);
 assert.match(useReauditSource, /export function useReaudit/);
 // helpers puros de locutor
-assert.match(speakerLabelsSource, /export function swapOperatorClient/);
 assert.match(speakerLabelsSource, /export function setSegmentSpeaker/);
 assert.match(speakerLabelsSource, /export const SPEAKER_OPTIONS/);
 // helpers do catalogo de alerta (em arquivo proprio, nao no componente)
@@ -239,8 +238,7 @@ for (const source of [savedFilesSource, auditModalSource]) {
   assert.match(source, /import \{ useReaudit \} from '\.\.\/\.\.\/audit\/hooks\/useReaudit'/);
   assert.match(source, /buildAuditAlertFromCriteria/);
   assert.match(source, /<AlertTypeSelect/);
-  assert.match(source, />Reavaliar</);
-  assert.match(source, /handleInvertSpeakers/);
+  assert.match(source, />Refazer Auditoria</);
   assert.match(source, /setSegmentSpeakerAt/);
   // nota da IA prevalece quando ha reavaliacao (senao recalculo local)
   assert.match(source, /reevaluatedScore != null/);
