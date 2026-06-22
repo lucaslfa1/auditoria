@@ -710,6 +710,40 @@ from core.huawei.sync_triagem import (  # noqa: F401,E402
     _triagem_fallback,
 )
 
+
+def _selecionar_rodizio_por_setor(candidatas: list[dict], limite: int) -> list[dict]:
+    """Seleciona ate `limite` candidatos fazendo rodizio entre setores.
+
+    Agrupa por `_setor_rodizio` (setor do operador resolvido, anotado na selecao)
+    preservando a ordem de prioridade ja aplicada dentro de cada setor, e pega 1
+    de cada setor por vez ate atingir o limite. Evita que um setor de alto volume
+    (ex. cadastro) ocupe todas as vagas do ciclo. Se houver <= `limite`
+    candidatos, devolve a lista como esta (sem reordenar).
+    """
+    if limite <= 0 or len(candidatas) <= limite:
+        return candidatas
+    from collections import OrderedDict
+
+    grupos: "OrderedDict[str, list[dict]]" = OrderedDict()
+    for cand in candidatas:
+        chave = str(cand.get("_setor_rodizio") or "_sem_setor")
+        grupos.setdefault(chave, []).append(cand)
+
+    selecionadas: list[dict] = []
+    setores = list(grupos.keys())
+    while len(selecionadas) < limite:
+        progrediu = False
+        for s in setores:
+            if grupos[s]:
+                selecionadas.append(grupos[s].pop(0))
+                progrediu = True
+                if len(selecionadas) >= limite:
+                    break
+        if not progrediu:
+            break
+    return selecionadas
+
+
 async def executar_sync_huawei(
     horas_retroativas: float = 1.0,
     *,
@@ -1022,6 +1056,7 @@ async def executar_sync_huawei(
         contadores["limite_downloads"] = max_download_attempts
 
         candidatas: list[dict] = []
+        por_setor_count: dict[str, int] = {}
         sorted_interacoes = sorted(interacoes, key=_download_candidate_sort_key, reverse=True)
         for index, interacao in enumerate(sorted_interacoes, start=1):
             if index == 1 or index % 250 == 0 or index == len(sorted_interacoes):
@@ -1100,7 +1135,12 @@ async def executar_sync_huawei(
                 contadores["sem_duracao_consideradas"] += 1
 
             call_ids_validos_unicos.add(call_id)
-            if len(candidatas) >= max_download_attempts:
+            # Rodizio por setor: limita a coleta a `max_download_attempts` POR SETOR
+            # (em vez de um teto global, que deixava setores de alto volume — ex.
+            # cadastro — encher todas as vagas). A selecao final balanceada entre
+            # setores e feita apos o loop (_selecionar_rodizio_por_setor).
+            cand_setor = setor or "_sem_setor"
+            if por_setor_count.get(cand_setor, 0) >= max_download_attempts:
                 continue
             if call_id in call_ids_tentados_no_ciclo:
                 contadores["ignoradas_tentadas_no_ciclo"] += 1
@@ -1112,12 +1152,17 @@ async def executar_sync_huawei(
                     contadores["ignoradas_ja_sincronizadas"] += 1
                 continue
             candidatas.append(interacao)
+            interacao["_setor_rodizio"] = cand_setor
+            por_setor_count[cand_setor] = por_setor_count.get(cand_setor, 0) + 1
             call_ids_tentados_no_ciclo.add(call_id)
             # Incremento virtual da cota para candidatos do mesmo ciclo
             quota_by_operator[op_key] = current_quota + 1
 
 
         contadores["chamadas_validas_pos_filtro"] = len(call_ids_validos_unicos)
+        # Balanceia as vagas do ciclo entre setores (rodizio) antes de baixar,
+        # para um setor de alto volume nao monopolizar os downloads.
+        candidatas = _selecionar_rodizio_por_setor(candidatas, max_download_attempts)
         contadores["candidatos_download"] = len(candidatas)
         _notify_progress(progress_callback, "candidates_selected", len(candidatas), len(candidatas))
 
