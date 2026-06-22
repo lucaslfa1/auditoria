@@ -6,6 +6,11 @@ adaptado para o contexto de auditoria de ligacoes telefonicas.
 
 Fornece score de confianca (0.0 a 1.0) e notas explicativas para que
 o auditor saiba se a transcricao sera confiavel.
+
+DISPARO: chamado em `core.audit` ANTES da transcricao, via
+`_analyze_raw_audio_quality`; o score/notas vao para `audio_quality` no resultado
+como SINAL (advisory). Tem try/except em volta — uma falha aqui NAO interrompe a
+auditoria. O gate de prontidao da transcricao fica em `transcription_quality`.
 """
 
 from pydub import AudioSegment

@@ -4,6 +4,10 @@ Agrupa as chamadas candidatas por setor (chaves de AUTOMATION_RULES) e aplica
 a triagem hibrida de cada grupo: LLM, regras de motivo ou pass-through.
 Codigo movido de core/huawei_sync.py sem alteracao de logica; os nomes
 compartilhados/patchaveis resolvem em runtime via core.huawei_sync.
+
+DISPARO: chamado por `core.huawei_sync.executar_sync_huawei` (Fase 1, via
+`_aplicar_triagem_setorial`), ANTES do download — que por sua vez roda no cron de
+automacao (pipeline D-1) ou nos scripts manuais de sync (huawei_manual_sync.py).
 """
 from __future__ import annotations
 

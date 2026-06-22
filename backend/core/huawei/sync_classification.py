@@ -5,6 +5,11 @@ com guardrails), persiste o resultado na fila de revisao e controla o
 metadata.classification_status de cada item. Codigo movido de
 core/huawei_sync.py sem alteracao de logica; os nomes compartilhados e
 patchaveis resolvem em runtime via core.huawei_sync.
+
+DISPARO: chamado por `executar_sync_huawei` (Fase 2, quando `classificar=True`)
+— ou seja, dentro do ciclo do cron de automacao. Classifica em paralelo os itens
+com `metadata.classification_status='pending'`; o gate de orcamento (cost_guard)
+pode adiar itens para um ciclo futuro sem descarta-los.
 """
 from __future__ import annotations
 

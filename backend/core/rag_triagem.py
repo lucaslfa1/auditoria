@@ -3,6 +3,11 @@
 Gera embeddings via Azure OpenAI (text-embedding-3-small) e executa
 o loop de aprendizado RLHF de forma síncrona quando um auditor corrige
 uma classificação.
+
+DISPARO: `salvar_feedback_rag_sync` é chamado em BackgroundTasks DEPOIS da
+resposta HTTP — quando o auditor salva uma correção de auditoria
+(PUT /api/salvos/{id}, ver routers/saved_files.py) ou corrige uma triagem. Nunca
+roda no caminho do request: o embedding pago fica fora da resposta (v1.3.90).
 """
 
 import logging

@@ -8,6 +8,9 @@ derivacao/normalizacao de IDs e nomes.
 
 Funcoes puras: nao fazem rede, banco nem disco — so transformam os dicts de
 interacao. O download em si e feito por outra camada do sync. Sem custo de API.
+
+DISPARO: usadas por `core.huawei_sync.executar_sync_huawei` (Fase 1) ao montar e
+ordenar a lista de candidatos antes de baixar a midia.
 """
 from typing import Any, Optional, Dict, List
 import re

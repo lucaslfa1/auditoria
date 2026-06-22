@@ -5,6 +5,11 @@ verdade cadastral do operador e sincroniza o item na fila de revisao de
 classificacao (respeitando tombstones). Codigo movido de core/huawei_sync.py
 sem alteracao de logica; os nomes compartilhados e patchaveis resolvem em
 runtime via core.huawei_sync.
+
+DISPARO: chamado pela Fase 1 do `core.huawei_sync.executar_sync_huawei`, logo
+apos baixar a midia. O item enfileirado em `fila_revisao_classificacao` e depois
+classificado pela Fase 2 (`sync_classification`) e auditado pela esteira da
+automacao.
 """
 from __future__ import annotations
 
