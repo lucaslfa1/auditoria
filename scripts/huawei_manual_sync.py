@@ -1,3 +1,16 @@
+"""Sincronismo Huawei MANUAL e avulso (uma vez) — ferramenta de dev/operação local.
+
+Roda UM ciclo de `executar_sync_huawei(horas_retroativas=N)` e imprime o resumo
+(encontradas / baixadas / enfileiradas / duplicadas). Usa o `.env` local, que
+normalmente aponta para o Neon de produção — os dados caem no banco real.
+
+COMO RODAR: `python scripts/huawei_manual_sync.py --horas N` (janela retroativa
+em horas). Diferente do `huawei_worker.py`, não fica em loop: executa e sai.
+
+EM PRODUÇÃO a coleta roda pelos endpoints de cron (ver
+`backend/routers/automation.py` e `docs/05-operacao-runbook.md`); este script é
+para puxar uma janela pontual manualmente.
+"""
 
 import asyncio
 import os

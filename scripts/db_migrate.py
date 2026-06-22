@@ -1,3 +1,13 @@
+"""Aplica as migrations de schema no banco configurado e imprime o runtime info.
+
+COMO RODAR: `python scripts/db_migrate.py` (ou `npm run db:migrate`). Lê o
+`DATABASE_URL` de `.env` (raiz) e `backend/.env` (este sobrescreve). Chama
+`database.init_db()`, que roda de forma idempotente os passos pendentes de
+`backend/db/migration_steps/`, e em seguida imprime `get_database_runtime_info()`
+(host, versão, etc.) como JSON. Use após criar uma migration nova (ver
+`create_db_migration.py`) ou ao preparar um ambiente do zero. Aponta para o
+banco do `DATABASE_URL` ativo — confira que NÃO é produção antes de rodar.
+"""
 import json
 import os
 import sys

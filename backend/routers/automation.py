@@ -138,7 +138,18 @@ async def run_automation_cycle_now(
 
 @router.post("/cron/run")
 async def cron_run_automation_cycle(request: Request):
-    """Gatilho HTTP do scheduler externo para um ciclo completo de automacao."""
+    """Gatilho HTTP do scheduler externo para um ciclo completo de automacao
+    (coleta D-1 + classificacao + auditoria). É ASSIM que a coleta automática
+    roda em producao.
+
+    SETUP DO AGENDADOR (fora do repo, no Google Cloud Scheduler): um job diario
+    faz `POST` nesta rota (`/api/automation/cron/run`) com o header
+    `Authorization: Bearer <CRON_SECRET_TOKEN>` — mesmo valor da env var do
+    servico, validado em `_require_cron_token`. Com a automacao desligada
+    (`automacao_hibrida_ativa=false`) responde `disabled` e nao faz nada. A
+    origem do ciclo fica registrada como `cloud_scheduler`. Horario/passo a passo
+    do setup em `docs/05-operacao-runbook.md` e `docs/11-deploy.md`.
+    """
     _require_cron_token(request)
 
     from core.automation_engine import is_automation_enabled, run_automation_cycle

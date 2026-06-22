@@ -1,3 +1,12 @@
+"""Cria (scaffold) o arquivo de uma nova migration de schema.
+
+COMO RODAR: `python scripts/create_db_migration.py <slug-da-migracao>`
+(ou `npm run db:new-migration <slug>`). Gera
+`backend/db/migration_steps/mAAAAMMDD_NNN_<slug>.py` com a sequência do dia
+auto-incrementada e um `apply(cursor)` vazio para você preencher (use `%s` como
+placeholder — psycopg2/PostgreSQL). NÃO toca no banco: só escreve o arquivo.
+Depois rode `scripts/db_migrate.py` para aplicar.
+"""
 import re
 import sys
 from datetime import datetime

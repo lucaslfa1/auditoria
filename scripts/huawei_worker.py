@@ -1,3 +1,18 @@
+"""Worker LOCAL de sincronismo Huawei — ferramenta de dev/manual, NÃO é deploy de produção.
+
+Loop infinito que chama `executar_sync_huawei(horas_retroativas=1)` e dorme 10
+minutos entre os ciclos. Pensado para rodar numa máquina local cujo `.env`
+aponta para o Neon de produção — os dados caem direto no banco real.
+
+COMO RODAR: `python scripts/huawei_worker.py` (fica em primeiro plano; morre se o
+terminal/máquina fechar — por isso é best-effort, não confiável para produção).
+
+EM PRODUÇÃO a coleta NÃO usa este worker: ela roda pelos endpoints de cron
+(`POST /api/automation/cron/run` e o pipeline D-1), disparados pelo agendador
+externo (Cloud Scheduler). Ver `docs/05-operacao-runbook.md` e
+`backend/routers/automation.py`. Para uma coleta avulsa pontual use
+`scripts/huawei_manual_sync.py`.
+"""
 
 import asyncio
 import os

@@ -1,3 +1,24 @@
+<#
+.SYNOPSIS
+    Deploy MANUAL do backend no Cloud Run (caminho alternativo via gcloud).
+
+.DESCRIPTION
+    Resolve a versao do app (package.json + logs/versions/*.md), builda a imagem
+    com `gcloud builds submit` e publica no Artifact Registry (imagem
+    `...auditoria-manual`), depois roda `gcloud run deploy` no servico `auditoria`
+    (regiao southamerica-east1, projeto auditoria-nstech).
+
+    COMO RODAR: `npm run deploy` ou
+    `powershell -ExecutionPolicy Bypass -File scripts/deploy-cloudrun.ps1`.
+    Use `-DryRun` para apenas imprimir o que faria. Requer `gcloud` autenticado
+    com acesso ao projeto.
+
+    ATENCAO: este caminho (`gcloud` build --source) ja falhou na importacao da
+    imagem pelo Cloud Run (`ContainerImageImportFailed`, nao-transitorio). O
+    deploy CANONICO e CONFIAVEL e o GitHub Actions ("Build and Deploy to Cloud
+    Run"), disparado automaticamente no push para `main`. Use este script so como
+    alternativa. Ver `docs/11-deploy.md`.
+#>
 param(
     [switch]$DryRun
 )
