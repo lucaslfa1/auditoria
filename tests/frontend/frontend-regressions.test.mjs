@@ -215,4 +215,37 @@ assert.match(remoteTriageSource, /classifyingHashes\.has/);
 // classify individual nao usa mais alert() nativo (passou a usar toast)
 assert.doesNotMatch(remoteTriageSource, /alert\(err\.message \|\| 'Erro ao classificar/);
 
+// Editar tipo de alerta + trocar interlocutor com reavaliacao por IA, em Arquivos
+// Salvos e Auditorias do mes (AuditModal). Reusa /api/audit/reevaluate.
+const auditModalSource = read('src/features/automacao/components/AuditModal.tsx');
+const speakerLabelsSource = read('src/features/audit/lib/speakerLabels.ts');
+const alertCatalogSource = read('src/features/audit/lib/alertCatalog.ts');
+const useReauditSource = read('src/features/audit/hooks/useReaudit.ts');
+
+// hook de reavaliacao usa o endpoint existente (sem motor novo)
+assert.match(useReauditSource, /\/api\/audit\/reevaluate/);
+assert.match(useReauditSource, /export function useReaudit/);
+// helpers puros de locutor
+assert.match(speakerLabelsSource, /export function swapOperatorClient/);
+assert.match(speakerLabelsSource, /export function setSegmentSpeaker/);
+assert.match(speakerLabelsSource, /export const SPEAKER_OPTIONS/);
+// helpers do catalogo de alerta (em arquivo proprio, nao no componente)
+assert.match(alertCatalogSource, /export function buildAuditAlertFromCriteria/);
+assert.match(alertCatalogSource, /export function findAlertIdByLabel/);
+
+// As duas telas fiam: seletor de alerta + Reavaliar + inverter/trocar locutor
+for (const source of [savedFilesSource, auditModalSource]) {
+  assert.match(source, /import \{ AlertTypeSelect \} from '\.\.\/\.\.\/audit\/components\/AlertTypeSelect'/);
+  assert.match(source, /import \{ useReaudit \} from '\.\.\/\.\.\/audit\/hooks\/useReaudit'/);
+  assert.match(source, /buildAuditAlertFromCriteria/);
+  assert.match(source, /<AlertTypeSelect/);
+  assert.match(source, />Reavaliar</);
+  assert.match(source, /handleInvertSpeakers/);
+  assert.match(source, /setSegmentSpeakerAt/);
+  // nota da IA prevalece quando ha reavaliacao (senao recalculo local)
+  assert.match(source, /reevaluatedScore != null/);
+  // o PUT carrega o alerta trocado
+  assert.match(source, /putBody\.alert_id = editAlertId/);
+}
+
 console.log('Frontend regression checks passed.');

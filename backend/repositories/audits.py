@@ -524,6 +524,43 @@ def update_audit_result_by_id(
         conn.close()
 
 
+def update_audit_alert(
+    get_connection: ConnectionFactory,
+    audit_id: int,
+    alert_id: Optional[str],
+    alert_label: Optional[str],
+) -> bool:
+    """Atualiza só o alerta (`alert_id`/`alert_label`) de uma auditoria pelo id.
+
+    Usado quando o auditor corrige o TIPO de alerta de uma auditoria salva e a
+    reavalia: score/detalhes/transcrição continuam sendo gravados pelo fluxo de
+    resultado (`update_audit_by_id`); aqui só as colunas de alerta são tocadas.
+    Campos `None` são ignorados (não sobrescrevem). Retorna True se a linha foi
+    atualizada. Efeito colateral: UPDATE em `audits` + commit.
+    """
+    sets: list[str] = []
+    params: list = []
+    if alert_id is not None:
+        sets.append("alert_id = %s")
+        params.append(alert_id)
+    if alert_label is not None:
+        sets.append("alert_label = %s")
+        params.append(alert_label)
+    if not sets:
+        return False
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        params.append(audit_id)
+        cursor.execute(f"UPDATE audits SET {', '.join(sets)} WHERE id = %s", tuple(params))
+        rowcount = getattr(cursor, "rowcount", None)
+        updated = True if rowcount is None or type(rowcount) is not int else rowcount > 0
+        conn.commit()
+        return updated
+    finally:
+        conn.close()
+
+
 def update_audit_by_id(
     get_connection: ConnectionFactory,
     audit_id: int,

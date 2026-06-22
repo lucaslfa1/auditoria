@@ -54,6 +54,11 @@ import { apiFetch, apiFetchJson } from '../../../shared/lib/apiClient';
 import { formatAudioMoment } from '../../../shared/lib/auditDates';
 import { OriginBadge } from '../../../shared/lib/auditOrigin';
 import { formatOperationalLabel } from '../../../shared/lib/operationalLabels';
+import { useAuditCriteria } from '../../../contexts/AuditCriteriaContext';
+import { useReaudit } from '../../audit/hooks/useReaudit';
+import { AlertTypeSelect } from '../../audit/components/AlertTypeSelect';
+import { buildAuditAlertFromCriteria, findAlertIdByLabel } from '../../audit/lib/alertCatalog';
+import { SPEAKER_OPTIONS, parseSpeakerPrefix, setSegmentSpeaker, swapOperatorClient } from '../../audit/lib/speakerLabels';
 import {
   getAuditStatusBadgeClass,
   getAuditStatusLabel,
@@ -540,6 +545,8 @@ function calculateSavedAuditScores(details: SavedAuditMetadataDetail[], sectorId
  */
 export function SavedFiles() {
   const { showToast } = useToast();
+  const { data: criteriaData } = useAuditCriteria();
+  const { reaudit, isReauditing, reauditError } = useReaudit();
 
   // ── Estado: lista, busca e seleção ──
   const [items, setItems] = useState<ArquivoSalvo[]>([]);
@@ -591,6 +598,12 @@ export function SavedFiles() {
   const [editFeedback, setEditFeedback] = useState('');
   const [editDetails, setEditDetails] = useState<SavedAuditMetadataDetail[]>([]);
   const [editTranscription, setEditTranscription] = useState<TranscriptionSegment[]>([]);
+  // Troca de alerta + reavaliação por IA. reevaluatedScore != null => usar nota da
+  // IA ao salvar; null => recálculo local (edição manual legada).
+  const [editAlertId, setEditAlertId] = useState('');
+  const [editAlertLabel, setEditAlertLabel] = useState('');
+  const [reevaluatedScore, setReevaluatedScore] = useState<number | null>(null);
+  const [reevaluatedMax, setReevaluatedMax] = useState<number | null>(null);
   const detailsContainerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const selectedRequestRef = useRef(0);
@@ -632,6 +645,64 @@ export function SavedFiles() {
 
   const removeEditTranscriptionSegment = (index: number) => {
     setEditTranscription((prev) => prev.filter((_, i) => i !== index));
+    setReevaluatedScore(null);
+  };
+
+  /** Reatribui o locutor de UMA fala (reescreve o prefixo do texto). */
+  const setSegmentSpeakerAt = (index: number, speaker: string) => {
+    setEditTranscription((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], text: setSegmentSpeaker(updated[index].text, speaker) };
+      return updated;
+    });
+    setReevaluatedScore(null);
+  };
+
+  /** Inverte operador↔cliente em todas as falas (diarização trocada na ligação). */
+  const handleInvertSpeakers = () => {
+    setEditTranscription((prev) => swapOperatorClient(prev));
+    setReevaluatedScore(null);
+  };
+
+  /**
+   * "Reavaliar": refaz a auditoria com IA usando o alerta selecionado + a
+   * transcrição (com interlocutor corrigido). Atualiza nota/critérios/resumo no
+   * formulário; o auditor revisa e clica em Salvar. TEM CUSTO de IA.
+   */
+  const handleReaudit = async () => {
+    if (!selectedItem) return;
+    const alert = buildAuditAlertFromCriteria(criteriaData, selectedItem.sector_id, editAlertId);
+    if (!alert) {
+      showToast({ variant: 'error', title: 'Selecione um alerta', description: 'Escolha um tipo de alerta válido para reavaliar.' });
+      return;
+    }
+    const result = await reaudit({
+      transcription: editTranscription.map((t) => ({ start: t.start, end: t.end, text: t.text })),
+      alert,
+      operatorName: selectedItem.operator_name || undefined,
+      operatorId: selectedOperatorId || undefined,
+      sectorId: selectedItem.sector_id || undefined,
+      sourceType: selectedAuditView?.sourceType === 'pdf' ? 'pdf' : 'audio',
+    });
+    if (!result) {
+      showToast({ variant: 'error', title: 'Falha ao reavaliar', description: reauditError || 'Tente novamente.' });
+      return;
+    }
+    setEditSummary(result.summary || '');
+    setEditFeedback(result.ai_feedback || '');
+    setEditDetails(result.details.map((d) => ({
+      criterionId: d.criterionId,
+      label: d.label,
+      status: d.status,
+      weight: d.weight,
+      obtainedScore: d.obtainedScore,
+      comment: d.comment,
+    })));
+    setEditTranscription(result.transcription.map((t) => ({ start: t.start, end: t.end, text: t.text })));
+    setReevaluatedScore(result.score);
+    setReevaluatedMax(result.maxPossibleScore);
+    setEditAlertLabel(alert.label);
+    showToast({ variant: 'success', title: 'Reavaliado', description: 'Nota e critérios atualizados pela IA. Revise e clique em Salvar.' });
   };
 
   // ── Dados: fetch da lista + detalhe lazy ──
@@ -753,7 +824,11 @@ export function SavedFiles() {
           ...detail,
           obtainedScore: getObtainedScore(detail),
         }));
-        const { score, maxPossibleScore } = calculateSavedAuditScores(recalculatedDetails, selectedItem.sector_id);
+        const localScores = calculateSavedAuditScores(recalculatedDetails, selectedItem.sector_id);
+        // Pós-"Reavaliar" a nota vem da IA (zeragens já aplicadas no backend);
+        // edição manual de critério cai no recálculo local (reevaluatedScore=null).
+        const score = reevaluatedScore != null ? Number(reevaluatedScore.toFixed(2)) : localScores.score;
+        const maxPossibleScore = reevaluatedMax != null ? Number(reevaluatedMax.toFixed(2)) : localScores.maxPossibleScore;
         // Build updated metadata from structured fields
         const existingMeta = readAuditMetadata(selectedItem);
         const updatedMetadata: SavedAuditMetadata = {
@@ -773,19 +848,27 @@ export function SavedFiles() {
           : '';
         const newConteudo = `${summarySection}${feedbackSection}${detailsSection}`.trim();
 
+        const putBody: Record<string, unknown> = {
+          conteudo: newConteudo,
+          score,
+          metadata: updatedMetadata,
+        };
+        // Só envia alerta com id válido (troca de alerta ou alerta atual mapeado).
+        const nextAlertLabel = editAlertId ? (editAlertLabel || selectedItem.alert_label) : selectedItem.alert_label;
+        if (editAlertId) {
+          putBody.alert_id = editAlertId;
+          putBody.alert_label = nextAlertLabel;
+        }
         await apiFetchJson(`/api/salvos/${selectedItem.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conteudo: newConteudo,
-            score,
-            metadata: updatedMetadata,
-          }),
+          body: JSON.stringify(putBody),
         });
         setSelectedItem({
           ...selectedItem,
           conteudo: newConteudo,
           score,
+          alert_label: nextAlertLabel,
           metadata: updatedMetadata as Record<string, unknown>,
         });
       } else {
@@ -846,6 +929,10 @@ export function SavedFiles() {
 
   /** Entra em edição: estruturada quando há view de auditoria; senão textarea de texto livre. */
   const startEdit = (item: ArquivoSalvo) => {
+    setReevaluatedScore(null);
+    setReevaluatedMax(null);
+    setEditAlertId(findAlertIdByLabel(criteriaData, item.sector_id, item.alert_label));
+    setEditAlertLabel(item.alert_label || '');
     const auditView = buildSavedAuditView(item);
     if (auditView && (auditView.details.length > 0 || auditView.summary)) {
       // Structured edit mode for auditorias
@@ -877,6 +964,8 @@ export function SavedFiles() {
       }
       return updated;
     });
+    // Edição manual de critério volta ao recálculo local (descarta nota da IA).
+    setReevaluatedScore(null);
   };
 
   // Busca client-side: arquivo, operador, setor, alerta, criador, metadata serializado e conteúdo.
@@ -1110,6 +1199,44 @@ export function SavedFiles() {
               ) : isEditing ? (
                 isStructuredEdit ? (
                   <div className="space-y-4">
+                    {/* Reavaliar: trocar tipo de alerta / interlocutor e refazer com IA */}
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400 mb-1.5">Tipo de alerta</p>
+                          <AlertTypeSelect
+                            sectorId={selectedItem.sector_id}
+                            value={editAlertId}
+                            disabled={isReauditing}
+                            onChange={(id, label) => { setEditAlertId(id); setEditAlertLabel(label); setReevaluatedScore(null); }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleInvertSpeakers}
+                            disabled={isReauditing}
+                            className="btn-secondary px-3 py-1.5 text-xs"
+                            title="Inverter operador e cliente em todas as falas"
+                          >
+                            Inverter operador/cliente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleReaudit}
+                            disabled={isReauditing}
+                            className="btn-primary px-4 py-1.5 text-xs font-medium"
+                          >
+                            {isReauditing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                            {isReauditing ? 'Reavaliando...' : 'Reavaliar'}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Troque o alerta ou corrija o interlocutor e clique em <span className="font-semibold">Reavaliar</span> — a IA refaz a nota e os critérios. Depois clique em Salvar.
+                      </p>
+                    </div>
+
                     {/* Summary */}
                     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
@@ -1196,6 +1323,23 @@ export function SavedFiles() {
                                 className="w-24 bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-sm font-mono text-primary-400"
                                 placeholder="00:00"
                               />
+                              <select
+                                value={parseSpeakerPrefix(segment.text).speaker}
+                                onChange={(e) => setSegmentSpeakerAt(idx, e.target.value)}
+                                className="text-xs rounded-lg border px-2 py-1.5 bg-slate-900 border-white/10 text-slate-200 focus:outline-none focus:border-primary-500/50 theme-light:bg-white theme-light:border-slate-300 theme-light:text-slate-900"
+                                title="Quem fala nesta linha (interlocutor)"
+                              >
+                                <option value="">Sem rótulo</option>
+                                {(() => {
+                                  const cur = parseSpeakerPrefix(segment.text).speaker;
+                                  return cur && !SPEAKER_OPTIONS.some((o) => o.value === cur)
+                                    ? <option value={cur}>{cur}</option>
+                                    : null;
+                                })()}
+                                {SPEAKER_OPTIONS.map((o) => (
+                                  <option key={o.value} value={o.value}>{o.label}</option>
+                                ))}
+                              </select>
                               {editTranscription.length > 1 ? (
                                 <button
                                   type="button"

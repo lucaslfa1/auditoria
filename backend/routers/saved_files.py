@@ -63,11 +63,19 @@ class ArquivoSalvoRequest(BaseModel):
 
 
 class ArquivoSalvoUpdate(BaseModel):
-    """Payload de atualização de um arquivo salvo (conteúdo, score e metadados)."""
+    """Payload de atualização de um arquivo salvo (conteúdo, score e metadados).
+
+    `alert_id`/`alert_label` (opcionais) permitem corrigir o TIPO de alerta de uma
+    auditoria salva — usados após "Reavaliar". Quando informados, são persistidos
+    no arquivo salvo e, se vinculado, também na auditoria (`audits`). `None` =
+    não mexe no alerta (mantém o comportamento legado).
+    """
 
     conteudo: str
     score: float | None = None
     metadata: dict | None = None
+    alert_id: str | None = None
+    alert_label: str | None = None
 
 
 def _is_linked_audit_file(item: dict) -> bool:
@@ -243,6 +251,12 @@ def atualizar_salvo(
             raise HTTPException(status_code=404, detail="Auditoria vinculada não encontrada.")
         try:
             result = _build_audit_result_from_saved_update(audit=audit, payload=payload)
+            # Corrigir o tipo de alerta (quando informado) ANTES do update do
+            # resultado: assim o espelhamento disparado por update_audit_by_id
+            # já parte da auditoria com o alerta novo. O score/detalhes vêm do
+            # result (reavaliado pelo front via /api/audit/reevaluate).
+            if payload.alert_id is not None or payload.alert_label is not None:
+                database.update_audit_alert(audit_id, payload.alert_id, payload.alert_label)
             outcome = database.update_audit_by_id(
                 audit_id,
                 result,
@@ -252,6 +266,9 @@ def atualizar_salvo(
             raise HTTPException(status_code=400, detail=str(exc))
         if not outcome or not outcome.get("updated"):
             raise HTTPException(status_code=404, detail="Auditoria vinculada não encontrada.")
+        # O espelhamento (update) não copia alert_label do audit; refletir aqui.
+        if payload.alert_label is not None:
+            database.update_arquivo_alert_label(arquivo_id, payload.alert_label)
         # v1.3.90: feedback RAG vai pra background pra nao travar o response do PUT.
         rag_payload = outcome.get("rag_payload")
         if rag_payload:
@@ -266,6 +283,8 @@ def atualizar_salvo(
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+    if payload.alert_label is not None:
+        database.update_arquivo_alert_label(arquivo_id, payload.alert_label)
     return {"success": True, "message": "Arquivo atualizado com sucesso."}
 
 

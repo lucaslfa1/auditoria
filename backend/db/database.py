@@ -1041,6 +1041,13 @@ def update_audit_by_id(audit_id: int, result: AuditResult, ai_feedback: Optional
     return outcome
 
 
+def update_audit_alert(audit_id: int, alert_id: Optional[str], alert_label: Optional[str]) -> bool:
+    """Fachada: delega para `repositories.audits.update_audit_alert` (só colunas de alerta)."""
+    from repositories.audits import update_audit_alert as repository_update_audit_alert
+
+    return repository_update_audit_alert(get_connection, audit_id, alert_id, alert_label)
+
+
 
 
 
@@ -1690,6 +1697,13 @@ def update_arquivo_salvo(arquivo_id: int, conteudo: str, score: float | None = N
     from repositories.saved_files import update_arquivo_salvo as repository_update_arquivo_salvo
 
     return repository_update_arquivo_salvo(get_connection, arquivo_id, conteudo, score=score, metadata=metadata)
+
+
+def update_arquivo_alert_label(arquivo_id: int, alert_label: str) -> bool:
+    """Fachada: delega para `repositories.saved_files.update_arquivo_alert_label`."""
+    from repositories.saved_files import update_arquivo_alert_label as repository_update_arquivo_alert_label
+
+    return repository_update_arquivo_alert_label(get_connection, arquivo_id, alert_label)
 
 
 def delete_arquivo_salvo(arquivo_id: int) -> bool:

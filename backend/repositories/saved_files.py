@@ -287,6 +287,33 @@ def update_arquivo_salvo(
         conn.close()
 
 
+def update_arquivo_alert_label(
+    get_connection: ConnectionFactory,
+    arquivo_id: int,
+    alert_label: str,
+) -> bool:
+    """Atualiza só o `alert_label` de um arquivo salvo pelo `arquivo_id`.
+
+    Usado ao corrigir o tipo de alerta de uma auditoria salva: conteúdo/score são
+    gravados pelos fluxos existentes (PUT / espelhamento); aqui só o rótulo do
+    alerta é refletido na linha de `arquivos_salvos`. Retorna True se atualizou.
+    Efeito colateral: UPDATE em `arquivos_salvos` + commit.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE arquivos_salvos SET alert_label = %s WHERE id = %s",
+            (alert_label, arquivo_id),
+        )
+        rowcount = getattr(cursor, "rowcount", None)
+        updated = True if rowcount is None or type(rowcount) is not int else rowcount > 0
+        conn.commit()
+        return updated
+    finally:
+        conn.close()
+
+
 def delete_arquivo_salvo(get_connection: ConnectionFactory, arquivo_id: int) -> bool:
     """Remove um arquivo salvo pelo `arquivo_id`.
 
