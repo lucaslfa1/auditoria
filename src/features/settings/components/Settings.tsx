@@ -1,3 +1,9 @@
+/**
+ * Hub de CONFIGURAÇÕES (aba Settings). Componente de layout que reúne os painéis
+ * de configuração do sistema (telefonia, automação, usuários, tema, operadores
+ * etc.). Cada sub-painel tem seus próprios endpoints; esta casca só organiza a
+ * navegação entre eles.
+ */
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

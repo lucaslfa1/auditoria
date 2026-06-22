@@ -1,3 +1,10 @@
+/**
+ * Modal para registrar um FEEDBACK da IA rápido (ex.: a partir de uma auditoria).
+ *
+ * Envia via `POST /api/ai-feedback`. É a versão enxuta da AIFeedbackPage para
+ * criação pontual; a gestão completa (listar/editar/ligar-desligar) fica na
+ * página de Feedback da IA.
+ */
 import { useState, useEffect } from 'react';
 import { Brain, Check, X, Plus, AlertCircle } from 'lucide-react';
 import { apiFetchJson } from '../../../shared/lib/apiClient';

@@ -1,3 +1,11 @@
+/**
+ * Tela de admin dos APELIDOS de setor (sector_aliases): mapeia rótulos crus
+ * (ex.: "BASE PR - AZUL") para o setor canônico interno (ex.: "bas").
+ *
+ * CRUD via `/api/admin/sector-aliases` (GET; POST; PUT `/{id}`; DELETE `/{id}`),
+ * com `/cache/invalidate` para recarregar. Resolver o alias certo é o que liga a
+ * ligação ao catálogo de critérios correto na classificação/auditoria.
+ */
 import { useEffect, useState } from 'react';
 import { Loader2, Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';

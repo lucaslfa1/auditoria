@@ -1,3 +1,12 @@
+/**
+ * Tela de admin do FEEDBACK da IA (calibração): regras/observações que ajustam
+ * o comportamento do classificador/avaliador.
+ *
+ * CRUD via `/api/ai-feedback` (GET com filtros; POST cria; PUT `/{id}` edita;
+ * DELETE `/{id}` remove) e liga/desliga em `/api/ai-feedback/{id}/toggle`. O que
+ * está ativo aqui alimenta a calibração aplicada nas próximas classificações/
+ * auditorias.
+ */
 import { useState, useEffect, useCallback } from 'react';
 import {
     Brain, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,

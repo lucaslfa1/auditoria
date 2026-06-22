@@ -1,3 +1,12 @@
+/**
+ * Orquestra a Central de Auditoria manual, acima do `useAuditFlow`.
+ *
+ * Mantém a fila de jobs pendentes (vários arquivos: arquivo + alerta + operador
+ * + data), processa-os em sequência via `processAudio` (POST /api/audit) e
+ * controla a navegação entre as telas/abas (audit, classifier, salvos,
+ * supervisor, review, ia, admin, colaboradores, settings). É o estado de alto
+ * nível que o App usa na aba de auditoria; não chama a IA diretamente — delega.
+ */
 import { useEffect, useRef, useState } from 'react';
 import type { AuditAlert, AuditSector } from '../../../shared/types/audit';
 import { useToast } from '../../../shared/components/ToastProvider';

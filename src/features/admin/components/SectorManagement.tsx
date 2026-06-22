@@ -1,3 +1,11 @@
+/**
+ * Tela de admin de SETORES (rótulo exibível) e seus colaboradores vinculados.
+ *
+ * Lista/cria setores e gerencia membros via `/api/admin/sectors` e
+ * `/api/admin/sectors/{id}/members`; renomeia o rótulo em
+ * `/api/admin/sectors/{id}/rename` (cascateia para os colaboradores; o id
+ * interno fixo preserva as regras). DELETE `/{id}` remove o setor. Ver v1.3.106.
+ */
 import { useEffect, useState } from 'react';
 import { Loader2, Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';

@@ -1,3 +1,11 @@
+/**
+ * Casca da tela de TELEFONIA (coleta Huawei manual + fila de gravações).
+ *
+ * Componente de layout: compõe os painéis (credenciais Huawei, disparo manual de
+ * sync, lista de gravações) e delega a lógica/endpoints aos hooks do módulo
+ * (ex.: useTelefoniaSync, que fala com `/api/telefonia/...`). Sem regra de
+ * negócio própria aqui.
+ */
 import { Bot, Loader2 } from 'lucide-react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';

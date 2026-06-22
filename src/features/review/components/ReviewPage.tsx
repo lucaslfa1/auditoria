@@ -1,3 +1,10 @@
+/**
+ * Tela de REVISÃO TÉCNICA (contestações) — camada admin acima do supervisor.
+ *
+ * Lista as contestações em `/api/revisao/contestacoes` e registra a decisão em
+ * `/api/revisao/auditorias/{auditId}/veredito`. É onde uma auditoria contestada
+ * pelo supervisor recebe o veredito técnico final.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock, Loader2, ShieldAlert, Volume2, XCircle } from 'lucide-react';
 

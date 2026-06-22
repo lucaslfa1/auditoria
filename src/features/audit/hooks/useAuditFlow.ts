@@ -1,3 +1,13 @@
+/**
+ * Estado do formulário da auditoria MANUAL (Central de Auditoria / AuditWorkspace).
+ *
+ * Gerencia a montagem de UMA auditoria pelo usuário: seleção de setor + alerta
+ * (a partir de `sectors`), resolução do operador (autocomplete por id/nome via
+ * API), escolha do arquivo (áudio/PDF) e da data, e validação antes de auditar.
+ * NÃO executa a auditoria: delega ao `processAudio` injetado (que chama
+ * `POST /api/audit` — transcrição + avaliação). É puro estado/UX de preparação;
+ * o resultado é exibido por outros componentes do workspace.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, Dispatch, DragEvent, SetStateAction } from 'react';
 import type { AuditAlert, AuditResult, AuditSector, OperatorLookupItem } from '../../../shared/types/audit';

@@ -1,3 +1,13 @@
+/**
+ * Tela de admin do CATÁLOGO de auditoria: setores → alertas → critérios
+ * (Inteligência Artificial > Critérios). É a fonte de verdade que a IA usa
+ * para auditar.
+ *
+ * CRUD via `/api/admin/sectors`, `/api/admin/alerts`, `/api/admin/criteria`
+ * (GET lista; POST cria; PUT `/{id}` edita; DELETE `/{id}` remove). Histórico em
+ * `/api/admin/criteria/audit-log`. O que muda aqui passa a valer nas PRÓXIMAS
+ * auditorias (o backend resolve o alerta contra este catálogo).
+ */
 import { useEffect, useState, useCallback } from 'react';
 import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronRight, History, X } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';

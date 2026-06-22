@@ -1,3 +1,12 @@
+/**
+ * Shell visual da Central de Auditoria manual (aba "Auditoria").
+ *
+ * Compõe as etapas/painéis da tela — setup (setor/alerta/operador), upload do
+ * arquivo, resumo do resultado, transcrição, detalhes da avaliação e ações
+ * (salvar/enviar) — mais o modal de feedback da IA. NÃO tem lógica de negócio:
+ * recebe o estado por props (`flow` = useAuditFlow, `editor` = useAuditResultEditor,
+ * `auditResult`, `sectors`, ...) e só orquestra a renderização das sub-partes.
+ */
 import { Suspense, useEffect, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { Loader2 } from 'lucide-react';

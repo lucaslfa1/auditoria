@@ -1,3 +1,12 @@
+/**
+ * Tela do FECHAMENTO mensal — consolida as auditorias aprovadas para o BI.
+ *
+ * Carrega dados via `/api/fechamento/dados` e `/api/fechamento/supervisores`,
+ * resolve operadores em `/api/operadores/`, gerencia o layout/seleção de
+ * operadores (`/api/fechamento/layout/operadores` [+ `/remover`]) e exporta em
+ * `/api/fechamento/exportar`. ATENÇÃO: o formato/labels do fechamento são
+ * CONTRATO com o BI — não alterar (ver memória "Fechamento intocável").
+ */
 import { useState, useEffect, useMemo } from 'react';
 import { Download, Save, RefreshCw, Trash2, UserPlus } from 'lucide-react';
 import { ApiError, apiFetchJson, apiFetchBlob } from '../../../shared/lib/apiClient';

@@ -1,3 +1,9 @@
+/**
+ * Casca da tela de AUTOMAÇÃO. Componente de layout que compõe os painéis
+ * (controle/herói, runtime de coleta, configuração, saúde e Auditorias do mês +
+ * AuditModal), todos alimentados pelo `useAutomacaoDashboard` (polling de
+ * `/api/automation/status` e afins). Sem regra de negócio própria aqui.
+ */
 import { useState } from 'react';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 

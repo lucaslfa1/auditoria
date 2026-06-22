@@ -1,3 +1,13 @@
+/**
+ * Lógica da Triagem standalone (upload manual de arquivos para classificar).
+ *
+ * Sustenta a tela Classifier. Envia arquivos (multipart) para
+ * `POST /api/classify` (lote; `force_reclassify` reprocessa) e normaliza cada
+ * `ClassificationResult` (setor/alerta/operador/confiança), sinalizando
+ * duplicados e itens que precisam de revisão. `POST /api/classify/{input_hash}`
+ * reclassifica/atualiza um item específico. NÃO audita — só classifica e prepara
+ * o item para a fila de triagem.
+ */
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { apiFetchJson } from '../../../shared/lib/apiClient';
 

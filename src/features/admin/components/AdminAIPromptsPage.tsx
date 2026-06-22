@@ -1,3 +1,11 @@
+/**
+ * Tela de admin dos PROMPTS da IA (externalizados, editáveis sem novo deploy).
+ *
+ * Lista/edita prompts via `/api/admin/ai-prompts` (GET; PUT `/{chave}`) e limpa o
+ * cache em `/api/admin/ai-prompts/cache/invalidate`. Os prompts alimentam a
+ * classificação/avaliação; o custo de IA NÃO ocorre aqui — só quando uma
+ * auditoria roda depois usando o prompt salvo.
+ */
 import { useEffect, useState } from 'react';
 import { Loader2, Pencil, RefreshCw } from 'lucide-react';
 import { PageHeader } from '../../../shared/components/PageHeader';
