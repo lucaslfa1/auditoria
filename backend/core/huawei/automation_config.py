@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 import db.database as database
@@ -30,6 +31,36 @@ DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS = 0
 DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY = 5
 DEFAULT_HUAWEI_SYNC_CLASSIFY_CONCURRENCY = 5
 DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD = 0.90
+
+# Linhas fixas da CENTRAL (47 3481-6122 / 47 2101-6122 e ramais do mesmo bloco),
+# usadas para inferir a direção de ligações que vêm sem `isCallIn` (manifesto OBS).
+DEFAULT_HUAWEI_CENTRAL_NUMBERS = (
+    "4734816122,4721016122,4734816171,4734816142,4721016142"
+)
+
+
+def get_huawei_central_numbers() -> set:
+    """Números (só dígitos) das linhas da CENTRAL para inferir direção.
+
+    Override por env `HUAWEI_CENTRAL_NUMBERS` ou config `huawei_central_numbers`
+    (lista separada por vírgula); senão usa `DEFAULT_HUAWEI_CENTRAL_NUMBERS`.
+    Efeito colateral: leitura de banco/env.
+    """
+    raw = os.getenv("HUAWEI_CENTRAL_NUMBERS")
+    if raw in (None, ""):
+        try:
+            raw = database.get_config_value("huawei_central_numbers", "")
+        except Exception as exc:
+            logger.debug("Sync Huawei: falha ao ler huawei_central_numbers: %s", exc)
+            raw = ""
+    if raw in (None, ""):
+        raw = DEFAULT_HUAWEI_CENTRAL_NUMBERS
+    numeros: set = set()
+    for parte in str(raw).split(","):
+        digitos = re.sub(r"\D+", "", parte)
+        if digitos:
+            numeros.add(digitos)
+    return numeros
 
 
 def _ensure_enabled() -> bool:

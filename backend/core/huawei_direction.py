@@ -195,6 +195,38 @@ def resolve_huawei_is_call_in(payload: dict[str, Any]) -> Optional[bool]:
     return inferred_direction
 
 
+def infer_is_call_in_from_central(
+    caller: Any, callee: Any, central_numbers: Optional[set] = None
+) -> Optional[bool]:
+    """Resolve a direção pelos números da CENTRAL quando rótulo/heurística falham.
+
+    Regra (provada nos dados de prod): a central é a linha fixa da empresa (ex.:
+    47 3481-6122 / 47 2101-6122 e ramais do mesmo bloco). Se a central é quem
+    LIGOU (caller) -> ligação FEITA (outbound) -> False; se é quem RECEBEU
+    (callee) -> RECEBIDA (inbound) -> True. Central nos dois lados (interna) ou
+    em nenhum -> None (na dúvida, o chamador cai nas defesas seguintes). Isso
+    cobre as ligações vindas só do manifesto OBS, que chegam sem `isCallIn`.
+
+    `central_numbers`: dígitos canônicos (ex.: "4734816122"). Match por sufixo
+    (em qualquer sentido) para tolerar DDI 55 e zero de tronco à esquerda.
+    """
+    central = {d for d in (_digits(n) for n in (central_numbers or set())) if len(d) >= 8}
+    if not central:
+        return None
+
+    def _is_central(value: Any) -> bool:
+        d = _digits(value)
+        if len(d) < 8:
+            return False
+        return any(d.endswith(c) or c.endswith(d) for c in central)
+
+    caller_central = _is_central(caller)
+    callee_central = _is_central(callee)
+    if caller_central == callee_central:
+        return None
+    return True if callee_central else False
+
+
 def format_huawei_is_call_in(value: Optional[bool]) -> Optional[str]:
     """Serializa a direção booleana para a string que a Huawei usa.
 

@@ -24,7 +24,11 @@ from zoneinfo import ZoneInfo
 from typing import Any, Dict, List, Optional
 
 from core.huawei_client import HuaweiAICCClient
-from core.huawei_direction import format_huawei_is_call_in, resolve_huawei_is_call_in
+from core.huawei_direction import (
+    format_huawei_is_call_in,
+    infer_is_call_in_from_central,
+    resolve_huawei_is_call_in,
+)
 from core.huawei_obs_client import HuaweiOBSClient
 
 logger = logging.getLogger(__name__)
@@ -117,7 +121,9 @@ class HuaweiDiscoveryService:
         return windows
 
     @classmethod
-    def _manifest_row_to_interacao(cls, row: dict[str, str]) -> dict:
+    def _manifest_row_to_interacao(
+        cls, row: dict[str, str], central_numbers: Optional[set] = None
+    ) -> dict:
         """Converte uma linha crua do CSV manifesto (OBS) numa interação padrão.
 
         Normaliza tempos (epoch ms), calcula duração (campo explícito ou
@@ -126,6 +132,11 @@ class HuaweiDiscoveryService:
         motivo/observação. As CHAVES de saída (callId, recordId, isCallIn,
         beginTime, ...) são contrato consumido a jusante — não renomear. Marca
         `source="obs_contact_record"`.
+
+        Quando a direção não sai do rótulo nem da heurística de endpoints (caso
+        comum no manifesto: workNo não casa com caller/callee), cai para
+        `infer_is_call_in_from_central` usando `central_numbers` — sem isso a
+        ligação chega sem direção e é descartada como "desconhecida".
         """
         begin_ms = cls._coerce_huawei_time_ms(row.get("beginTime"))
         end_ms = cls._coerce_huawei_time_ms(row.get("endTime"))
@@ -147,7 +158,10 @@ class HuaweiDiscoveryService:
             "calleeNo": callee_no,
             "workNo": work_no,
         }
-        is_call_in = format_huawei_is_call_in(resolve_huawei_is_call_in(direction_payload))
+        direcao = resolve_huawei_is_call_in(direction_payload)
+        if direcao is None and central_numbers:
+            direcao = infer_is_call_in_from_central(caller_no, callee_no, central_numbers)
+        is_call_in = format_huawei_is_call_in(direcao)
 
         return {
             "callId": str(row.get("callId") or row.get("recordId") or "").strip(),
@@ -293,10 +307,18 @@ class HuaweiDiscoveryService:
         if obs_client is None:
             return []
 
+        # Números da central p/ inferir direção das ligações que vêm sem `isCallIn`
+        # (lidos 1x por descoberta). Import local p/ evitar dependência circular.
+        try:
+            from core.huawei.automation_config import get_huawei_central_numbers
+            central_numbers = get_huawei_central_numbers()
+        except Exception:
+            central_numbers = None
+
         interacoes: list[dict] = []
         for date_str in cls._window_date_strings(begin_ms, end_ms):
             for row in await obs_client.listar_contact_record_rows(date_str):
-                interacao = cls._manifest_row_to_interacao(row)
+                interacao = cls._manifest_row_to_interacao(row, central_numbers=central_numbers)
                 begin_time = cls._coerce_huawei_time_ms(interacao.get("beginTime"))
                 if begin_time is not None and (begin_time < begin_ms or begin_time > end_ms):
                     continue
