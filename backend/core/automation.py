@@ -156,6 +156,7 @@ class AutomationProgress:
     operational_batch_size: int = 0
     completed: int = 0
     discarded: int = 0
+    discard_reasons: dict = field(default_factory=dict)
     failed: int = 0
     blocked: int = 0
     current_filename: str = ""
@@ -185,6 +186,7 @@ class AutomationProgress:
             "completed": self.completed,
             "discarded": self.discarded,
             "descartados": self.discarded,
+            "discard_reasons": dict(self.discard_reasons),
             "failed": self.failed,
             "blocked": self.blocked,
             "current_filename": self.current_filename,
@@ -212,6 +214,87 @@ def get_automation_status() -> dict:
     """Snapshot thread-safe do progresso da automação (consumido pela UI via polling)."""
     with _progress_lock:
         return _progress.to_dict()
+
+
+# Rótulos PT-BR dos códigos de descarte da esteira binária (status_result
+# `discarded_*`). Servem para o painel falar "alerta inelegível" em vez de
+# "discarded_unknown_alert" — o motivo é informação, não erro do sistema.
+_DISCARD_REASON_LABELS = {
+    "discarded_unknown_alert": "alerta inelegível",
+    "discarded_no_criteria": "sem critério oficial",
+    "discarded_invalid_context": "contexto inválido",
+    "discarded_operator": "operador fora de cota",
+    "discarded_non_telephony": "fora de telefonia",
+    "discarded_audio_unavailable": "áudio indisponível",
+    "discarded_timeout_exhausted": "tempo esgotado",
+}
+
+
+def _discard_reason_label(code: str) -> str:
+    """Rótulo legível para um código de descarte; fallback humaniza o próprio código."""
+    if code in _DISCARD_REASON_LABELS:
+        return _DISCARD_REASON_LABELS[code]
+    return str(code).replace("discarded_", "").replace("_", " ").strip()
+
+
+def summarize_discard_reasons(reasons: Optional[dict]) -> str:
+    """Resume os motivos de descarte em PT-BR, ordenados por contagem (desc).
+
+    Um único motivo vira só o rótulo ("alerta inelegível"); vários ganham a
+    contagem entre parênteses ("alerta inelegível (3), sem critério oficial (1)").
+    Dict vazio/None ou só zeros -> "".
+    """
+    if not isinstance(reasons, dict):
+        return ""
+    items = [(code, int(count or 0)) for code, count in reasons.items() if int(count or 0) > 0]
+    if not items:
+        return ""
+    items.sort(key=lambda kv: kv[1], reverse=True)
+    if len(items) == 1:
+        return _discard_reason_label(items[0][0])
+    return ", ".join(f"{_discard_reason_label(code)} ({count})" for code, count in items)
+
+
+def build_cycle_completion_message(
+    *,
+    cycle_status: str,
+    baixadas: int = 0,
+    auditadas: int = 0,
+    descartados: int = 0,
+    discard_reasons: Optional[dict] = None,
+    zero_download_filters: str = "",
+    last_error: Optional[str] = None,
+) -> str:
+    """Frase do painel "Andamento" focada no RESULTADO do ciclo, não em "erro".
+
+    - Falha real (cycle_status != "ok"): mostra o motivo de verdade em vez do
+      antigo "Verifique o detalhe do erro".
+    - Ciclo ok: descreve auditadas/descartadas com o motivo do descarte em
+      linguagem normal. Coleta parcial pela regra de cobertura NÃO é erro e cai
+      aqui (cycle_status="ok"), então some o alarme falso.
+    """
+    if cycle_status != "ok":
+        reason = (last_error or "").strip() or "sem detalhes adicionais."
+        return f"Ciclo concluído com atenção: {reason}"
+
+    if zero_download_filters and auditadas == 0 and descartados == 0:
+        return (
+            "Ciclo concluído sem downloads novos; principais filtros: "
+            f"{zero_download_filters}."
+        )
+
+    parts: list[str] = []
+    if auditadas:
+        parts.append(f"{auditadas} auditada" + ("" if auditadas == 1 else "s"))
+    if descartados:
+        clause = f"{descartados} descartada" + ("" if descartados == 1 else "s")
+        summary = summarize_discard_reasons(discard_reasons)
+        if summary:
+            clause += f" ({summary})"
+        parts.append(clause)
+    if not parts:
+        return "Ciclo concluído sem novas auditorias."
+    return "Ciclo concluído: " + " e ".join(parts) + "."
 
 
 def _set_progress_step(step: str, *, filename: Optional[str] = None) -> None:
@@ -308,6 +391,9 @@ def _handle_transient_failure(
             )
             with _progress_lock:
                 _progress.discarded += 1
+                _progress.discard_reasons[status_discard] = (
+                    _progress.discard_reasons.get(status_discard, 0) + 1
+                )
                 _progress.current_step = "item_discarded"
                 _progress.last_heartbeat_at = datetime.now(timezone.utc).isoformat()
             logger.info(
@@ -639,6 +725,9 @@ async def audit_all_pending(
             elif str(result_status).startswith("discarded"):
                 with _progress_lock:
                     _progress.discarded += 1
+                    _progress.discard_reasons[result_status] = (
+                        _progress.discard_reasons.get(result_status, 0) + 1
+                    )
                     _progress.current_step = "item_discarded"
                     _progress.last_heartbeat_at = datetime.now(timezone.utc).isoformat()
                 logger.info(

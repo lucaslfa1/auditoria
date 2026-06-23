@@ -34,7 +34,7 @@ from datetime import datetime, timezone
 import db.database as database
 from core import cost_guard
 from core.huawei_d_minus_1 import executar_d_minus_1_pipeline
-from core.automation import audit_all_pending, get_automation_status
+from core.automation import audit_all_pending, build_cycle_completion_message, get_automation_status
 from repositories.common import get_row_value
 
 logger = logging.getLogger(__name__)
@@ -1528,14 +1528,17 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
             baixadas += int(inner.get("baixadas", 0) or 0)
         _current_status["baixadas_total"] += baixadas
 
-        # Se D-1 falhou (status=error), pular fase de auditoria para evitar
-        # auditar itens fantasmas ou em estado inconsistente. Marcar ciclo
-        # como 'partial'.
+        # Coleta parcial pela regra de cobertura (o lote baixa só uma fração do
+        # manifesto do dia, então a cobertura quase sempre fica abaixo da meta)
+        # NÃO é falha: as ligações do lote são auditadas normalmente. Não marca
+        # last_error para o ciclo não virar "erro" (alarme falso que desacredita
+        # o sistema). A cobertura segue registrada em sync_result para
+        # observabilidade. Erro de verdade (status=error/missing_credentials) é
+        # tratado no bloco abaixo, que pula a auditoria.
         if _sync_result_contains_status(sync_result, {"partial"}):
-            _update_status(last_error="Pipeline D-1 terminou parcialmente.")
-            _persist_cycle_update(
-                _current_run_id,
-                error_message="Pipeline D-1 terminou parcialmente.",
+            logger.info(
+                "Pipeline D-1 parcial (cobertura abaixo da meta); seguindo para "
+                "auditoria sem marcar erro no ciclo."
             )
 
         if sync_status in {"error", "missing_credentials"}:
@@ -1635,18 +1638,15 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
 
         cycle_status = "partial" if _current_status.get("last_error") else "ok"
         zero_download_filters = _summarize_zero_download_filters(sync_result) if baixadas == 0 else ""
-        if cycle_status == "ok" and zero_download_filters and auditadas == 0 and descartados == 0:
-            completed_message = (
-                "Ciclo concluido sem downloads novos; principais filtros: "
-                f"{zero_download_filters}."
-            )
-        elif cycle_status == "ok":
-            completed_message = (
-                f"Ciclo concluido. Baixadas: {baixadas}; auditadas: {auditadas}; "
-                f"descartados: {descartados}."
-            )
-        else:
-            completed_message = "Ciclo terminou com falha parcial. Verifique o detalhe do erro."
+        completed_message = build_cycle_completion_message(
+            cycle_status=cycle_status,
+            baixadas=baixadas,
+            auditadas=auditadas,
+            descartados=descartados,
+            discard_reasons=audit_result.get("discard_reasons") if isinstance(audit_result, dict) else None,
+            zero_download_filters=zero_download_filters,
+            last_error=_current_status.get("last_error"),
+        )
         result = {
             "status": cycle_status,
             "source": source,
