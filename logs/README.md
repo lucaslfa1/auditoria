@@ -36,14 +36,19 @@ Esta pasta guarda o historico de mudancas do projeto.
 - `npm run log:new -- --dry-run 1.2.0` -> mostra o conteudo sem gravar arquivo.
 - `npm run log:new -- 1.2.0 --authors=user` -> define autores no bloco YAML.
 
-## Versoes registradas
-- `1.3.36` -> [logs/versions/1.3.36.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/1.3.36.md)
-- `1.3.37` -> [logs/versions/1.3.37.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/1.3.37.md)
-- `1.3.38` -> [logs/versions/1.3.38.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/1.3.38.md)
-- `1.3.39` -> [logs/versions/1.3.39.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/1.3.39.md)
-- `1.3.40` -> [logs/versions/1.3.40.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/1.3.40.md)
-- `1.3.41` -> [logs/versions/1.3.41.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/1.3.41.md)
-- `1.3.42` -> [logs/versions/1.3.42.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/1.3.42.md)
+## Indice das versoes
 
-## Registros operacionais
-- `deploy_troubleshooting_2026-03-27` -> [logs/versions/deploy_troubleshooting_2026-03-27.md](/C:/Users/lucas.afonso/projetos/auditoria/logs/versions/deploy_troubleshooting_2026-03-27.md)
+O indice real e a propria pasta `logs/versions/` — um arquivo `x.y.z.md` por
+versao, em ordem. Liste o diretorio para ver todas (vai ate **1.3.204** no
+momento desta nota). **Nao** mantemos uma lista manual aqui: ela ficava
+desatualizada (estava congelada no 1.3.42 enquanto a pasta ja tinha ~170
+arquivos). O gerador `npm run log:new` cria o arquivo da versao, mas nao edita
+este README.
+
+- Versao mais recente: o maior `x.y.z` em `logs/versions/`.
+- Criar a proxima: `npm run log:new` (proximo patch) ou `npm run log:new -- 1.3.x`.
+
+## Registros operacionais (fora do versionamento x.y.z)
+
+- `logs/versions/deploy_troubleshooting_2026-03-27.md`
+- `logs/migracao_compliance_07_abril.md`

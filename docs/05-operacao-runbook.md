@@ -44,8 +44,8 @@ preso em estados intermediários.
    - `automacao_hibrida_ativa=false`? → automação desligada por config.
    - `sync_lock` preso? → `POST /sync/reset-lock`.
 2. Painel vazio ≠ IA quebrada: normalmente os FILTROS de negócio barraram as
-   entradas (operador sem `ID Huawei` cadastrado, direção inválida, cota do
-   mês atingida). Os descartes ficam registrados com motivo em
+   entradas (operador sem `ID Huawei` cadastrado, direção inválida, ou o teto
+   de ligações por operador no ciclo — `docs/06` §5). Os descartes ficam registrados com motivo em
    `huawei_sync_logs` (status/failure_reason).
 3. Operadores ignorados pelo robô: conferir no painel **Colaboradores** se o
    campo `ID Huawei` está preenchido — sem cadastro + sem flag auditável, o

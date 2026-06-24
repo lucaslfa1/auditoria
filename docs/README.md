@@ -27,6 +27,7 @@ da pasta é material complementar ou histórico (ver §3).
 | Local | Conteúdo |
 | --- | --- |
 | `manual-gestores/` | Manual operacional em linguagem gerencial (triagem, fluxo, regras de negócio) |
+| `manual-sistema/` | Manual técnico-operacional consolidado e didático (explicações + código `arquivo:linha` + guia das telas), documento único autocontido (v1.3.204) |
 | `infra/HUAWEI_NETWORK_MANIFEST.md` | Whitelist de IPs, modo de autenticação em produção e chaves Huawei no banco — referenciado pelo doc 06 |
 | `references/` | Fontes canônicas externas (critérios, dicionário operacional, manuais) |
 | `integracoes/huawei/` | Catálogo de funções, guia D-1 e coleção Postman da API Huawei AICC (complementa o doc 06) |

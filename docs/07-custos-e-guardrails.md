@@ -80,6 +80,7 @@ principais:
 | `AZURE_WHISPER_FALLBACK` / `AZURE_GPT4O_DIARIZE_FALLBACK` | off | Fallbacks premium |
 | `TRANSCRIPTION_CANDIDATE_SELECTOR_ENABLED` | on | Selector + judge em empate |
 | `AUDIT_WEAK_EVIDENCE_RETRY` | 1 | 2ª chamada de avaliação se evidência fraca |
+| `huawei_download_max_por_operador_ciclo` (+ meta `automacao_audit_target_count`) | 10 | Volume de coleta por ciclo: mais ligações baixadas = mais auditorias pagas; teto duro de 500/ciclo (v1.3.202) |
 | `COST_MAX_LLM_CALLS_PER_DAY` / `COST_MAX_AUDITS_PER_DAY` | 1500 / 200 | Tetos diários |
 | `COST_KILL_SWITCH` (+ config no banco) | off | Corta consumo pago |
 

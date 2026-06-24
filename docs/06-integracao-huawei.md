@@ -54,8 +54,9 @@ defaults:
 | `huawei_d1_max_retries` | `8` | Tentativas quando o OBS ainda não tem o dia (Huawei pode demorar horas para subir D-1) |
 | `huawei_d1_retry_intervalo_minutos` | `60` | Intervalo entre tentativas |
 | `huawei_d1_lookback_dias` | `3` | Dias para trás verificados (recupera lotes perdidos) |
-| `huawei_d1_limite_ligacoes` | `20` | Teto de downloads por execução |
-| `huawei_cota_max_por_operador_mes` | `2` | Cota mensal por operador |
+| `automacao_audit_target_count` (meta) | — | Quantos baixar/auditar por ciclo; os downloads seguem a meta 1:1, com teto de segurança fixo de 500 (`_effective_download_attempt_limit`). Substituiu o antigo `huawei_d1_limite_ligacoes` (removido em v1.3.189) |
+| `huawei_download_max_por_operador_ciclo` | `10` | Teto de ligações do MESMO operador por ciclo no download (`0` = sem limite). Desacoplado da cota do supervisor em v1.3.202 |
+| `huawei_cota_max_por_operador_mes` | `2` | Cota mensal por operador — vale só no ENVIO ao supervisor |
 
 Estado por data em `huawei_d_minus_1_runs` (status, tentativas, contadores,
 último erro). Não confundir o retry de COLETA (este, barato — espera o OBS
@@ -100,7 +101,8 @@ destrava via `POST /api/telefonia/sync/reset-lock` ou expira em 30 min).
 | **Operador auditável** | Só baixa ligação de operador cadastrado em `colaboradores` com `id_huawei` preenchido e flag `auditavel`; sem cadastro = ignorado (regra de negócio confirmada) | `_should_skip_call` / `operator_filters` |
 | **Direção** | Setores de risco OUTBOUND-only (`uti`, `bas`, `distribuicao`, `fenix`, `transferencia`): receptiva descarta. Resolução: 1º consulta VDN por callId (evidência real, custo zero — v1.3.115); fallback metadados da interação; indeterminada descarta (na dúvida, não audita) | `huawei_direction.py` + `consultar_direcao_chamada` |
 | **Duração** | Mínimo 120s por default (`HUAWEI_SYNC_MIN_DURATION_SECONDS`) | `huawei_sync.py` |
-| **Cota 2/operador/mês** | Aplicada PRÉ-DOWNLOAD no sync (não desperdiça download/IA em operador já coberto; registra `skipped_quota`) e novamente no ENVIO ao supervisor (gate final — `docs/05` §4) | `huawei_sync.py` + `promote_audit_to_pending_approval` |
+| **Teto por operador/ciclo** | Limita ligações do MESMO operador por ciclo no download (default 10 — `huawei_download_max_por_operador_ciclo`; `0` = sem limite). Registra `skipped_quota` / `teto_download_por_operador_ciclo`. **Desacoplado da cota do supervisor em v1.3.202** (antes reusava a cota=2 e prendia o volume em ~2/operador) | `huawei_sync.py` |
+| **Cota 2/operador/mês** | Aplicada **apenas no ENVIO** ao supervisor (gate final — `docs/05` §4); não barra mais o download | `promote_audit_to_pending_approval` |
 
 ## 6. Tombstones e esteira binária
 
