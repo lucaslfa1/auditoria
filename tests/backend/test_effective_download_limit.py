@@ -62,3 +62,22 @@ def test_fallback_batch_size(monkeypatch):
     # Sem target_count, usa batch_size como meta.
     _patch_config(monkeypatch, {"automacao_audit_batch_size": "9"})
     assert huawei_sync._effective_download_attempt_limit() == 9
+
+
+def test_teto_fixo_500_acima_da_meta(monkeypatch):
+    # Teto fixo de downloads por ciclo = 500: meta maior e limitada a 500.
+    _patch_config(monkeypatch, {"automacao_audit_target_count": "1000"})
+    assert huawei_sync._effective_download_attempt_limit() == 500
+
+
+def test_meta_abaixo_do_teto_segue_meta(monkeypatch):
+    # Abaixo do teto, o numero de downloads segue a meta de auditorias (400 -> 400).
+    _patch_config(monkeypatch, {"automacao_audit_target_count": "400"})
+    assert huawei_sync._effective_download_attempt_limit() == 400
+
+
+def test_override_por_env_tambem_respeita_teto(monkeypatch):
+    # O override de emergencia tambem nao ultrapassa o teto fixo de 500.
+    monkeypatch.setenv("HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS", "900")
+    _patch_config(monkeypatch, {})
+    assert huawei_sync._effective_download_attempt_limit() == 500

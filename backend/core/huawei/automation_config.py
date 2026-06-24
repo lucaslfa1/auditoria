@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT = 20
+# Teto FIXO de downloads por ciclo de sync, independente da meta de auditorias.
+# O numero efetivo de downloads segue a meta (automacao_audit_target_count), mas
+# nunca ultrapassa este teto — trava de seguranca contra coleta descontrolada.
+HUAWEI_SYNC_DOWNLOAD_HARD_CEILING = 500
 DEFAULT_HUAWEI_SYNC_MIN_DURATION_SECONDS = 120
 DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS = 0
 DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY = 5
@@ -167,20 +171,25 @@ def _runtime_int_config(env_key: str, db_keys: tuple[str, ...], default: int) ->
 
 
 def _effective_download_attempt_limit() -> int:
-    """Quantos downloads tentar por ciclo de sync (>= 1).
+    """Quantos downloads tentar por ciclo de sync (clamp [1, HUAWEI_SYNC_DOWNLOAD_HARD_CEILING]).
 
-    Override explicito vence: `HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS`. Sem ele, o
-    limite passa a ser a propria META de auditorias do ciclo (Opcao 1: downloads =
-    meta, 1:1), lida de env (`AUTOMATION_AUDIT_TARGET_COUNT` /
-    `AUTOMATION_AUDIT_BATCH_SIZE`) ou da tabela configuracoes
-    (`automacao_audit_target_count` / `automacao_audit_batch_size`). Efeito
-    colateral: leitura de banco/env. Default `DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT`.
+    O numero EFETIVO segue a META de auditorias do ciclo (downloads = meta, 1:1),
+    lida de env (`AUTOMATION_AUDIT_TARGET_COUNT` / `AUTOMATION_AUDIT_BATCH_SIZE`) ou
+    da tabela configuracoes (`automacao_audit_target_count` /
+    `automacao_audit_batch_size`), com override explicito por
+    `HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS`. Em TODOS os casos o resultado e limitado ao
+    teto fixo `HUAWEI_SYNC_DOWNLOAD_HARD_CEILING` (500): a meta governa o volume, o
+    teto e so a trava de seguranca. Efeito colateral: leitura de banco/env. Default
+    `DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT` quando nada esta configurado.
     """
     explicit_download_limit = os.getenv("HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS")
     if explicit_download_limit not in (None, ""):
         return max(
             1,
-            _coerce_int(explicit_download_limit, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT),
+            min(
+                HUAWEI_SYNC_DOWNLOAD_HARD_CEILING,
+                _coerce_int(explicit_download_limit, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT),
+            ),
         )
 
     # Opção 1 (downloads = meta): o número de downloads por ciclo passa a ser a
@@ -198,7 +207,13 @@ def _effective_download_attempt_limit() -> int:
                 continue
             if raw_audit_target not in (None, ""):
                 break
-    return max(1, _coerce_int(raw_audit_target, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT))
+    return max(
+        1,
+        min(
+            HUAWEI_SYNC_DOWNLOAD_HARD_CEILING,
+            _coerce_int(raw_audit_target, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT),
+        ),
+    )
 
 
 def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float) -> float:
