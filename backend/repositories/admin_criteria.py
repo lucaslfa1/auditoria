@@ -45,6 +45,67 @@ from repositories.admin_criteria_export import (  # noqa: E402,F401
 )
 
 
+# --- Trava de orçamento de pesos por alerta (v1.3.203) ---
+# A nota é (pontos obtidos / soma dos pesos do alerta) * 10. Isso só equivale a
+# "peso = ponto na escala 0-10" quando a soma dos pesos do alerta é 10. Se a soma
+# passar de 10, todos os critérios são reescalados e a nota infla (foi o caso da
+# qualificação do checklist: 4,00 -> 9,07). Logo, ao criar/editar um critério a
+# soma do alerta não pode passar de 10. Estados abaixo de 10 são permitidos
+# (edição em progresso, ex.: logo após excluir um critério). A decisão é uma
+# função pura (testável sem banco); a query da soma é fina por cima.
+WEIGHT_BUDGET = 10.0
+WEIGHT_BUDGET_TOLERANCE = 0.01  # somas de floats (0.1*n) podem dar 10.0000001
+
+
+class AlertWeightBudgetExceeded(Exception):
+    """Salvar o critério faria a soma dos pesos do alerta passar de 10."""
+
+
+def weight_budget_exceeded(
+    existing_sum: float,
+    new_weight: float,
+    *,
+    budget: float = WEIGHT_BUDGET,
+    tolerance: float = WEIGHT_BUDGET_TOLERANCE,
+) -> bool:
+    """True se ``existing_sum + new_weight`` passa do orçamento (10) além da tolerância.
+
+    ``existing_sum`` é a soma dos pesos dos OUTROS critérios do alerta (excluindo o
+    que está sendo criado/editado); ``new_weight`` é o peso novo/atualizado.
+    """
+    return (existing_sum + new_weight) > (budget + tolerance)
+
+
+def weight_budget_message(alert_id: str, *, existing_sum: float, new_weight: float, budget: float = WEIGHT_BUDGET) -> str:
+    """Mensagem pt-BR explicando por que o save foi bloqueado e o que fazer."""
+    total = existing_sum + new_weight
+    return (
+        f"Os pesos do alerta '{alert_id}' passariam de {budget:g} "
+        f"(ficariam em {total:.2f}). A soma dos pesos precisa ser no máximo "
+        f"{budget:g} para a nota sair correta — reduza outro peso antes de salvar."
+    )
+
+
+def _alert_weight_sum(cursor, alert_id: str, *, exclude_id: Optional[int] = None) -> float:
+    """Soma dos pesos dos critérios de ``alert_id``, opcionalmente excluindo um id.
+
+    Usa o cursor/transação corrente (mesma conexão da escrita) para enxergar um
+    estado consistente. Retorna 0.0 se o alerta não tem critérios.
+    """
+    if exclude_id is None:
+        cursor.execute(
+            "SELECT COALESCE(SUM(weight), 0) FROM audit_criteria WHERE alert_id = %s",
+            (alert_id,),
+        )
+    else:
+        cursor.execute(
+            "SELECT COALESCE(SUM(weight), 0) FROM audit_criteria WHERE alert_id = %s AND id <> %s",
+            (alert_id, exclude_id),
+        )
+    row = cursor.fetchone()
+    return float(row[0]) if row and row[0] is not None else 0.0
+
+
 def get_sectors(db_connection_factory):
     """Lista todos os setores de auditoria (id, label, description), ordenados por label.
 
@@ -657,6 +718,11 @@ def create_criterion(
     conn = db_connection_factory()
     try:
         c = conn.cursor()
+        existing_sum = _alert_weight_sum(c, alert_id)
+        if weight_budget_exceeded(existing_sum, weight):
+            raise AlertWeightBudgetExceeded(
+                weight_budget_message(alert_id, existing_sum=existing_sum, new_weight=weight)
+            )
         c.execute(
             "INSERT INTO audit_criteria (alert_id, chave, label, weight, description, type, deflator, referencia, exemplo, evaluation_type) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
             (alert_id, chave, label, weight, description, type, deflator, referencia, exemplo, evaluation_type),
@@ -680,6 +746,13 @@ def create_criterion(
         )
         conn.commit()
         return new_id
+    except AlertWeightBudgetExceeded:
+        # Falha de validação esperada — não loga como erro; o router devolve 400.
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
     except Exception:
         logger.exception("create_criterion falhou (alert_id=%s, chave=%s)", alert_id, chave)
         try:
@@ -739,6 +812,12 @@ def update_criterion(
         }
         if antes == depois:
             return True
+        alert_id = row[1]
+        existing_sum = _alert_weight_sum(c, alert_id, exclude_id=id)
+        if weight_budget_exceeded(existing_sum, weight):
+            raise AlertWeightBudgetExceeded(
+                weight_budget_message(alert_id, existing_sum=existing_sum, new_weight=weight)
+            )
         c.execute(
             "UPDATE audit_criteria SET chave = %s, label = %s, weight = %s, description = %s, type = %s, deflator = %s, referencia = %s, exemplo = %s, evaluation_type = %s WHERE id = %s",
             (chave, label, weight, description, type, deflator, referencia, exemplo, evaluation_type, id),
@@ -756,6 +835,13 @@ def update_criterion(
         )
         conn.commit()
         return c.rowcount > 0
+    except AlertWeightBudgetExceeded:
+        # Falha de validação esperada — não loga como erro; o router devolve 400.
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
     except Exception:
         logger.exception("update_criterion falhou (id=%s)", id)
         try:

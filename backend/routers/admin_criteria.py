@@ -40,6 +40,7 @@ from repositories.admin_criteria import (
     update_criterion,
     delete_criterion,
     list_audit_log,
+    AlertWeightBudgetExceeded,
 )
 from routers.auth import require_admin, require_authenticated_user
 
@@ -345,6 +346,8 @@ def admin_create_criterion(req: CriterionCreate, user: dict = Depends(require_ad
         )
         _invalidate_catalog_cache()
         return {"status": "created", "id": new_id}
+    except AlertWeightBudgetExceeded as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
          logger.error("Erro ao criar critério: %s", e)
          raise HTTPException(status_code=400, detail="Erro ao criar critério ou dado já existe.")
@@ -355,20 +358,24 @@ def admin_update_criterion(criterion_id: int, req: CriterionUpdate, user: dict =
 
     Retorna 404 se o criterio nao existir.
     """
-    if not update_criterion(
-         database.get_connection,
-         criterion_id,
-         req.chave,
-         req.label,
-         req.weight,
-         req.description,
-         req.type,
-         req.deflator,
-         req.referencia,
-         req.exemplo,
-         alterado_por=_username(user),
-         motivo=req.motivo or "",
-    ):
+    try:
+        updated = update_criterion(
+             database.get_connection,
+             criterion_id,
+             req.chave,
+             req.label,
+             req.weight,
+             req.description,
+             req.type,
+             req.deflator,
+             req.referencia,
+             req.exemplo,
+             alterado_por=_username(user),
+             motivo=req.motivo or "",
+        )
+    except AlertWeightBudgetExceeded as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not updated:
          raise HTTPException(status_code=404, detail="Critério não encontrado.")
     _invalidate_catalog_cache()
     return {"status": "updated", "id": criterion_id}

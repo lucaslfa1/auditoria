@@ -2549,7 +2549,7 @@ alerts:
       É essencial repassar o contato feito ou as tentativas de contato realizadas com o condutor. |
       Exemplo oficial: "Até o momento não consegui contato com o condutor"
   - label: 'O operador questionou se o cliente tem informações recentes sobre o veículo e o motorista? (Ex.: manutenção, revisão, problemas no rastreador)'
-    weight: 1.95
+    weight: 0.95
     deflator: 0.0
     description: >-
       Permite cruzar informações, pois o motorista pode ter informado o cliente antes da gerenciadora. |

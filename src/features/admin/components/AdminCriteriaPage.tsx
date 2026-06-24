@@ -71,6 +71,14 @@ const ENTITY_LABEL: Record<EntityType, string> = {
     criterion: 'critério',
 };
 
+// A nota é (pontos obtidos / soma dos pesos) * 10, então os pesos de cada alerta
+// precisam somar 10 para "peso = ponto" valer. O backend bloqueia salvar acima de
+// 10; aqui mostramos a soma por alerta para o auditor enxergar quando está fora.
+const WEIGHT_TARGET = 10;
+const sumWeights = (criterios: Criterion[]): number =>
+    criterios.reduce((acc, c) => acc + (Number(c.weight) || 0), 0);
+const isWeightBalanced = (total: number): boolean => Math.abs(total - WEIGHT_TARGET) <= 0.011;
+
 const formatTimestamp = (iso: string): string => {
     try {
         return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' });
@@ -404,6 +412,18 @@ export function AdminCriteriaPage() {
                                                     {alert.original_id ? <span className="bg-primary-500/20 text-primary-300 px-1.5 py-0.5 rounded text-[10px] mr-2">{alert.original_id}</span> : null}
                                                     {alert.label}
                                                     {alert.pop_ref ? <span className="ml-2 text-[10px] text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded">POP {alert.pop_ref}</span> : null}
+                                                    {(() => {
+                                                        const total = sumWeights(alert.criterios);
+                                                        const ok = isWeightBalanced(total);
+                                                        return (
+                                                            <span
+                                                                className={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-medium ${ok ? 'text-emerald-300 bg-emerald-500/10' : 'text-amber-300 bg-amber-500/15 border border-amber-500/40'}`}
+                                                                title={ok ? 'A soma dos pesos está correta (10).' : 'A soma dos pesos precisa ser 10 para a nota sair correta.'}
+                                                            >
+                                                                Σ pesos {total.toFixed(2).replace('.', ',')}/10{ok ? '' : ' ⚠'}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1">
