@@ -189,3 +189,6 @@ obs_creds.json
 
 # Rascunhos de mensagens de commit
 commit_msg*.txt
+
+# Artefatos de build da documentacao (HTML + perfil do navegador para gerar PDF)
+docs/manual-sistema/_build/
