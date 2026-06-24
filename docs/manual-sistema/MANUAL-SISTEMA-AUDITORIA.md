@@ -1,55 +1,43 @@
-# Manual do Sistema de Auditoria de Qualidade de Ligações
+# Documentação Técnica — Sistema de Auditoria de Ligações
 
 > Documentação técnica e operacional do sistema de auditoria de ligações
 > telefônicas com inteligência artificial da NSTECH.
 
 ---
 
-## 0. Controle do documento
+## 0. Sobre este documento
 
-| Campo | Valor |
+Documentação técnica do sistema de auditoria de qualidade de ligações: o que
+cada componente faz, como o fluxo funciona de ponta a ponta e onde isso está no
+código. Serve de referência para entender, operar e manter o sistema.
+
+| Item | Valor |
 | --- | --- |
-| **Título** | Manual do Sistema de Auditoria de Qualidade de Ligações |
-| **Código** | MAN-SIS-AUD |
-| **Versão do documento** | 1.0 |
-| **Data de emissão** | 2026-06-24 |
-| **Classificação** | Uso interno |
-| **Elaboração** | Engenharia do sistema de auditoria |
-| **Aprovação** | Lucas Afonso |
-| **Versão do sistema na emissão** | 1.3.203 |
-| **Idioma** | Português (Brasil) |
+| Versão do sistema documentada | 1.3.203 |
+| Data de referência | 2026-06-24 |
+| Idioma | Português (Brasil) |
 
-### 0.1 Histórico de revisões
+O histórico de mudanças do sistema fica em `logs/versions/x.y.z.md` — uma
+entrada por versão.
 
-| Versão | Data | Descrição da alteração | Responsável |
-| --- | --- | --- | --- |
-| 1.0 | 2026-06-24 | Emissão inicial do manual consolidado | Engenharia |
+### 0.1 Como ler
 
-### 0.2 Como ler este manual
+Documento autocontido: pode ser lido sem abrir outros arquivos. Combina três
+níveis de leitura:
 
-Este documento é **autocontido**: pode ser lido do início ao fim sem abrir
-nenhum outro arquivo. Ele combina três níveis de leitura, para servir tanto a
-quem opera o sistema quanto a quem mantém o código:
-
-1. **Explicação em linguagem direta** — o "o que faz e por quê", sem exigir
-   conhecimento de programação.
-2. **Trecho de código real** — sempre que um conceito tem um ponto exato no
-   código, ele é mostrado em um quadro com a referência do arquivo e da linha,
-   no formato `arquivo:linha`. Esses quadros existem para quem quer aprender
-   como aquilo funciona por dentro; podem ser pulados sem perda do entendimento
-   geral.
-3. **Telas** — os fluxos de uso são acompanhados de um esboço da interface
-   (layout fiel, com os rótulos reais que aparecem na tela) e a explicação de
+1. **Explicação** do que cada parte faz e por quê, sem exigir conhecimento de
+   programação.
+2. **Trecho de código real**, sempre com a referência `arquivo:linha` de onde
+   foi extraído. O código é reproduzido como está no repositório; quando
+   encurtado, o corte é sinalizado com `...`. É a parte para quem quer ver como
+   funciona por dentro — pode ser pulada sem perda do entendimento geral.
+3. **Telas** — esboço fiel da interface (com os rótulos reais) e a explicação de
    cada controle.
 
-> **Convenção dos quadros de código.** Cada trecho começa com a referência
-> `arquivo:linha` do código-fonte de onde foi extraído. O código é reproduzido
-> como está no repositório; quando encurtado, o corte é sinalizado com `...`.
+### 0.2 Documentos relacionados
 
-### 0.3 Documentos relacionados
-
-Este manual consolida e formaliza a documentação técnica do repositório. Para
-o detalhe vivo e sempre atualizado de cada tema, as fontes são:
+Este documento reúne a documentação técnica do repositório. Para o detalhe vivo
+e sempre atualizado de cada tema, as fontes são:
 
 | Tema | Fonte no repositório |
 | --- | --- |
@@ -107,8 +95,7 @@ Está **fora** do escopo:
 
 ### 1.3 Princípio central: a esteira binária
 
-O princípio que organiza toda a automação, e que vale a pena fixar antes de
-qualquer detalhe, é a **esteira binária**: no modo automático, **todo item
+O princípio que organiza toda a automação é a **esteira binária**: no modo automático, **todo item
 coletado termina em um de dois estados — auditado ou descartado com motivo
 registrado**. Nada fica "preso" em um estado intermediário esperando alguém.
 
@@ -121,7 +108,7 @@ descarte fica registrado com seu motivo.
 
 ## 2. Termos e definições
 
-Glossário dos termos usados ao longo do manual e na própria interface.
+Glossário dos termos usados ao longo do documento e na própria interface.
 
 | Termo | Significado |
 | --- | --- |
@@ -233,11 +220,11 @@ ação — o detalhe técnico de como isso é verificado está na §8 (Seguranç
 
 ### 4.2 A autoridade de auditoria
 
-**Fátima de Jesus Gutierrez é a autoridade de auditoria.** O catálogo oficial de
-critérios reflete o que ela determina — é o "gabarito" (ground truth) contra o
-qual a IA é calibrada. Ajustes de critérios e a calibração da IA seguem a
-decisão dela: **o sistema se adapta à auditora, não o contrário.** Esse
-princípio é o que dá legitimidade à nota que o sistema produz.
+O catálogo oficial de critérios reflete o que a **autoridade de auditoria** (a
+auditora responsável pela operação) determina — é o "gabarito" (ground truth)
+contra o qual a IA é calibrada. Ajustes de critérios e calibração da IA seguem
+essa decisão: **o sistema se adapta à auditoria, não o contrário.** É esse
+princípio que dá legitimidade à nota produzida.
 
 ---
 
@@ -254,7 +241,7 @@ produção. Isso costuma surpreender: não há "servidor do frontend" separado d
 
 A montagem do site dentro da API é literal — está no fim do `main.py`:
 
-> 📄 `backend/main.py:483-508`
+> **Fonte:** `backend/main.py:483-508`
 >
 > ```python
 > dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dist"))
@@ -298,7 +285,7 @@ Toda a API é montada juntando "routers" — cada um cobre um domínio. O wiring
 fica explícito no `main.py`, e ler essa lista é a forma mais rápida de entender
 de quantas partes o sistema é feito:
 
-> 📄 `backend/main.py:463-480`
+> **Fonte:** `backend/main.py:463-480`
 >
 > ```python
 > app.include_router(auth_router)          # login e sessão
@@ -390,7 +377,7 @@ O acesso físico ao banco fica em `db/`:
 
 ## 6. Fluxo operacional do dia a dia
 
-Esta seção é o coração do manual: como uma ligação sai da telefonia e chega a
+Esta seção é o núcleo do documento: como uma ligação sai da telefonia e chega a
 uma auditoria revisada — e, principalmente, **por que o número auditado por dia
 costuma ser muito menor do que o total de ligações** (a dúvida mais comum).
 
@@ -399,7 +386,7 @@ costuma ser muito menor do que o total de ligações** (a dúvida mais comum).
 O ciclo é disparado de fora, uma vez por dia, por um agendador (hoje o Cloud
 Scheduler) que chama um endpoint protegido por token:
 
-> 📄 `backend/routers/telefonia_routes/cron_d1.py:53-73`
+> **Fonte:** `backend/routers/telefonia_routes/cron_d1.py:53-73`
 >
 > ```python
 > @router.post("/cron/sync")
@@ -436,7 +423,7 @@ Quando o manifesto do dia chega, ele costuma trazer **milhares** de gravações.
 maioria é descartada por **regras de negócio**, antes de gastar qualquer IA. O
 primeiro filtro decide se a ligação deve ser pulada:
 
-> 📄 `backend/core/huawei_sync.py:1077-1082`
+> **Fonte:** `backend/core/huawei_sync.py:1077-1082`
 >
 > ```python
 > skip_reason = _should_skip_call(interacao, operador_resolvido)
@@ -450,7 +437,7 @@ primeiro filtro decide se a ligação deve ser pulada:
 **direção da chamada desconhecida ou de risco** (ex.: receptiva em setor
 sensível) e **setor não-telefonia**. Logo em seguida vem o filtro de **duração**:
 
-> 📄 `backend/core/huawei_sync.py:1115-1124`
+> **Fonte:** `backend/core/huawei_sync.py:1115-1124`
 >
 > ```python
 > duration = get_call_duration_seconds(interacao)
@@ -473,7 +460,7 @@ Havia ainda um terceiro corte, e é o ponto que mudou na versão 1.3.202. Para n
 auditar muitas ligações do mesmo operador, o sistema limita quantas gravações de
 um mesmo operador entram por ciclo:
 
-> 📄 `backend/core/huawei_sync.py:1084-1106`
+> **Fonte:** `backend/core/huawei_sync.py:1084-1106`
 >
 > ```python
 > op_key = (op_name_norm, op_id_norm)
@@ -508,7 +495,7 @@ Quantas ligações o ciclo tenta baixar/auditar é a **Meta de auditorias** que
 você configura na tela. O número de downloads segue a meta, 1 para 1, com um
 teto de segurança fixo:
 
-> 📄 `backend/core/huawei/automation_config.py:178-221`
+> **Fonte:** `backend/core/huawei/automation_config.py:178-221`
 >
 > ```python
 > HUAWEI_SYNC_DOWNLOAD_HARD_CEILING = 500   # (definido no topo do módulo)
@@ -557,7 +544,7 @@ com GPT-4o e guardrails. Um detalhe que vale conhecer: alertas têm **apelidos**
 (aliases), e o sistema sempre resolve o nome canônico antes de consultar os
 critérios — pela função pública:
 
-> 📄 `backend/core/classification.py:511-513`
+> **Fonte:** `backend/core/classification.py:511-513`
 >
 > ```python
 > def canonicalize_alert_id(alert_id: str) -> str:
@@ -666,7 +653,7 @@ Há um limite de compliance: **no máximo 2 auditorias por operador, por mês,
 são enviadas ao supervisor.** O ponto sutil — e que costuma ser confundido com o
 teto de download da §6.3 — é **onde** a cota é aplicada:
 
-> 📄 `backend/core/automation_config.py:223-234`
+> **Fonte:** `backend/core/automation_config.py:223-234`
 >
 > ```python
 > def _get_monthly_audit_quota() -> int:
@@ -721,7 +708,7 @@ produzir uma nota sem base.
 
 A nota parte de **10** e desconta a cada falha, seguindo o peso de cada critério:
 
-> 📄 `backend/core/evaluation.py:106-112`
+> **Fonte:** `backend/core/evaluation.py:106-112`
 >
 > ```python
 > """Calcula (score_obtido, score_maximo) para um critério seguindo a lógica da planilha BD.
@@ -736,7 +723,7 @@ Acima disso existe a **zeragem**: certas falhas graves **zeram a auditoria
 inteira**, independentemente dos outros critérios. Ela é aplicada em **três
 camadas**, da mais segura para a mais tolerante:
 
-> 📄 `backend/core/evaluation.py:15-17`
+> **Fonte:** `backend/core/evaluation.py:15-17`
 >
 > ```python
 > #   ... a zeragem por critério fatal em 3 camadas
@@ -762,7 +749,7 @@ prevista (quando o motorista confirma não ter senha e o CPF é aceito).
 - **Autorização por papel:** cada rota exige o papel certo, por uma "dependência"
   reutilizável. É assim que uma rota de administração se protege:
 
-> 📄 `backend/routers/auth.py:325-336`
+> **Fonte:** `backend/routers/auth.py:325-336`
 >
 > ```python
 > def require_admin(request: Request) -> dict:
@@ -816,7 +803,7 @@ sensível. Os controles que sustentam a conformidade:
 A suíte de testes **escreve no banco**. Para que ela nunca rode por engano
 contra o banco de produção, há uma trava:
 
-> 📄 `tests/backend/conftest.py:91-96`
+> **Fonte:** `tests/backend/conftest.py:91-96`
 >
 > ```python
 > if "ep-aged-river" in db_url and os.getenv("ALLOW_TESTS_ON_PROD_DB") != "1":
@@ -851,7 +838,7 @@ estruturais, independentes de qualquer configuração de cadência ou engine:
 3. **Kill-switch** — corta todo o consumo pago **na hora, sem precisar de
    redeploy**:
 
-> 📄 `backend/core/cost_guard.py:108-122`
+> **Fonte:** `backend/core/cost_guard.py:108-122`
 >
 > ```python
 > def kill_switch_active() -> bool:
@@ -925,7 +912,7 @@ processo.
 ## 11. Configurações do sistema
 
 As configurações operacionais ficam no painel **Automação → Configurações**.
-Elas são do auditor/operação — este manual apenas explica o que cada uma faz.
+Elas são do auditor/operação — este documento apenas explica o que cada uma faz.
 A tabela abaixo segue **exatamente os rótulos que aparecem na tela**.
 
 | Rótulo na tela | O que faz | Padrão | Chave no banco |
@@ -994,8 +981,8 @@ Convenção do número de versão (`x.y.z`):
 - `y` (minor) — bloco funcional novo;
 - `x` (major) — quebra de compatibilidade.
 
-Versão do sistema na emissão deste manual: **1.3.203**. A mudança de volume mais
-recente relevante a este manual é a **1.3.202** (desacoplamento do teto de
+Versão do sistema documentada: **1.3.203**. A mudança de volume mais recente
+relevante aqui é a **1.3.202** (desacoplamento do teto de
 download por operador da cota do supervisor — detalhada em §6.3, §7.1 e §11.1).
 
 ---
@@ -1018,13 +1005,13 @@ auditoria. A tela também embute a fila de gravações retidas pelo sync Huawei.
 |  [ instrucoes do modulo ]                                          |
 |                                                                    |
 |  +-- Enviar audios -------------------------------------------+    |
-|  |   arraste os arquivos aqui      [ Classificar ]   ▓▓▓░░ %  |    |
+|  |   arraste os arquivos aqui      [ Classificar ]   (progresso)  |    |
 |  +-----------------------------------------------------------+    |
 |                                                                    |
 |  Resultados (uma linha por audio):                                 |
 |  +-----------------------------------------------------------+    |
-|  | >/||  arquivo.wav   [Setor v] [Alerta v]  Operador        |    |
-|  |        [ ✎ editar ] [ ⬇ baixar ] [ Auditar ] [ 🗑 ]        |    |
+|  | [play]  arquivo.wav   [Setor v] [Alerta v]  Operador        |    |
+|  |        [ editar ] [ baixar ] [ Auditar ] [ excluir ]        |    |
 |  +-----------------------------------------------------------+    |
 |                                                                    |
 |  +-- Fila de gravacoes retidas (sync Huawei) ----------------+    |
@@ -1038,9 +1025,9 @@ auditoria. A tela também embute a fila de gravações retidas pelo sync Huawei.
 O que cada controle faz:
 
 - **Classificar** — a IA identifica setor, alerta e operador de cada áudio.
-- **✎ editar** — corrige, na própria linha, o setor, o alerta, o operador
+- **editar** — corrige, na própria linha, o setor, o alerta, o operador
   (nome/matrícula), o supervisor e a escala.
-- **⬇ baixar** — salva o áudio já com o nome classificado.
+- **baixar** — salva o áudio já com o nome classificado.
 - **Auditar** — abre o modal de operador e injeta o arquivo no fluxo de
   auditoria manual (não chama a IA aqui; só prepara).
 - **Fila de retidos** — as gravações que o sync trouxe e que aguardam triagem.
@@ -1085,12 +1072,12 @@ ao supervisor. Automáticas e manuais aparecem **misturadas de propósito**: est
 
 ```text
 +-- Arquivos Salvos -------------------------------------------------+
-|  [ instrucoes do modulo ]              [ 🔎 buscar... ]            |
+|  [ instrucoes do modulo ]              [ buscar... ]            |
 |                                                                    |
 |  +-----------------------------------------------------------+    |
 |  | Auditoria · Operador · Setor · Alerta · Nota 7,0          |    |
 |  | origem: [automacao]   status: aguardando envio            |    |
-|  | [ 👁 ver ] [ ✎ editar ] [ ⬇ PDF ] [ ➤ Enviar ao superv. ] [🗑]| |
+|  | [ ver ] [ editar ] [ PDF ] [ Enviar ao superv. ] [excluir]| |
 |  +-----------------------------------------------------------+    |
 |  | Transcricao · Operador · Setor ...                        |    |
 |  +-----------------------------------------------------------+    |
@@ -1099,13 +1086,13 @@ ao supervisor. Automáticas e manuais aparecem **misturadas de propósito**: est
 
 > **[ print real: tela de Arquivos Salvos ]**
 
-- **👁 ver / ✎ editar** — abre o detalhe (carregado sob demanda); a edição
+- **ver / editar** — abre o detalhe (carregado sob demanda); a edição
   estruturada recalcula a nota replicando as regras de zeragem.
-- **⬇ PDF** — exporta o relatório da auditoria.
-- **➤ Enviar ao supervisor** — promove a auditoria para a fila do supervisor.
+- **PDF** — exporta o relatório da auditoria.
+- **Enviar ao supervisor** — promove a auditoria para a fila do supervisor.
   É **aqui** que a cota de 2/operador/mês é checada (se cheia, o sistema avisa e
   permite forçar apagando uma anterior).
-- **🗑** — remove o registro (descarta a auditoria vinculada).
+- **excluir** — remove o registro (descarta a auditoria vinculada).
 - A **origem** (manual/automação) aparece como um selo em cada item.
 
 ### B.4 Automação — o painel do ciclo (rota `/automacao`)
@@ -1117,10 +1104,10 @@ Onde se liga, configura e acompanha o ciclo automático.
 |  [ instrucoes: defina a meta · ligue/pause · roda 1x/dia ]         |
 |                                                                    |
 |  +-- Controle ----------------------------------------------+     |
-|  |   Esteira: [ LIGADA ⏻ ]            [ Rodar agora ]        |     |
+|  |   Esteira: [ LIGADA ]            [ Rodar agora ]        |     |
 |  +-----------------------------------------------------------+    |
 |  +-- Em execucao (quando rodando) --------------------------+     |
-|  |   baixando ▓▓▓░  ·  classificando ▓░  ·  auditando ░     |     |
+|  |   baixando...  ·  classificando...  ·  auditando...     |     |
 |  +-----------------------------------------------------------+    |
 |  +-- Configuracoes -----------------------------------------+     |
 |  |   Dias para tras · Cota mensal · Meta de auditorias ·    |     |
@@ -1155,7 +1142,7 @@ baixadas pelo sync (§6.7).
 |  +-----------------------------------------------------------+    |
 |  | Nome · Supervisor · Setor · Escala · Status · Auditavel   |    |
 |  | Matricula · ID Huawei · ...                               |    |
-|  | [ ✎ editar ] [ ⏻ ativar/desativar ] [ 🗑 ]                |    |
+|  | [ editar ] [ ativar/desativar ] [ excluir ]                |    |
 |  +-----------------------------------------------------------+    |
 +--------------------------------------------------------------------+
 ```
@@ -1168,10 +1155,10 @@ baixadas pelo sync (§6.7).
 - **Auditável** — marca se o operador entra ou não na auditoria.
 - **ID Huawei** — o campo crítico: **sem ele preenchido, o sync não baixa as
   ligações daquele operador** (é a causa nº 1 de "operador sumido" da coleta).
-- **✎ editar / ⏻ ativar-desativar / 🗑** — manutenção do cadastro.
+- **editar / ativar-desativar / excluir** — manutenção do cadastro.
 
 ---
 
-*Fim do manual. Para inserir os prints reais, salve cada imagem em
+*Fim do documento. Para inserir os prints reais, salve cada imagem em
 `docs/manual-sistema/imagens/` e troque o marcador `[ print real: ... ]` da seção
 correspondente pela referência da imagem.*

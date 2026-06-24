@@ -81,14 +81,11 @@ __PYG__
 </style></head>
 <body>
   <section class="cover">
-    <div class="kicker">NSTECH &middot; Documenta&ccedil;&atilde;o do Sistema</div>
-    <h1>Manual do Sistema de Auditoria de Liga&ccedil;&otilde;es</h1>
-    <div class="sub">Documenta&ccedil;&atilde;o t&eacute;cnica e operacional &mdash; explica&ccedil;&otilde;es, c&oacute;digo e guia das telas.</div>
+    <h1>Documenta&ccedil;&atilde;o T&eacute;cnica</h1>
+    <div class="sub">Sistema de Auditoria de Liga&ccedil;&otilde;es &mdash; arquitetura, fluxo, c&oacute;digo e telas.</div>
     <div class="meta">
-      <div><b>Vers&atilde;o do documento:</b> 1.0</div>
-      <div><b>Data de emiss&atilde;o:</b> 2026-06-24</div>
-      <div><b>Classifica&ccedil;&atilde;o:</b> Uso interno</div>
-      <div><b>Vers&atilde;o do sistema na emiss&atilde;o:</b> 1.3.203</div>
+      <div><b>Vers&atilde;o do sistema documentada:</b> 1.3.203</div>
+      <div><b>Data de refer&ecirc;ncia:</b> 2026-06-24</div>
     </div>
   </section>
   <section class="toc-page">
@@ -118,7 +115,7 @@ def main():
     # Mermaid nao renderiza no PDF estatico: mostra como texto pre-formatado.
     text = text.replace("```mermaid", "```text")
     # A capa substitui o titulo H1 + intro: corta tudo antes da secao 0.
-    anchor = "## 0. Controle do documento"
+    anchor = "## 0. Sobre este documento"
     if anchor in text:
         text = text[text.index(anchor):]
 
