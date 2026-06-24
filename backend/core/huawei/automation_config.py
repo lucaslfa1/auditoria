@@ -35,6 +35,11 @@ DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS = 0
 DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY = 5
 DEFAULT_HUAWEI_SYNC_CLASSIFY_CONCURRENCY = 5
 DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD = 0.90
+# Teto de downloads do MESMO operador por ciclo de sync. DESACOPLADO da cota de
+# compliance `huawei_cota_max_por_operador_mes` (2/operador/mes, que governa SO o
+# envio ao supervisor). Objetivo: o volume baixado se aproximar da meta sem ficar
+# preso em 2/operador. 0 = ilimitado (segue so a meta + rodizio por setor).
+DEFAULT_HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO = 10
 
 # Linhas fixas da CENTRAL (47 3481-6122 / 47 2101-6122 e ramais do mesmo bloco),
 # usadas para inferir a direção de ligações que vêm sem `isCallIn` (manifesto OBS).
@@ -214,6 +219,24 @@ def _effective_download_attempt_limit() -> int:
             _coerce_int(raw_audit_target, DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT),
         ),
     )
+
+
+def _download_max_por_operador_ciclo() -> int:
+    """Teto de downloads do MESMO operador por ciclo (>= 0; 0 = ilimitado).
+
+    Lido de env `HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO` ou config
+    `huawei_download_max_por_operador_ciclo` (default
+    `DEFAULT_HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO` = 10). DESACOPLADO de
+    `huawei_cota_max_por_operador_mes` (cota de compliance do supervisor, 2/mes):
+    mexer neste teto NAO altera a regra de envio ao supervisor. Efeito colateral:
+    leitura de banco/env.
+    """
+    valor = _runtime_int_config(
+        "HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO",
+        ("huawei_download_max_por_operador_ciclo",),
+        DEFAULT_HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO,
+    )
+    return max(0, valor)
 
 
 def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float) -> float:

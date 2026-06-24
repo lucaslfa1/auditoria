@@ -18,6 +18,7 @@ def _clear_env(monkeypatch):
         "HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS",
         "AUTOMATION_AUDIT_TARGET_COUNT",
         "AUTOMATION_AUDIT_BATCH_SIZE",
+        "HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -81,3 +82,41 @@ def test_override_por_env_tambem_respeita_teto(monkeypatch):
     monkeypatch.setenv("HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS", "900")
     _patch_config(monkeypatch, {})
     assert huawei_sync._effective_download_attempt_limit() == 500
+
+
+# --- Teto de download POR OPERADOR por ciclo (desacoplado da cota do supervisor) ---
+# A cota de compliance (huawei_cota_max_por_operador_mes=2) governa SO o envio ao
+# supervisor; o download usa esta chave separada para nao ficar preso em 2/operador.
+
+
+def test_download_por_operador_default_dez(monkeypatch):
+    # Sem config, o teto de download por operador e o default 10.
+    _patch_config(monkeypatch, {})
+    assert (
+        huawei_sync._download_max_por_operador_ciclo()
+        == huawei_sync.DEFAULT_HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO
+        == 10
+    )
+
+
+def test_download_por_operador_configuravel(monkeypatch):
+    _patch_config(monkeypatch, {"huawei_download_max_por_operador_ciclo": "5"})
+    assert huawei_sync._download_max_por_operador_ciclo() == 5
+
+
+def test_download_por_operador_zero_e_ilimitado(monkeypatch):
+    # 0 = sem teto por operador (segue so a meta + rodizio por setor).
+    _patch_config(monkeypatch, {"huawei_download_max_por_operador_ciclo": "0"})
+    assert huawei_sync._download_max_por_operador_ciclo() == 0
+
+
+def test_download_por_operador_override_por_env(monkeypatch):
+    monkeypatch.setenv("HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO", "25")
+    _patch_config(monkeypatch, {"huawei_download_max_por_operador_ciclo": "5"})
+    assert huawei_sync._download_max_por_operador_ciclo() == 25
+
+
+def test_download_por_operador_nao_le_chave_de_compliance(monkeypatch):
+    # Setar so a cota do supervisor NAO afeta o teto de download (default 10).
+    _patch_config(monkeypatch, {"huawei_cota_max_por_operador_mes": "2"})
+    assert huawei_sync._download_max_por_operador_ciclo() == 10

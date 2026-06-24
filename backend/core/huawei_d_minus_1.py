@@ -50,7 +50,8 @@ PIPELINE_CONFIG_DEFAULTS: dict[str, str] = {
     "huawei_d1_max_retries": "8",                   # tentativas se OBS vazio/erro
     "huawei_d1_retry_intervalo_minutos": "60",      # intervalo entre tentativas
     "huawei_d1_lookback_dias": "3",                 # quantos dias para trás verificar
-    "huawei_cota_max_por_operador_mes": "2",
+    "huawei_cota_max_por_operador_mes": "2",         # cota de ENVIO ao supervisor (compliance)
+    "huawei_download_max_por_operador_ciclo": "10",  # teto de DOWNLOAD por operador/ciclo (0=ilimitado)
 }
 
 _NON_TERMINAL_STATUSES = {

@@ -103,6 +103,7 @@ const CONFIG_KEY_BY_FIELD: Partial<Record<ConfigField, string>> = {
   lookback_dias: 'huawei_d1_lookback_dias',
   cota_max_por_operador_mes: 'huawei_cota_max_por_operador_mes',
   limite_auditorias: 'automacao_audit_target_count',
+  download_max_por_operador_ciclo: 'huawei_download_max_por_operador_ciclo',
 };
 
 // Clamps de UI por campo numérico (o backend só garante o mínimo).
@@ -112,6 +113,7 @@ const FIELD_LIMITS: Partial<Record<ConfigField, { min: number; max?: number }>> 
   lookback_dias: { min: 1, max: 30 },
   cota_max_por_operador_mes: { min: 1, max: 50 },
   limite_auditorias: { min: 1 },
+  download_max_por_operador_ciclo: { min: 0, max: 500 },
 };
 
 const CONFIG_FIELDS: ConfigField[] = [
@@ -122,6 +124,7 @@ const CONFIG_FIELDS: ConfigField[] = [
   'lookback_dias',
   'cota_max_por_operador_mes',
   'limite_auditorias',
+  'download_max_por_operador_ciclo',
 ];
 
 const DEFAULT_PIPELINE_CONFIG = PipelineSummarySchema.parse({}).config;

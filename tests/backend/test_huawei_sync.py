@@ -709,6 +709,120 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         for kwargs in [call_item.kwargs for call_item in enqueue.await_args_list]:
             self.assertNotIn("pular_triagem", kwargs)
 
+    async def _run_sync_selection(self, chamadas, *, env, config_values, operadores=None):
+        """Roda executar_sync_huawei com os mocks-padrao e devolve o result dict.
+
+        Reaproveita o cenario de test_executar_sync_limits_downloads_to_twenty_*:
+        `config_values` responde get_config_value (default "" se ausente) e `env` e
+        aplicado com clear=True. Util para exercitar o gate de selecao de candidatos.
+        """
+        import contextlib
+
+        operadores = operadores or [{
+            "id": 1,
+            "id_huawei": "HUA-123",
+            "id_telefonia": "HUA-123",
+            "nome": "Operadora Huawei",
+            "setor": "uti",
+            "escala": "",
+            "matricula": "",
+            "supervisor": "",
+        }]
+
+        def fake_get_config(key, default=""):
+            return config_values.get(key, default)
+
+        client = AsyncMock()
+        client.baixar_gravacao_por_callid = AsyncMock(
+            side_effect=lambda call_id: f"audio-{call_id}".encode("utf-8")
+        )
+        client.obter_url_audio_obs = AsyncMock(return_value=None)
+        call_ids = set(c["callId"] for c in chamadas)
+
+        mock_obs_cls = MagicMock()
+        mock_obs_cls._candidate_dates.return_value = ["20260425"]
+        mock_obs_cls.return_value = AsyncMock(
+            baixar_voice_por_callid=AsyncMock(return_value=b"RIFF"),
+            listar_diretorio=AsyncMock(return_value=[{"Key": "test"}]),
+        )
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(patch.dict(os.environ, env, clear=True))
+            stack.enter_context(patch.object(huawei_sync._HuaweiSyncExecutionLock, "acquire", return_value=True))
+            stack.enter_context(patch.object(huawei_sync._HuaweiSyncExecutionLock, "release", return_value=None))
+            stack.enter_context(patch.object(huawei_sync, "_ensure_enabled", return_value=True))
+            stack.enter_context(patch.object(
+                huawei_sync, "_load_config",
+                return_value={"ak": "ak", "sk": "sk", "cc_id": "1", "vdn": "170", "obs_ak": "ak", "obs_sk": "sk"},
+            ))
+            stack.enter_context(patch.object(huawei_sync.HuaweiAICCClient, "from_config", return_value=client))
+            stack.enter_context(patch("repositories.operators.listar_auditaveis_com_id_huawei", return_value=operadores))
+            stack.enter_context(patch.object(
+                HuaweiDiscoveryService, "fetch_all",
+                AsyncMock(return_value=(chamadas, call_ids, set(), call_ids)),
+            ))
+            stack.enter_context(patch.object(huawei_sync.database, "huawei_sync_log_exists", return_value=False))
+            stack.enter_context(patch.object(huawei_sync.database, "huawei_sync_log_registrar"))
+            stack.enter_context(patch("repositories.audits.get_operator_audit_counts_for_month_bulk", return_value={}))
+            stack.enter_context(patch.object(huawei_sync.database, "get_config_value", side_effect=fake_get_config))
+            stack.enter_context(patch("core.huawei_sync.HuaweiOBSClient", new=mock_obs_cls))
+            stack.enter_context(patch.object(huawei_sync, "_enfileirar_audio", AsyncMock(return_value={"status": "queued"})))
+            return await huawei_sync.executar_sync_huawei(horas_retroativas=1)
+
+    @staticmethod
+    def _chamadas_mesmo_operador(n):
+        return [
+            {
+                "callId": f"call-{i:02d}",
+                "duration": 12,
+                "beginTime": 1777516670000 + i * 1000,
+                "endTime": 1777516670000 + 13_000 + i * 1000,
+                "isCallIn": "false",
+                "workNo": "HUA-123",
+                "operatorName": "Operadora Huawei",
+            }
+            for i in range(n)
+        ]
+
+    async def test_download_cap_por_operador_limita_candidatos_por_ciclo(self):
+        # 25 ligacoes do MESMO operador, teto de download por operador = 3: so 3 viram
+        # candidatos, mesmo com a meta global (limite de download) folgada em 50. As
+        # outras 22 contam em ignoradas_cota_mensal_pre_download.
+        result = await self._run_sync_selection(
+            self._chamadas_mesmo_operador(25),
+            env={
+                "HUAWEI_SYNC_MIN_DURATION_SECONDS": "10",
+                "HUAWEI_SYNC_MAX_DURATION_SECONDS": "0",
+                "HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS": "50",
+            },
+            config_values={
+                "huawei_download_max_por_operador_ciclo": "3",
+                # cota do supervisor NAO deve influir no download:
+                "huawei_cota_max_por_operador_mes": "2",
+            },
+        )
+        self.assertEqual(result["candidatos_download"], 3)
+        self.assertEqual(result["ignoradas_cota_mensal_pre_download"], 22)
+
+    async def test_download_cap_por_operador_zero_e_ilimitado(self):
+        # Teto por operador = 0 (ilimitado): todas as 25 do MESMO operador passam o
+        # gate por operador (so a meta global de 50 limitaria, e 25 < 50). Prova que o
+        # download deixou de ficar preso em 2/operador.
+        result = await self._run_sync_selection(
+            self._chamadas_mesmo_operador(25),
+            env={
+                "HUAWEI_SYNC_MIN_DURATION_SECONDS": "10",
+                "HUAWEI_SYNC_MAX_DURATION_SECONDS": "0",
+                "HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS": "50",
+            },
+            config_values={
+                "huawei_download_max_por_operador_ciclo": "0",
+                "huawei_cota_max_por_operador_mes": "2",
+            },
+        )
+        self.assertEqual(result["candidatos_download"], 25)
+        self.assertEqual(result.get("ignoradas_cota_mensal_pre_download", 0), 0)
+
     def test_obs_prefix_candidates_uses_call_phones_before_agent_id(self):
         result = huawei_sync._obs_prefix_candidates(
             {

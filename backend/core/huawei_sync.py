@@ -94,6 +94,7 @@ _HUAWEI_SYNC_LOCK_KEY = 2026042202
 from core.huawei.automation_config import (  # noqa: E402,F401
     DEFAULT_HUAWEI_SYNC_DOWNLOAD_LIMIT,
     HUAWEI_SYNC_DOWNLOAD_HARD_CEILING,
+    DEFAULT_HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO,
     DEFAULT_HUAWEI_SYNC_MIN_DURATION_SECONDS,
     DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS,
     DEFAULT_HUAWEI_SYNC_DOWNLOAD_CONCURRENCY,
@@ -107,6 +108,7 @@ from core.huawei.automation_config import (  # noqa: E402,F401
     _runtime_int_config,
     _runtime_float_config,
     _effective_download_attempt_limit,
+    _download_max_por_operador_ciclo,
     _get_huawei_auto_audit_confidence_threshold,
     _env_flag,
     _should_run_auto_classification_after_sync,
@@ -1011,28 +1013,11 @@ async def executar_sync_huawei(
             ",".join(call_directions),
         )
 
-        # 2.1 Pré-carga de cotas mensais (otimização D-1)
-        unique_op_keys: list[tuple[str, str]] = []
-        seen_op_keys_set: set[tuple[str, str]] = set()
-        for interacao in interacoes:
-            op = _resolve_operador_interacao(interacao, operator_by_id, operator_by_name)
-            if _should_skip_call(interacao, op):
-                continue
-            name_norm = str(op.get("nome") or op.get("name") or "").strip().lower()
-            id_norm = str(op.get("id_telefonia") or op.get("id_huawei") or "").strip().lower()
-            key = (name_norm, id_norm)
-            if (name_norm or id_norm) and key not in seen_op_keys_set:
-                unique_op_keys.append((op.get("nome") or op.get("name") or "", op.get("id_telefonia") or op.get("id_huawei") or ""))
-                seen_op_keys_set.add(key)
-        
-        from repositories.audits import get_operator_audit_counts_for_month_bulk
-        hoje = datetime.now()
-        quota_by_operator = get_operator_audit_counts_for_month_bulk(
-            database.get_connection,
-            unique_op_keys,
-            hoje.year,
-            hoje.month
-        )
+        # 2.1 Teto de download por operador POR CICLO (contador fresco, abaixo).
+        # Antes este ponto pre-carregava as auditorias do mes por operador e barrava
+        # o download em `huawei_cota_max_por_operador_mes` (=2), prendendo o volume em
+        # ~2/operador. A cota mensal de compliance vale SO no envio ao supervisor — o
+        # download agora usa um teto proprio, desacoplado (`_download_max_por_operador_ciclo`).
 
         min_duration_seconds = max(
             0,
@@ -1051,13 +1036,19 @@ async def executar_sync_huawei(
             ),
         )
         max_download_attempts = _effective_download_attempt_limit()
+        # Teto de download do MESMO operador neste ciclo (0 = ilimitado). Desacoplado
+        # da cota de compliance do supervisor (huawei_cota_max_por_operador_mes=2).
+        cap_op_ciclo = _download_max_por_operador_ciclo()
         contadores["min_duracao_padrao_segundos"] = min_duration_seconds
         contadores["max_duracao_padrao_segundos"] = max_duration_seconds
         contadores["limite_tentativas_download"] = max_download_attempts
         contadores["limite_downloads"] = max_download_attempts
+        contadores["limite_download_por_operador"] = cap_op_ciclo
 
         candidatas: list[dict] = []
         por_setor_count: dict[str, int] = {}
+        # Contador fresco por operador SO deste ciclo (sem historico mensal).
+        download_count_by_operator: dict[tuple[str, str], int] = {}
         sorted_interacoes = sorted(interacoes, key=_download_candidate_sort_key, reverse=True)
         for index, interacao in enumerate(sorted_interacoes, start=1):
             if index == 1 or index % 250 == 0 or index == len(sorted_interacoes):
@@ -1090,18 +1081,17 @@ async def executar_sync_huawei(
                 _register_direction_skip(call_id, interacao, operador_resolvido, skip_reason)
                 continue
 
-            # Filtro de cota mensal pré-download
+            # Teto de download por operador POR CICLO (desacoplado da cota de
+            # compliance do supervisor). `cap_op_ciclo == 0` => sem teto. O contador
+            # `ignoradas_cota_mensal_pre_download` segue com o mesmo nome (lido por
+            # huawei_d_minus_1/automation_engine), mas agora conta cortes deste teto.
             op_name_norm = str(operador_resolvido.get("nome") or operador_resolvido.get("name") or "").strip().lower()
             op_id_norm = str(operador_resolvido.get("id_telefonia") or operador_resolvido.get("id_huawei") or "").strip().lower()
             op_key = (op_name_norm, op_id_norm)
-            
-            cota_max = max(
-                1,
-                _coerce_int(database.get_config_value("huawei_cota_max_por_operador_mes", "2"), 2),
-            )
-            current_quota = quota_by_operator.get(op_key, 0)
-            
-            if (op_name_norm or op_id_norm) and current_quota >= cota_max:
+
+            current_op_count = download_count_by_operator.get(op_key, 0)
+
+            if cap_op_ciclo > 0 and (op_name_norm or op_id_norm) and current_op_count >= cap_op_ciclo:
                 contadores.setdefault("ignoradas_cota_mensal_pre_download", 0)
                 contadores["ignoradas_cota_mensal_pre_download"] += 1
                 database.huawei_sync_log_registrar(
@@ -1109,7 +1099,7 @@ async def executar_sync_huawei(
                     agent_id=op_id_norm or None,
                     media_url=None,
                     status="skipped_quota",
-                    failure_reason="cota_mensal_atingida",
+                    failure_reason="teto_download_por_operador_ciclo",
                     operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
                     huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
                 )
@@ -1156,8 +1146,8 @@ async def executar_sync_huawei(
             interacao["_setor_rodizio"] = cand_setor
             por_setor_count[cand_setor] = por_setor_count.get(cand_setor, 0) + 1
             call_ids_tentados_no_ciclo.add(call_id)
-            # Incremento virtual da cota para candidatos do mesmo ciclo
-            quota_by_operator[op_key] = current_quota + 1
+            # Conta este download no teto por operador do ciclo (so candidatos reais).
+            download_count_by_operator[op_key] = current_op_count + 1
 
 
         contadores["chamadas_validas_pos_filtro"] = len(call_ids_validos_unicos)

@@ -93,6 +93,20 @@ export function AutomationConfigPanel({
         </ConfigField>
 
         <ConfigField
+          label="Máx. por operador no download"
+          hint="Ligações do mesmo operador por ciclo (0 = sem limite). NÃO é a cota do supervisor, que segue 2/mês."
+          saving={pending.savingConfig === 'download_max_por_operador_ciclo'}
+        >
+          <NumberInput
+            value={draft.download_max_por_operador_ciclo}
+            min={0}
+            max={500}
+            onChange={(value) => onUpdateField('download_max_por_operador_ciclo', value)}
+            onBlur={() => onSaveField('download_max_por_operador_ciclo')}
+          />
+        </ConfigField>
+
+        <ConfigField
           label="Número de tentativas"
           hint="Quantas vezes tenta baixar se falhar (1 a 20)"
           saving={pending.savingConfig === 'max_retries'}

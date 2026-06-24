@@ -34,6 +34,7 @@ export const PipelineConfigSchema = z
     lookback_dias: numberValue(3),
     cota_max_por_operador_mes: numberValue(5),
     limite_auditorias: numberValue(10),
+    download_max_por_operador_ciclo: numberValue(10),
   })
   .catch({
     enabled: false,
@@ -43,6 +44,7 @@ export const PipelineConfigSchema = z
     lookback_dias: 3,
     cota_max_por_operador_mes: 5,
     limite_auditorias: 10,
+    download_max_por_operador_ciclo: 10,
   });
 
 const PipelineLastRunSchema = z

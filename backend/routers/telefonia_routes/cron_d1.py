@@ -209,6 +209,7 @@ async def get_sync_d_minus_1_summary(_user: dict = Depends(require_admin)):
             "lookback_dias": max(1, tf._safe_int(cfg["huawei_d1_lookback_dias"], 1)),
             "cota_max_por_operador_mes": max(1, tf._safe_int(cfg["huawei_cota_max_por_operador_mes"], 2)),
             "limite_auditorias": limite_auditorias,
+            "download_max_por_operador_ciclo": max(0, tf._safe_int(cfg.get("huawei_download_max_por_operador_ciclo", "10"), 10)),
         },
         "config_defaults": PIPELINE_CONFIG_DEFAULTS,
         "now_sp": now_sp.isoformat(),
