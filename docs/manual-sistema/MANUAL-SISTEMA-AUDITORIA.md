@@ -53,6 +53,20 @@ e sempre atualizado de cada tema, as fontes são:
 | Testes | `docs/09-testes.md` |
 | Histórico de mudanças | `logs/versions/x.y.z.md` |
 
+### 0.3 Por onde começar
+
+Dependendo do seu objetivo, comece por:
+
+| Objetivo | Leia |
+| --- | --- |
+| Entender o que o sistema faz (negócio) | §1 e §3 |
+| Operar o dia a dia (coleta, auditoria, envio) | §6 e §11 |
+| Configurar o agendamento (cron) | §6.8 |
+| Entender por que "vêm poucas" auditorias | §6.3 e §6.5 |
+| Manter ou evoluir o código | §5, §6 e §7 |
+| Segurança, custos e contingência | §8 e §9 |
+| Conhecer as telas | Anexo B |
+
 ---
 
 ## 1. Objetivo e escopo
@@ -643,6 +657,37 @@ não duplicar coleta e auditoria.
 | `GET /api/telefonia/sync/d-minus-1/status` | As últimas execuções (data, status, tentativas, erro). |
 | `GET /api/telefonia/sync/diagnostics` | A visão do dia, incluindo o bloco `custo_diario`. |
 
+### 6.9 Um exemplo de ponta a ponta
+
+Para amarrar tudo, segue uma ligação **fictícia** percorrendo o fluxo:
+
+1. **Coleta.** No manifesto do dia entra a chamada `1042`, do operador "João",
+   setor Fênix, com 3min12s e direção "feita". Ela passa pelos filtros (operador
+   cadastrado com ID Huawei, direção válida, duração acima do mínimo) e pelo teto
+   por operador (João ainda tem vaga no ciclo). O áudio é baixado.
+2. **Classificação.** O GPT-4o classifica: setor `fenix`, um alerta de senha
+   (resolvido para o id canônico do catálogo) e o operador "João". A confiança é
+   suficiente, então o item fica **pronto para auditar** — não vai para revisão
+   manual.
+3. **Transcrição.** O motor de automação pega o item. A engine `fast` transcreve
+   o áudio e o seletor de candidatos aprova o resultado (qualidade adequada para
+   telefonia).
+4. **Avaliação.** O GPT-4o compara a transcrição com os critérios do par
+   setor/alerta. A maioria passa, mas o critério "solicitar a senha de segurança"
+   **falhou** — e esse é um critério fatal.
+5. **Nota e zeragem.** A nota parcial seria alta, mas a falha no critério de
+   senha dispara a **zeragem** (§7.5): a auditoria fica com nota **0**, com a
+   justificativa apontando o trecho exato.
+6. **Gate humano.** O resultado cai em **Arquivos Salvos** com origem
+   "automação". O auditor abre, confere a transcrição e a justificativa e decide
+   enviar ao supervisor — desde que "João" ainda não tenha 2 auditorias no mês
+   (a cota, §7.1).
+7. **Fechamento.** Aprovada pelo supervisor, a nota entra no fechamento mensal.
+
+Se em qualquer ponto o item "não prestasse" (áudio corrompido, classificação
+`desconhecido`, catálogo vazio), ele seria **descartado com motivo registrado**
+em vez de seguir — é a esteira binária (§1.3).
+
 ---
 
 ## 7. Regras de negócio e critérios
@@ -1000,25 +1045,15 @@ download por operador da cota do supervisor — detalhada em §6.3, §7.1 e §11
 setor/alerta/operador, e cada linha pode ser corrigida, baixada ou enviada à
 auditoria. A tela também embute a fila de gravações retidas pelo sync Huawei.
 
-```text
-+-- Triagem / Classificacao de Arquivos -----------------------------+
-|  [ instrucoes do modulo ]                                          |
-|                                                                    |
-|  +-- Enviar audios -------------------------------------------+    |
-|  |   arraste os arquivos aqui      [ Classificar ]   (progresso)  |    |
-|  +-----------------------------------------------------------+    |
-|                                                                    |
-|  Resultados (uma linha por audio):                                 |
-|  +-----------------------------------------------------------+    |
-|  | [play]  arquivo.wav   [Setor v] [Alerta v]  Operador        |    |
-|  |        [ editar ] [ baixar ] [ Auditar ] [ excluir ]        |    |
-|  +-----------------------------------------------------------+    |
-|                                                                    |
-|  +-- Fila de gravacoes retidas (sync Huawei) ----------------+    |
-|  |   (RemoteTriageQueue: itens vindos da coleta)             |    |
-|  +-----------------------------------------------------------+    |
-+--------------------------------------------------------------------+
-```
+<div class="uiwin">
+  <div class="bar">Triagem / Classificação de Arquivos</div>
+  <div class="body">
+    <div class="uirow"><span class="grow muted">Arraste os áudios aqui</span> <span class="btn primary">Classificar</span> <span class="muted">progresso…</span></div>
+    <div class="uirow"><span class="btn">&#9654;</span> <span class="grow">chamada_1042.wav</span> <span class="field sel">Setor</span> <span class="field sel">Alerta</span> <span class="field">Operador</span></div>
+    <div class="uirow"><span class="grow"></span> <span class="btn">editar</span> <span class="btn">baixar</span> <span class="btn primary">Auditar</span> <span class="btn">excluir</span></div>
+    <div class="uirow muted">Fila de gravações retidas (sync Huawei) — itens vindos da coleta</div>
+  </div>
+</div>
 
 > **[ print real: tela de Triagem ]**
 
@@ -1037,25 +1072,16 @@ O que cada controle faz:
 A auditoria manual é guiada por um trilho de três passos, justamente para
 reduzir erro operacional. Aceita **áudio** ou **documento (PDF)**.
 
-```text
-+-- Fluxo de Auditoria · Pipeline de ligacao -----------------------+
-|  [ Audio ] [ Setor ] [ Alerta ]            <- selos de contexto    |
-|                                                                    |
-|  ( Passo 1 )        ( Passo 2 )        ( Passo 3 )                 |
-|  CONTEXTO           ARQUIVO            REVISAO                     |
-|  setor, alerta e    envie o audio     edite, exporte e            |
-|  operador           ou o PDF          publique o resultado        |
-+--------------------------------------------------------------------+
-   v Passo 1                v Passo 2              v Passo 3
-+-- Contexto -------+  +-- Arquivo --------+  +-- Revisao -----------+
-| Setor      [ v ]  |  |  arraste o audio  |  | Nota:  8,5 / 10      |
-| Alerta     [ v ]  |  |  ou PDF aqui      |  | [grafico de nota]   |
-| Operador  [____]  |  |  [ Enviar ]       |  | Transcricao ....    |
-| [ Iniciar ]       |  |                   |  | Criterios avaliados |
-+-------------------+  +-------------------+  | [Editar][Exportar]  |
-                                              | [Enviar ao superv.] |
-                                              +---------------------+
-```
+<div class="uiwin">
+  <div class="bar">Fluxo de Auditoria — Pipeline de ligação <span class="rt">Áudio · Setor · Alerta</span></div>
+  <div class="body">
+    <div class="uicols">
+      <div class="col"><h5>Passo 1 · Contexto</h5><div class="uirow">Setor <span class="field sel grow"></span></div><div class="uirow">Alerta <span class="field sel grow"></span></div><div class="uirow">Operador <span class="field grow"></span></div><div class="uirow"><span class="btn primary">Iniciar</span></div></div>
+      <div class="col"><h5>Passo 2 · Arquivo</h5><div class="muted">Arraste o áudio ou o PDF aqui.</div><div class="uirow"><span class="btn">Enviar</span></div></div>
+      <div class="col"><h5>Passo 3 · Revisão</h5><div><b>Nota: 8,5 / 10</b></div><div class="muted">Transcrição · critérios avaliados</div><div class="uirow"><span class="btn">Editar</span> <span class="btn">Exportar</span></div><div class="uirow"><span class="btn primary">Enviar ao supervisor</span></div></div>
+    </div>
+  </div>
+</div>
 
 > **[ print real: tela de Auditoria manual ]**
 
@@ -1070,19 +1096,14 @@ Depois da auditoria (automática ou manual), o resultado cai **aqui** antes de i
 ao supervisor. Automáticas e manuais aparecem **misturadas de propósito**: este
 é o ponto único de revisão humana.
 
-```text
-+-- Arquivos Salvos -------------------------------------------------+
-|  [ instrucoes do modulo ]              [ buscar... ]            |
-|                                                                    |
-|  +-----------------------------------------------------------+    |
-|  | Auditoria · Operador · Setor · Alerta · Nota 7,0          |    |
-|  | origem: [automacao]   status: aguardando envio            |    |
-|  | [ ver ] [ editar ] [ PDF ] [ Enviar ao superv. ] [excluir]| |
-|  +-----------------------------------------------------------+    |
-|  | Transcricao · Operador · Setor ...                        |    |
-|  +-----------------------------------------------------------+    |
-+--------------------------------------------------------------------+
-```
+<div class="uiwin">
+  <div class="bar">Arquivos Salvos <span class="rt">buscar…</span></div>
+  <div class="body">
+    <div class="uirow"><span class="grow"><b>Auditoria</b> · Operador · Setor · Alerta · <b>Nota 7,0</b><br><span class="muted">origem:</span> <span class="tag">automação</span> <span class="muted">· status: aguardando envio</span></span></div>
+    <div class="uirow"><span class="grow"></span> <span class="btn">ver</span> <span class="btn">editar</span> <span class="btn">PDF</span> <span class="btn primary">Enviar ao supervisor</span> <span class="btn">excluir</span></div>
+    <div class="uirow muted">Transcrição · Operador · Setor …</div>
+  </div>
+</div>
 
 > **[ print real: tela de Arquivos Salvos ]**
 
@@ -1099,25 +1120,15 @@ ao supervisor. Automáticas e manuais aparecem **misturadas de propósito**: est
 
 Onde se liga, configura e acompanha o ciclo automático.
 
-```text
-+-- Automacao de auditorias -----------------------------------------+
-|  [ instrucoes: defina a meta · ligue/pause · roda 1x/dia ]         |
-|                                                                    |
-|  +-- Controle ----------------------------------------------+     |
-|  |   Esteira: [ LIGADA ]            [ Rodar agora ]        |     |
-|  +-----------------------------------------------------------+    |
-|  +-- Em execucao (quando rodando) --------------------------+     |
-|  |   baixando...  ·  classificando...  ·  auditando...     |     |
-|  +-----------------------------------------------------------+    |
-|  +-- Configuracoes -----------------------------------------+     |
-|  |   Dias para tras · Cota mensal · Meta de auditorias ·    |     |
-|  |   Max. por operador no download · Tentativas · Espera    |     |
-|  +-----------------------------------------------------------+    |
-|  +-- Auditorias do mes -------------------------------------+     |
-|  |   lista · [abrir em Arquivos]                            |     |
-|  +-----------------------------------------------------------+    |
-+--------------------------------------------------------------------+
-```
+<div class="uiwin">
+  <div class="bar">Automação de auditorias</div>
+  <div class="body">
+    <div class="uirow">Esteira: <span class="tag on">LIGADA</span> <span class="grow"></span> <span class="btn">Rodar agora</span></div>
+    <div class="uirow muted">Em execução: baixando… · classificando… · auditando…</div>
+    <div class="uirow"><span class="grow">Configurações: Dias para trás · Cota mensal · <b>Meta de auditorias</b> · <b>Máx. por operador no download</b> · Tentativas · Espera</span></div>
+    <div class="uirow muted">Auditorias do mês — lista, com atalho para abrir em Arquivos</div>
+  </div>
+</div>
 
 > **[ print real: tela de Automação ]**
 
@@ -1135,17 +1146,14 @@ O cadastro de operadores. É aqui que se define **quem é auditável** e, em
 especial, o **ID Huawei** — o campo que decide se as ligações de um operador são
 baixadas pelo sync (§6.7).
 
-```text
-+-- Colaboradores ---------------------------------------------------+
-|  [ instrucoes ]            Status: [ TODOS | ATIVO | INATIVO ]     |
-|                                              [ + Novo colaborador ]|
-|  +-----------------------------------------------------------+    |
-|  | Nome · Supervisor · Setor · Escala · Status · Auditavel   |    |
-|  | Matricula · ID Huawei · ...                               |    |
-|  | [ editar ] [ ativar/desativar ] [ excluir ]                |    |
-|  +-----------------------------------------------------------+    |
-+--------------------------------------------------------------------+
-```
+<div class="uiwin">
+  <div class="bar">Colaboradores <span class="rt">+ Novo colaborador</span></div>
+  <div class="body">
+    <div class="uirow"><span class="grow">Status:</span> <span class="tag">TODOS</span> <span class="tag">ATIVO</span> <span class="tag">INATIVO</span></div>
+    <div class="uirow"><span class="grow">Nome · Supervisor · Setor · Escala · Status · Auditável · Matrícula · <b>ID Huawei</b></span></div>
+    <div class="uirow"><span class="grow"></span> <span class="btn">editar</span> <span class="btn">ativar/desativar</span> <span class="btn">excluir</span></div>
+  </div>
+</div>
 
 > **[ print real: tela de Colaboradores ]**
 
