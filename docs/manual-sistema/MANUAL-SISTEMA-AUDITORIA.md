@@ -331,7 +331,7 @@ As telas são organizadas por domínio em `src/features/<dominio>/`. Cada featur
 | `supervisor/` | Portal do supervisor |
 | `review/` | Revisão técnica de contestações |
 | `fechamento/` | Fechamento mensal |
-| `dashboard/` | Indicadores e histórico |
+| `settings/` | Configurações operacionais |
 | `automacao/` | Painel do motor de automação |
 | `telefonia/` | Sync Huawei (status, disparo manual, diagnósticos) |
 | `admin/` | Critérios, setores, prompts |
@@ -905,7 +905,7 @@ processo.
 | A situação do sync e o custo do dia | `GET /api/telefonia/sync/diagnostics` |
 | O estado do motor de automação | `GET /api/automation/engine/status` |
 | As últimas coletas diárias | `GET /api/telefonia/sync/d-minus-1/status` |
-| Indicadores de auditoria | Tela **Dashboard** |
+| A produção de auditorias do mês | Painel **Automação** ("Auditorias do mês") e **Arquivos Salvos** |
 
 ---
 

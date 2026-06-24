@@ -132,7 +132,6 @@ Organização por domínio funcional — features novas vão em
 | `supervisor/` | Portal do supervisor (aprovação/contestação/exportações) |
 | `review/` | Revisão técnica de contestações |
 | `fechamento/` | Fechamento mensal |
-| `dashboard/` | Indicadores e histórico |
 | `automacao/` | Painel do motor híbrido (D-1 + engine + health) |
 | `telefonia/` | Sync Huawei (status, disparo manual, diagnósticos) |
 | `admin/` | Critérios, setores, prompts |
