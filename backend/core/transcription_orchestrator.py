@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
+import unicodedata
 
 from schemas import AuditAlert
 
@@ -32,6 +33,32 @@ Mp3Converter = Callable[[bytes, str], bytes]
 WavConverter = Callable[[bytes], bytes]
 
 
+_BAS_POLICE_ALERT_IDS = {"BAS-PRIORITARIO-POLICIA", "BAS-POLICIAL"}
+
+
+def _normalize_alert_text(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return text.upper().strip()
+
+
+def _is_bas_police_interlocutor_alert(alert: Optional[AuditAlert]) -> bool:
+    """True somente para o alerta BAS em que o interlocutor real e policial."""
+    if not alert:
+        return False
+
+    alert_id = _normalize_alert_text(alert.id).replace("_", "-").replace(" ", "-")
+    if alert_id in _BAS_POLICE_ALERT_IDS:
+        return True
+
+    # O POP 4.1.10 e compartilhado no catalogo oficial; sem uma pista de BAS,
+    # ele nao deve trocar a persona da diarizacao para Policia.
+    haystack = _normalize_alert_text(f"{alert.id or ''} {alert.label or ''} {alert.context or ''}")
+    return alert_id == "4.1.10" and "BAS" in haystack and (
+        "POLICIA" in haystack or "POLICIAL" in haystack
+    )
+
+
 @dataclass(frozen=True)
 class PreparedAudio:
     """Audio pronto para envio ao Azure: bytes ja convertidos + MIME efetivo."""
@@ -45,7 +72,9 @@ def infer_interlocutor_label(alert: Optional[AuditAlert], explicit_label: Option
 
     Se `explicit_label` for fornecido, vence sempre. Caso contrario, casa
     palavras-chave no id/label/contexto do alerta e mapeia para um rotulo de
-    negocio ("Ponto de Apoio", "Policia", "Transportadora", "Cliente", etc.).
+    negocio ("Ponto de Apoio", "Transportadora", "Cliente", etc.). A persona
+    "Policia" fica restrita ao alerta BAS policial; nos demais setores,
+    alertas com contexto policial continuam com interlocutor "Motorista".
     Default "Motorista" quando nada casa. Sem efeitos colaterais.
     """
     if explicit_label:
@@ -53,11 +82,11 @@ def infer_interlocutor_label(alert: Optional[AuditAlert], explicit_label: Option
 
     haystack = ""
     if alert:
-        haystack = f"{alert.id or ''} {alert.label or ''} {alert.context or ''}".lower()
+        haystack = _normalize_alert_text(f"{alert.id or ''} {alert.label or ''} {alert.context or ''}").lower()
 
     if "ponto de apoio" in haystack or "posto" in haystack:
         return "Ponto de Apoio"
-    if "policia" in haystack or "polícia" in haystack:
+    if _is_bas_police_interlocutor_alert(alert):
         return "Policia"
     if "antecedentes" in haystack:
         return "Interlocutor"

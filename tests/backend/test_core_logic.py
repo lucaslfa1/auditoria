@@ -1371,13 +1371,51 @@ class TestCoreLogic(unittest.TestCase):
             infer_interlocutor_label(
                 AuditAlert(id="A1", label="Parada Indevida - Cliente", context="Contato com cliente", criteria=[])
             ),
-            "Cliente"
+            "Cliente",
         )
         self.assertEqual(
             infer_interlocutor_label(
-                AuditAlert(id="A2", label="Posição em Atraso - Ponto de Apoio", context="Contato com Ponto de Apoio", criteria=[])
+                AuditAlert(
+                    id="A2",
+                    label="Posição em Atraso - Ponto de Apoio",
+                    context="Contato com Ponto de Apoio",
+                    criteria=[],
+                )
             ),
-            "Ponto de Apoio"
+            "Ponto de Apoio",
+        )
+        self.assertEqual(
+            infer_interlocutor_label(
+                AuditAlert(
+                    id="BAS-PRIORITARIO-POLICIA",
+                    label="Alerta Prioritario - Policia",
+                    context="Processo BAS - Acionamento Policial",
+                    criteria=[],
+                )
+            ),
+            "Policia",
+        )
+        self.assertEqual(
+            infer_interlocutor_label(
+                AuditAlert(
+                    id="BAS-POLICIAL",
+                    label="Acionamento Policial",
+                    context="BAS",
+                    criteria=[],
+                )
+            ),
+            "Policia",
+        )
+        self.assertEqual(
+            infer_interlocutor_label(
+                AuditAlert(
+                    id="UTI-PRIORITARIO-POLICIA",
+                    label="Alerta Prioritario - Policia",
+                    context="Processo de Auditoria Telefonica - Acionamento Policial",
+                    criteria=[],
+                )
+            ),
+            "Motorista",
         )
 
     def test_validate_transcription(self):
