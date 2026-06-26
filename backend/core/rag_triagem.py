@@ -10,6 +10,7 @@ resposta HTTP — quando o auditor salva uma correção de auditoria
 roda no caminho do request: o embedding pago fica fora da resposta (v1.3.90).
 """
 
+import contextvars
 import logging
 import os
 from typing import Optional
@@ -19,10 +20,13 @@ from repositories.common import json_loads
 
 logger = logging.getLogger(__name__)
 
+# ContextVar to hold the transcription text during evaluation flow
+current_transcription_text = contextvars.ContextVar("current_transcription_text", default=None)
+
 # Azure OpenAI embedding config
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
 AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY", "")
-EMBEDDING_MODEL = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002")
+EMBEDDING_MODEL = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "")
 EMBEDDING_DIMENSIONS = 1536
 
 
@@ -34,9 +38,14 @@ def gerar_embedding(texto: str) -> Optional[list[float]]:
     """
     if not texto or not texto.strip():
         return None
-    if not AZURE_OPENAI_ENDPOINT or not AZURE_OPENAI_KEY:
-        logger.warning("RAG: Azure OpenAI não configurado, embedding não gerado")
+
+    # Armazena o texto da transcrição no contexto atual para busca FTS local de fallback
+    current_transcription_text.set(texto)
+
+    if not AZURE_OPENAI_ENDPOINT or not AZURE_OPENAI_KEY or not EMBEDDING_MODEL:
+        logger.debug("RAG: Azure OpenAI embedding deployment nao configurado; usando busca local FTS.")
         return None
+
 
     try:
         from openai import AzureOpenAI

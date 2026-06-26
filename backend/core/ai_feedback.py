@@ -328,6 +328,11 @@ def get_feedback_for_prompt(
 
         use_semantic_search = bool(query_embedding) and _feedback_embedding_column_available(cursor)
 
+        from core.rag_triagem import current_transcription_text
+        transcription_text = current_transcription_text.get()
+        use_fts = bool(transcription_text) and not use_semantic_search
+        use_fts_search = False
+
         def _build_query(*, semantic: bool) -> tuple[str, list]:
             query = """
                 SELECT tipo, setor, criterio_id, situacao, correcao, justificativa, exemplo_transcricao
@@ -355,24 +360,67 @@ def get_feedback_for_prompt(
                 params.append(MAX_FEEDBACK_PER_PROMPT)
             return query, params
 
+        def _build_fts_query() -> tuple[str, list]:
+            query = """
+                SELECT tipo, setor, criterio_id, situacao, correcao, justificativa, exemplo_transcricao,
+                       ts_rank(to_tsvector('portuguese', exemplo_transcricao), plainto_tsquery('portuguese', %s)) as rank
+                FROM ai_feedback
+                WHERE ativo = 1
+                  AND exemplo_transcricao IS NOT NULL
+                  AND exemplo_transcricao != ''
+                  AND to_tsvector('portuguese', exemplo_transcricao) @@ plainto_tsquery('portuguese', %s)
+            """
+            params: list = [transcription_text, transcription_text]
+
+            if setor:
+                query += " AND (setor = %s OR setor IS NULL)"
+                params.append(setor)
+
+            if tipos:
+                placeholders = ",".join("%s" for _ in tipos)
+                query += f" AND tipo IN ({placeholders})"
+                params.extend(tipos)
+
+            query += " ORDER BY rank DESC LIMIT %s"
+            params.append(MAX_RAG_EXAMPLES)
+            return query, params
+
         if use_semantic_search:
             # RAG: semantic search only considers records with embeddings.
             query, params = _build_query(semantic=True)
             cursor.execute(query, params)
             rows = cursor.fetchall()
             if not rows:
-                logger.warning("AI feedback semantic search returned no rows; falling back to chronological calibration.")
+                logger.warning("AI feedback semantic search returned no rows; falling back to local FTS or chronological calibration.")
+                if transcription_text:
+                    use_fts = True
+                use_semantic_search = False
+
+        if not use_semantic_search:
+            if use_fts:
+                try:
+                    query, params = _build_fts_query()
+                    cursor.execute(query, params)
+                    rows = cursor.fetchall()
+                    if rows:
+                        use_fts_search = True
+                    else:
+                        # Fallback to chronological if no FTS matches found
+                        query, params = _build_query(semantic=False)
+                        cursor.execute(query, params)
+                        rows = cursor.fetchall()
+                except Exception as exc:
+                    logger.warning("Postgres Full-Text Search failed, falling back to chronological: %s", exc)
+                    query, params = _build_query(semantic=False)
+                    cursor.execute(query, params)
+                    rows = cursor.fetchall()
+            else:
+                if query_embedding:
+                    logger.warning("AI feedback embedding column unavailable; falling back to chronological calibration.")
+                # Fallback: chronological search (original behavior).
                 query, params = _build_query(semantic=False)
                 cursor.execute(query, params)
                 rows = cursor.fetchall()
-                use_semantic_search = False
-        else:
-            if query_embedding:
-                logger.warning("AI feedback embedding column unavailable; falling back to chronological calibration.")
-            # Fallback: chronological search (original behavior).
-            query, params = _build_query(semantic=False)
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
     finally:
         conn.close()
 
@@ -381,6 +429,8 @@ def get_feedback_for_prompt(
 
     if use_semantic_search:
         header = "EXEMPLOS HISTORICOS DE CORRECOES HUMANAS (encontrados por similaridade semantica — use como referencia FORTE):\n"
+    elif use_fts_search:
+        header = "EXEMPLOS HISTORICOS DE CORRECOES HUMANAS (encontrados por similaridade de texto local — use como referencia FORTE):\n"
     else:
         header = "CALIBRACOES DOS AUDITORES (use como referencia OBRIGATORIA — estes sao erros corrigidos por auditores humanos):\n"
 
