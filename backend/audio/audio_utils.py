@@ -87,3 +87,40 @@ def convert_audio_to_mp3(audio_file: bytes, source_mime_type: str = "audio/wav")
         parameters=["-threads", "1"],
     )
     return out_buffer.getvalue()
+
+
+def split_stereo_audio(audio_file: bytes) -> tuple[bytes, bytes] | None:
+    """Se o audio for estereo (2 canais), divide-o em dois arquivos WAV mono.
+
+    Retorna (left_channel_wav, right_channel_wav) ou None se for mono.
+    """
+    from pydub import AudioSegment
+    from pydub.effects import normalize
+
+    try:
+        audio = AudioSegment.from_file(io.BytesIO(audio_file))
+    except Exception as e:
+        logger.warning("Pydub falhou na abertura automatica para split, tentando Huawei alaw: %s", e)
+        try:
+            audio = AudioSegment.from_file(io.BytesIO(audio_file), format="wav", codec="pcm_alaw")
+        except Exception as e2:
+            logger.error("Falha ao abrir audio para split estereo: %s", e2)
+            return None
+
+    if audio.channels != 2:
+        return None
+
+    left_channel, right_channel = audio.split_to_mono()
+
+    # Normaliza e reamostra para 16kHz
+    left_channel = normalize(left_channel.set_frame_rate(16000), headroom=0.5)
+    right_channel = normalize(right_channel.set_frame_rate(16000), headroom=0.5)
+
+    left_buf = io.BytesIO()
+    left_channel.export(left_buf, format="wav", parameters=["-threads", "1"])
+
+    right_buf = io.BytesIO()
+    right_channel.export(right_buf, format="wav", parameters=["-threads", "1"])
+
+    return left_buf.getvalue(), right_buf.getvalue()
+

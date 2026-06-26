@@ -72,7 +72,16 @@
                 "\\bAu\\s*pen\\s*tech\\b",
                 "\\bO\\s*pen\\s*tech\\b",
                 "\\bA\\s*pen\\s*tech\\b",
-                "\\bOu\\s*pen\\s*tech\\b"
+                "\\bOu\\s*pen\\s*tech\\b",
+                "\\b[AaOo]?pu\\s*te[ckx]h?\\b",
+                "\\bOputeck\\b",
+                "\\bOputeque\\b",
+                "\\bOpen\\s*check\\b",
+                "\\bOpen\\s*chat\\b",
+                "\\bOpen\\s*tag\\b",
+                "\\bOpe\\s*tech\\b",
+                "\\bHope\\s*tech\\b",
+                "\\b[Oo]culos\\s*tec\\b"
             ]
         },
         {

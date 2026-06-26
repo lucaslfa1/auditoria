@@ -32,6 +32,23 @@ class TestTranscriptionGlossaryToday(unittest.TestCase):
         regex_pattern = r"\bAlpen\s+Tech\b"
         self.assertTrue(re.search(regex_pattern, sample_text, re.IGNORECASE))
 
+    def test_oputec_corrige_para_opentech(self):
+        """Regressao (relatado por Lucas em 23/06): 'Oputec' e variantes foneticas
+        devem virar 'Opentech' via normalize_company_name (case-insensitive)."""
+        from utils.text_processing import normalize_company_name
+
+        for variante in ("Oputec", "oputec", "Oputech", "Opu tec", "Oputeque", "Oputeck", "Oputex"):
+            corrigido = normalize_company_name(f"a empresa {variante} monitora a carga")
+            self.assertIn("Opentech", corrigido, f"nao corrigiu {variante!r}: {corrigido!r}")
+            self.assertNotRegex(corrigido, r"(?i)\boput", f"sobrou 'oput' em {corrigido!r}")
+
+    def test_novas_variantes_opentech(self):
+        """Valida se as novas variantes fonéticas adicionadas em 26/06/2026 são devidamente corrigidas."""
+        from utils.text_processing import normalize_company_name
+        for variante in ("open check", "Open chat", "open tag", "ope tech", "Hope tech", "oculos tec"):
+            corrigido = normalize_company_name(f"a empresa {variante} monitora a carga")
+            self.assertIn("Opentech", corrigido, f"nao corrigiu {variante!r}: {corrigido!r}")
+
     def test_autotrac_hallucination_patterns(self):
         """Verifica se os novos padrões para Autotrac estão presentes."""
         autotrac_entry = next((c for c in self.config['corrections'] if c['target'] == 'Autotrac'), None)

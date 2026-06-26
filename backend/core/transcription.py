@@ -71,6 +71,7 @@ from utils.text_processing import (
 from audio.audio_utils import (
     convert_audio_to_mp3,
     convert_audio_to_wav,
+    split_stereo_audio,
 )
 from core.transcription_orchestrator import (
     build_strategy_order,
@@ -1269,6 +1270,159 @@ async def transcribe_audio(
     driver_label = infer_interlocutor_label(alert, driver_name)
     diarization_reference = build_diarization_reference(driver_label)
     gpt4o_diarize_endpoint, gpt4o_diarize_key = _resolve_azure_gpt4o_diarize_config() if AI_PROVIDER_PRIORITY == "azure" else (None, None)
+
+    # ── Stereo Split (Canais Separados) ──────────────────────────────────────────
+    # Se o audio original for estereo (2 canais), dividimos e transcrevemos separadamente
+    stereo_splits = await asyncio.to_thread(split_stereo_audio, audio_file)
+    if stereo_splits is not None:
+        left_audio, right_audio = stereo_splits
+        logger.info("[Transcription] Audio estereo detectado. Iniciando processamento Stereo Split.")
+
+        left_task = transcribe_audio(
+            left_audio,
+            "audio/wav",
+            operator_name,
+            driver_name,
+            alert,
+            sector_id,
+            return_metadata=True,
+            allow_degraded_hybrid_fallback=allow_degraded_hybrid_fallback,
+            audio_quality_score=audio_quality_score,
+        )
+        right_task = transcribe_audio(
+            right_audio,
+            "audio/wav",
+            operator_name,
+            driver_name,
+            alert,
+            sector_id,
+            return_metadata=True,
+            allow_degraded_hybrid_fallback=allow_degraded_hybrid_fallback,
+            audio_quality_score=audio_quality_score,
+        )
+
+        left_res, right_res = await asyncio.gather(left_task, right_task)
+
+        left_segments = left_res[0] if isinstance(left_res, tuple) else left_res
+        right_segments = right_res[0] if isinstance(right_res, tuple) else right_res
+
+        left_meta = left_res[1] if isinstance(left_res, tuple) else {}
+        right_meta = right_res[1] if isinstance(right_res, tuple) else {}
+
+        # Limpa eventuais prefixos de speaker e forca a persona correta
+        clean_speaker_pattern = re.compile(
+            r"^(?:Operador|Motorista|Telefonia|Cliente|Policia|Atendente|Bas|Vitima|Declarante|Condutor|Speaker\s+\d+):\s*",
+            re.IGNORECASE
+        )
+
+        left_formatted = []
+        for seg in left_segments:
+            raw_text = seg.get("text", "")
+            text_clean = clean_speaker_pattern.sub("", raw_text).strip()
+            if not text_clean:
+                continue
+            left_formatted.append({
+                **seg,
+                "text": f"{operator_label}: {text_clean}",
+                "speaker_source_ids": [0],
+                "speaker_persona_ids": [0],
+                "speaker_confidence": 1.0,
+                "speaker_risk": "low",
+                "speaker_ambiguous": False
+            })
+
+        right_formatted = []
+        for seg in right_segments:
+            raw_text = seg.get("text", "")
+            text_clean = clean_speaker_pattern.sub("", raw_text).strip()
+            if not text_clean:
+                continue
+            right_formatted.append({
+                **seg,
+                "text": f"{driver_label}: {text_clean}",
+                "speaker_source_ids": [1],
+                "speaker_persona_ids": [1],
+                "speaker_confidence": 1.0,
+                "speaker_risk": "low",
+                "speaker_ambiguous": False
+            })
+
+        def parse_ts_to_seconds(ts_str: str) -> float:
+            try:
+                parts = ts_str.split(':')
+                if len(parts) == 2:
+                    return float(parts[0]) * 60 + float(parts[1])
+                elif len(parts) == 3:
+                    return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+            except Exception:
+                pass
+            return 0.0
+
+        combined = left_formatted + right_formatted
+        combined.sort(key=lambda s: parse_ts_to_seconds(s.get("start", "00:00")))
+
+        from datetime import timedelta
+        from audio.speaker_models import SegmentoFormatado
+        from audio.speaker_identification import mesclar_segmentos_consecutivos
+        from audio.speaker_detection import SpeakerDetectionService
+
+        formatados = []
+        for seg in combined:
+            raw_text = seg.get("text", "")
+            if ":" in raw_text:
+                text_clean = raw_text.split(":", 1)[1].strip()
+            else:
+                text_clean = raw_text.strip()
+            start_sec = parse_ts_to_seconds(seg.get("start", "00:00"))
+            end_sec = parse_ts_to_seconds(seg.get("end", "00:00"))
+            duration = max(0.0, end_sec - start_sec)
+
+            formatados.append(SegmentoFormatado(
+                timestamp=timedelta(seconds=start_sec),
+                speaker=operator_label if seg.get("speaker_source_ids") == [0] else driver_label,
+                texto=text_clean,
+                texto_normalizado=SpeakerDetectionService.normalizar_texto(text_clean),
+                duracao_seconds=duration,
+                source_speaker_ids=tuple(seg.get("speaker_source_ids", [])),
+                persona_speaker_ids=tuple(seg.get("speaker_persona_ids", [])),
+                speaker_confidence=seg.get("speaker_confidence", 1.0),
+                diarization_risk=seg.get("speaker_risk", "low"),
+                diarization_ambiguous=seg.get("speaker_ambiguous", False)
+            ))
+
+        mesclados = mesclar_segmentos_consecutivos(formatados)
+
+        final_segments = []
+        for segment in mesclados:
+            if not segment.texto or not segment.texto.strip():
+                continue
+            is_telephony = SpeakerDetectionService.eh_segmento_telefonia(segment.texto_normalizado)
+            speaker_label = "Telefonia" if is_telephony else segment.speaker
+            final_segments.append(
+                {
+                    "start": SpeakerDetectionService.formatar_timestamp(segment.timestamp),
+                    "end": SpeakerDetectionService.formatar_timestamp(
+                        segment.timestamp + timedelta(seconds=segment.duracao_seconds)
+                    ),
+                    "text": f"{speaker_label}: {segment.texto}",
+                    "speaker_source_ids": list(segment.source_speaker_ids),
+                    "speaker_persona_ids": list(segment.persona_speaker_ids),
+                    "speaker_confidence": round(segment.speaker_confidence, 3),
+                    "speaker_risk": "low" if is_telephony else segment.diarization_risk,
+                    "speaker_ambiguous": False if is_telephony else segment.diarization_ambiguous,
+                }
+            )
+
+        if return_metadata:
+            merged_metadata = {
+                "stereo_split": True,
+                "left_channel": left_meta,
+                "right_channel": right_meta,
+                "selected_strategy": "stereo_split_dual_channel",
+                "selected_provider": "Stereo Split (Left: Agent / Right: Client)"
+            }
+            return final_segments, merged_metadata
+        return final_segments
 
     if sentry_sdk:
         sentry_sdk.add_breadcrumb(
