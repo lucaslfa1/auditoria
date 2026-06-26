@@ -203,10 +203,15 @@ export function AdminCriteriaPage() {
         try {
             setSubmitting(true);
             if (editingSectorId) {
-                await apiFetchJson(`/api/admin/sectors/${encodeURIComponent(editingSectorId)}`, {
-                    method: 'PUT',
+                await apiFetchJson(`/api/admin/sectors/${encodeURIComponent(editingSectorId)}/rename`, {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ label: sectorForm.label, description: sectorForm.description, motivo })
+                    body: JSON.stringify({
+                        new_label: sectorForm.label,
+                        description: sectorForm.description,
+                        cascade: true,
+                        motivo,
+                    })
                 });
             } else {
                 await apiFetchJson(`/api/admin/sectors`, {

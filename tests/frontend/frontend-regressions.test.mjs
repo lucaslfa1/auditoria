@@ -16,6 +16,7 @@ const classifierSource = read('src/features/classifier/components/Classifier.tsx
 const operatorAutocompleteSource = read('src/shared/components/OperatorAutocompleteFields.tsx');
 const sidebarSource = read('src/shared/components/Sidebar.tsx');
 const settingsSource = read('src/features/settings/components/Settings.tsx');
+const adminCriteriaSource = read('src/features/admin/components/AdminCriteriaPage.tsx');
 const supervisorPortalSource = read('src/features/supervisor/components/SupervisorPortal.tsx');
 const reviewSource = read('src/features/review/components/ReviewPage.tsx');
 const savedFilesSource = read('src/features/saved-files/components/SavedFiles.tsx');
@@ -117,6 +118,9 @@ assert.match(settingsSource, /titleFirstWord="Configurações"/);
 assert.match(settingsSource, /titleRest="do Sistema"/);
 assert.doesNotMatch(settingsSource, /ThemeSettings/);
 assert.doesNotMatch(settingsSource, />\s*Tema\s*</);
+assert.match(adminCriteriaSource, /\/api\/admin\/sectors\/\$\{encodeURIComponent\(editingSectorId\)\}\/rename/);
+assert.match(adminCriteriaSource, /new_label: sectorForm\.label/);
+assert.match(adminCriteriaSource, /cascade: true/);
 
 assert.match(auditSetupSource, /const selectOptionClass = theme === 'dark' \? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900'/);
 assert.match(auditSetupSource, /const selectPlaceholderOptionClass = theme === 'dark' \? 'bg-slate-900 text-slate-500' : 'bg-white text-slate-500'/);

@@ -29,7 +29,6 @@ from repositories.admin_criteria import (
     get_criteria,
     get_export_format,
     create_sector,
-    update_sector,
     delete_sector,
     get_sector_members,
     rename_sector_with_cascade,
@@ -166,24 +165,28 @@ def admin_create_sector(req: SectorCreate, user: dict = Depends(require_admin)):
 
 @router.put("/api/admin/sectors/{sector_id}")
 def admin_update_sector(sector_id: str, req: SectorUpdate, user: dict = Depends(require_admin)):
-    """Atualiza rotulo/descricao de um setor existente e invalida o cache.
+    """Atualiza um setor e propaga o novo nome para colaboradores vinculados.
 
-    Nao propaga o nome para colaboradores vinculados (para isso use o endpoint
-    `/rename`). Retorna 404 se o setor nao existir e 400 se o label vier vazio.
+    Este endpoint e usado pela tela legada de criterios. Para evitar dois fluxos
+    divergentes de edicao de setor, ele reaproveita a mesma cascata do `/rename`:
+    muda o label/description, atualiza `colaboradores.setor` e garante o alias do
+    novo nome para o mesmo `sector_id`.
     """
     if not req.label.strip():
-         raise HTTPException(status_code=400, detail="Label é obrigatório.")
-    if not update_sector(
+        raise HTTPException(status_code=400, detail="Label é obrigatório.")
+    result = rename_sector_with_cascade(
         database.get_connection,
         sector_id,
         req.label,
         req.description,
+        cascade=True,
         alterado_por=_username(user),
         motivo=req.motivo or "",
-    ):
+    )
+    if result is None:
         raise HTTPException(status_code=404, detail="Setor não encontrado.")
     _invalidate_catalog_cache()
-    return {"status": "updated", "id": sector_id}
+    return {"status": "updated", "id": sector_id, **result}
 
 @router.delete("/api/admin/sectors/{sector_id}")
 def admin_delete_sector(

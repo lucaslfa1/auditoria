@@ -12,6 +12,7 @@ import os
 import sys
 import unittest
 import uuid
+from pathlib import Path
 from unittest import mock
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -136,6 +137,65 @@ class GetSectorMembersTests(unittest.TestCase):
         with mock.patch.object(sector_aliases, "list_active_rules", return_value=rules):
             members = get_sector_members(self._factory(colaboradores), "fenix")
         self.assertEqual(members, [])
+
+    def test_detecta_membro_pelo_label_atual_sem_alias(self):
+        colaboradores = [
+            {
+                "id": 1,
+                "nome": "A",
+                "setor": "Fênix Premium",
+                "escala": "",
+                "supervisor": "",
+                "organizacao_telefonia": "",
+                "sector_label": "Fênix Premium",
+            },
+            {
+                "id": 2,
+                "nome": "B",
+                "setor": "LOGISTICA",
+                "escala": "",
+                "supervisor": "",
+                "organizacao_telefonia": "",
+                "sector_label": "Fênix Premium",
+            },
+        ]
+        with mock.patch.object(sector_aliases, "list_active_rules", return_value=[]):
+            members = get_sector_members(self._factory(colaboradores), "fenix")
+        self.assertEqual([m["id"] for m in members], [1])
+
+    def test_detecta_membro_pelo_id_interno_sem_alias(self):
+        colaboradores = [
+            {
+                "id": 1,
+                "nome": "A",
+                "setor": "fenix",
+                "escala": "",
+                "supervisor": "",
+                "organizacao_telefonia": "",
+                "sector_label": "Fênix Premium",
+            },
+        ]
+        with mock.patch.object(sector_aliases, "list_active_rules", return_value=[]):
+            members = get_sector_members(self._factory(colaboradores), "fenix")
+        self.assertEqual([m["id"] for m in members], [1])
+
+
+class SectorRouteCascadeTests(unittest.TestCase):
+    def test_put_sector_usa_mesma_cascata_do_rename(self):
+        source_path = (
+            Path(__file__).resolve().parents[2]
+            / "backend"
+            / "routers"
+            / "admin_criteria.py"
+        )
+        source = source_path.read_text(encoding="utf-8")
+
+        start = source.index("def admin_update_sector")
+        end = source.index("@router.delete", start)
+        handler_source = source[start:end]
+
+        self.assertIn("rename_sector_with_cascade", handler_source)
+        self.assertIn("cascade=True", handler_source)
 
 
 # ── Integracao (so com banco de TESTE) ───────────────────────────────────────

@@ -291,9 +291,11 @@ def get_sector_members(db_connection_factory, sector_id: str) -> list[dict]:
     """Colaboradores cujo setor resolve (via sector_aliases) para `sector_id`.
 
     Read-only. Fonte unica da "associacao funcionario->setor": usada tanto pelo
-    preview `/members` quanto pela cascata de rename. A vinculacao e implicita
-    (string `colaboradores.setor` -> mapa de apelidos -> `audit_sectors.id`), nunca
-    pelo rotulo de exibicao.
+    preview `/members` quanto pela cascata de rename. A vinculacao principal e
+    implicita (string `colaboradores.setor` -> mapa de apelidos ->
+    `audit_sectors.id`), mas tambem aceita match exato com o label atual do setor
+    e com o id interno. Esse fallback cobre setores criados/renomeados antes de
+    terem alias explicito, evitando cascata com contagem zero.
     """
     from repositories import sector_aliases as _sa
 
@@ -303,14 +305,24 @@ def get_sector_members(db_connection_factory, sector_id: str) -> list[dict]:
         rules = _sa.list_active_rules(db_connection_factory)
         c.execute(
             """
-            SELECT id, nome, setor, escala, supervisor, organizacao_telefonia
-              FROM colaboradores
-             ORDER BY nome
-            """
+            SELECT c.id, c.nome, c.setor, c.escala, c.supervisor,
+                   c.organizacao_telefonia, s.label AS sector_label
+              FROM colaboradores c
+              LEFT JOIN audit_sectors s ON s.id = %s
+             ORDER BY c.nome
+            """,
+            (sector_id,),
         )
+        sector_id_norm = _sa._norm(sector_id)
         members: list[dict] = []
         for raw in c.fetchall():
             colab = dict(raw)
+            raw_setor_norm = _sa._norm(colab.get("setor") or "")
+            direct_matches = {
+                value
+                for value in (sector_id_norm, _sa._norm(colab.get("sector_label") or ""))
+                if value
+            }
             canon = _sa.match_canonical_sector(
                 rules,
                 setor=colab.get("setor") or "",
@@ -318,7 +330,9 @@ def get_sector_members(db_connection_factory, sector_id: str) -> list[dict]:
                 supervisor=colab.get("supervisor") or "",
                 organizacao=colab.get("organizacao_telefonia") or "",
             )
-            if canon == sector_id:
+            if canon == sector_id or (
+                canon is None and raw_setor_norm in direct_matches
+            ):
                 members.append(
                     {"id": colab["id"], "nome": colab.get("nome"), "setor": colab.get("setor")}
                 )
