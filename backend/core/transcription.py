@@ -1272,12 +1272,19 @@ async def transcribe_audio(
     gpt4o_diarize_endpoint, gpt4o_diarize_key = _resolve_azure_gpt4o_diarize_config() if AI_PROVIDER_PRIORITY == "azure" else (None, None)
 
     # ── Stereo Split (Canais Separados) ──────────────────────────────────────────
-    # Se o audio original for estereo (2 canais), dividimos e transcrevemos separadamente
+    # Se o áudio original possui 2 canais (estéreo), aplicamos uma técnica de divisão
+    # física de canais em vez de depender da diarização acústica por IA, que falha
+    # frequentemente em cenários de interrupção mútua (overlap) e trocas rápidas de turno.
+    # Como as chamadas telefônicas da telefonia Huawei AICC gravam o operador (agente) no canal esquerdo
+    # e o motorista/cliente no canal direito, a separação dos canais é 100% precisa.
     stereo_splits = await asyncio.to_thread(split_stereo_audio, audio_file)
     if stereo_splits is not None:
         left_audio, right_audio = stereo_splits
         logger.info("[Transcription] Audio estereo detectado. Iniciando processamento Stereo Split.")
 
+        # Dispara a transcrição recursiva de cada canal individualmente em paralelo.
+        # Por receberem áudios mono (gerados pelo split_stereo_audio), as chamadas recursivas
+        # NÃO acionarão o bloco de split estéreo novamente, evitando recursão infinita.
         left_task = transcribe_audio(
             left_audio,
             "audio/wav",
@@ -1303,18 +1310,23 @@ async def transcribe_audio(
 
         left_res, right_res = await asyncio.gather(left_task, right_task)
 
+        # Extrai os segmentos textuais e metadados de cada canal
         left_segments = left_res[0] if isinstance(left_res, tuple) else left_res
         right_segments = right_res[0] if isinstance(right_res, tuple) else right_res
 
         left_meta = left_res[1] if isinstance(left_res, tuple) else {}
         right_meta = right_res[1] if isinstance(right_res, tuple) else {}
 
-        # Limpa eventuais prefixos de speaker e forca a persona correta
+        # Expressão regular para limpar qualquer prefixo de speaker incorreto ou inconsistente
+        # que o ASR possa ter gerado individualmente nos canais mono (ex: "Condutor:", "Motorista:")
         clean_speaker_pattern = re.compile(
             r"^(?:Operador|Motorista|Telefonia|Cliente|Policia|Atendente|Bas|Vitima|Declarante|Condutor|Speaker\s+\d+):\s*",
             re.IGNORECASE
         )
 
+        # Formata as falas do canal esquerdo (Canal 0) e as atribui compulsoriamente ao Operador.
+        # A confiança da diarização é definida como 1.0 (máxima) e o risco de troca como baixo ("low"),
+        # dado que o canal físico é estritamente isolado e pertence apenas a um locutor.
         left_formatted = []
         for seg in left_segments:
             raw_text = seg.get("text", "")
@@ -1331,6 +1343,7 @@ async def transcribe_audio(
                 "speaker_ambiguous": False
             })
 
+        # Formata as falas do canal direito (Canal 1) e as atribui compulsoriamente ao Motorista / Interlocutor.
         right_formatted = []
         for seg in right_segments:
             raw_text = seg.get("text", "")
@@ -1347,6 +1360,8 @@ async def transcribe_audio(
                 "speaker_ambiguous": False
             })
 
+        # Função auxiliar para converter strings de timestamp (ex: "MM:SS.mmm") em segundos
+        # para permitir a ordenação temporal exata de ambos os canais de forma unificada.
         def parse_ts_to_seconds(ts_str: str) -> float:
             try:
                 parts = ts_str.split(':')
@@ -1358,6 +1373,7 @@ async def transcribe_audio(
                 pass
             return 0.0
 
+        # Une as listas de segmentos do operador e do motorista, e as ordena cronologicamente
         combined = left_formatted + right_formatted
         combined.sort(key=lambda s: parse_ts_to_seconds(s.get("start", "00:00")))
 
@@ -1366,9 +1382,12 @@ async def transcribe_audio(
         from audio.speaker_identification import mesclar_segmentos_consecutivos
         from audio.speaker_detection import SpeakerDetectionService
 
+        # Converte os dicionários ordenados para objetos SegmentoFormatado para podermos
+        # reaproveitar a lógica pura e otimizada de agrupamento do pipeline principal.
         formatados = []
         for seg in combined:
             raw_text = seg.get("text", "")
+            # Limpa prefixos dinâmicos baseando-se no primeiro caractere ":"
             if ":" in raw_text:
                 text_clean = raw_text.split(":", 1)[1].strip()
             else:
@@ -1390,8 +1409,10 @@ async def transcribe_audio(
                 diarization_ambiguous=seg.get("speaker_ambiguous", False)
             ))
 
+        # Funde turnos vizinhos da mesma pessoa que estejam separados por pausas muito curtas
         mesclados = mesclar_segmentos_consecutivos(formatados)
 
+        # Reconstrói a lista final de segmentos formatados no formato aceito downstream pela auditoria
         final_segments = []
         for segment in mesclados:
             if not segment.texto or not segment.texto.strip():
@@ -1413,6 +1434,7 @@ async def transcribe_audio(
                 }
             )
 
+        # Retorna o resultado enriquecido com os metadados do Stereo Split se solicitado
         if return_metadata:
             merged_metadata = {
                 "stereo_split": True,
