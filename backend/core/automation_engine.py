@@ -58,6 +58,7 @@ _current_status = {
     "last_result": None,
     "baixadas_total": 0,
     "auditadas_total": 0,
+    "last_volume_plan": None,
 }
 
 _health_snapshot_cache: dict[str, object] = {
@@ -1202,6 +1203,14 @@ _SYNC_FILTER_LABELS = (
     ("triagem_descartados", "triagem setorial"),
 )
 
+_SYNC_VOLUME_KEYS = (
+    "chamadas_validas_pos_filtro",
+    "candidatos_download",
+    "baixadas",
+    "enfileiradas",
+    "classificadas",
+)
+
 
 def _iter_sync_inner_results(sync_result: dict) -> list[dict]:
     """Extrai os resultados por data (`executados[].result`) do sync D-1; aceita formato achatado legado."""
@@ -1214,9 +1223,34 @@ def _iter_sync_inner_results(sync_result: dict) -> list[dict]:
         inner = item.get("result")
         if isinstance(inner, dict):
             inners.append(inner)
-    if not inners and any(key in sync_result for key, _label in _SYNC_FILTER_LABELS):
-        inners.append(sync_result)
+    if not inners:
+        known_keys = set(_SYNC_VOLUME_KEYS)
+        known_keys.update(key for key, _label in _SYNC_FILTER_LABELS)
+        if any(key in sync_result for key in known_keys):
+            inners.append(sync_result)
     return inners
+
+
+def _sum_sync_metric(sync_result: dict, key: str) -> int:
+    """Soma uma metrica do D-1 considerando resultado por lookback ou formato legado."""
+    return sum(_safe_int(inner.get(key)) for inner in _iter_sync_inner_results(sync_result))
+
+
+def _build_filter_loss_summary(sync_result: dict, *, limit: int = 3) -> list[dict]:
+    """Top filtros que reduziram o universo elegivel do ciclo."""
+    totals: dict[str, tuple[str, int]] = {}
+    for inner in _iter_sync_inner_results(sync_result):
+        for key, label in _SYNC_FILTER_LABELS:
+            current_label, current_total = totals.get(key, (label, 0))
+            totals[key] = (current_label, current_total + _safe_int(inner.get(key)))
+
+    ranked = [
+        {"key": key, "label": label, "count": count}
+        for key, (label, count) in totals.items()
+        if count > 0
+    ]
+    ranked.sort(key=lambda item: item["count"], reverse=True)
+    return ranked[: max(0, limit)]
 
 
 def _summarize_zero_download_filters(sync_result: dict) -> str:
@@ -1235,6 +1269,89 @@ def _summarize_zero_download_filters(sync_result: dict) -> str:
     if not top:
         return ""
     return "; ".join(f"{label}: {count}" for label, count in top[:3])
+
+
+def _build_cycle_volume_plan(
+    sync_result: dict,
+    audit_result: dict,
+    *,
+    baixadas: int,
+    auditadas: int,
+    descartados: int,
+) -> dict:
+    """Resume meta solicitada, meta possivel e execucao real do ciclo.
+
+    A "meta possivel" aqui e o menor valor entre a meta solicitada e o universo
+    elegivel depois dos filtros do D-1. Isso evita tratar como falha de automacao
+    um dia em que o proprio funil operacional deixou menos ligacoes validas que
+    a meta pedida.
+    """
+    audit_result = audit_result if isinstance(audit_result, dict) else {}
+    requested = max(
+        _safe_int(audit_result.get("requested_audits")),
+        _safe_int(audit_result.get("target_count")),
+    )
+    eligible_after_filters = _sum_sync_metric(sync_result, "chamadas_validas_pos_filtro")
+    if eligible_after_filters <= 0:
+        eligible_after_filters = _sum_sync_metric(sync_result, "candidatos_download")
+
+    downloaded = max(_safe_int(baixadas), _sum_sync_metric(sync_result, "baixadas"))
+    queued = _sum_sync_metric(sync_result, "enfileiradas") or downloaded
+    possible = eligible_after_filters
+    if possible <= 0 and downloaded > 0:
+        possible = downloaded
+    if requested > 0 and possible > 0:
+        possible = min(requested, possible)
+
+    completed = _safe_int(auditadas)
+    discarded = _safe_int(descartados)
+    gap_to_requested = max(0, requested - completed) if requested > 0 else 0
+
+    if requested > 0 and eligible_after_filters > 0 and eligible_after_filters < requested:
+        gap_reason = "volume_elegivel_insuficiente"
+    elif possible > 0 and downloaded < possible:
+        gap_reason = "downloads_abaixo_do_possivel"
+    elif downloaded > 0 and completed < min(downloaded, requested or downloaded):
+        gap_reason = "auditoria_abaixo_do_lote"
+    elif requested > 0 and completed < requested:
+        gap_reason = "meta_nao_alcancada"
+    else:
+        gap_reason = "sem_gap"
+
+    return {
+        "requested_audits": requested,
+        "eligible_after_filters": eligible_after_filters,
+        "possible_audits": possible,
+        "downloaded": downloaded,
+        "queued": queued,
+        "completed_audits": completed,
+        "discarded": discarded,
+        "gap_to_requested": gap_to_requested,
+        "gap_reason": gap_reason,
+        "filter_losses": _build_filter_loss_summary(sync_result),
+    }
+
+
+def _volume_plan_from_cycle_run(latest_run: dict | None) -> dict | None:
+    """Recupera o plano versionado do ciclo ou recalcula para ciclos antigos."""
+    if not isinstance(latest_run, dict):
+        return None
+    result = latest_run.get("result") if isinstance(latest_run.get("result"), dict) else {}
+    volume_plan = result.get("volume_plan") if isinstance(result, dict) else None
+    if isinstance(volume_plan, dict):
+        return volume_plan
+
+    sync_result = latest_run.get("sync_result") if isinstance(latest_run.get("sync_result"), dict) else {}
+    audit_result = latest_run.get("audit_result") if isinstance(latest_run.get("audit_result"), dict) else {}
+    if not sync_result and not audit_result:
+        return None
+    return _build_cycle_volume_plan(
+        sync_result,
+        audit_result,
+        baixadas=_safe_int(latest_run.get("baixadas")),
+        auditadas=_safe_int(latest_run.get("auditadas")),
+        descartados=_safe_int(result.get("descartados")) if isinstance(result, dict) else 0,
+    )
 
 
 def set_automation_enabled(enabled: bool) -> None:
@@ -1647,6 +1764,13 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
             zero_download_filters=zero_download_filters,
             last_error=_current_status.get("last_error"),
         )
+        volume_plan = _build_cycle_volume_plan(
+            sync_result,
+            audit_result,
+            baixadas=baixadas,
+            auditadas=auditadas,
+            descartados=descartados,
+        )
         result = {
             "status": cycle_status,
             "source": source,
@@ -1655,6 +1779,7 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
             "baixadas": baixadas,
             "auditadas": auditadas,
             "descartados": descartados,
+            "volume_plan": volume_plan,
         }
 
         _update_status(
@@ -1663,6 +1788,7 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
             last_run=_now_iso(),
             last_run_source=source,
             last_result=result,
+            last_volume_plan=volume_plan,
             finished_at=_now_iso(),
         )
         _persist_cycle_update(
@@ -1749,6 +1875,7 @@ def get_engine_status() -> dict:
             is_paused=is_paused,
             is_cancelled=is_cancelled,
         )
+        latest_volume_plan = _volume_plan_from_cycle_run(latest_run)
         status.update(
             {
                 "current_stage": latest_run.get("stage") or status.get("current_stage"),
@@ -1762,6 +1889,7 @@ def get_engine_status() -> dict:
                 "last_sync": latest_run.get("sync_result"),
                 "last_audit": latest_audit,
                 "last_result": latest_run.get("result"),
+                "last_volume_plan": latest_volume_plan,
             }
         )
 

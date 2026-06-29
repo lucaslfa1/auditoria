@@ -1,4 +1,4 @@
-import { CheckCircle2, Database, Loader2, Pause, Play, XCircle } from 'lucide-react';
+import { CheckCircle2, Database, Info, Loader2, Pause, Play, XCircle } from 'lucide-react';
 
 import type { EngineStatus, PipelineSummary } from '../schemas';
 import {
@@ -50,6 +50,17 @@ export function AutomationRuntimePanel({
   const isIndeterminate = Boolean(engineStatus.is_running && auditTotal === 0);
   const progressWidth = isIndeterminate ? 100 : percent;
   const canControl = Boolean((engineStatus.is_running || auditView?.is_running || engineStatus.latest_run_is_stale) && !engineStatus.is_cancelled && !auditView?.is_cancelled);
+  const volumePlan = engineStatus.last_volume_plan;
+  const hasVolumePlan = Boolean(
+    volumePlan &&
+    (volumePlan.requested_audits > 0 ||
+      volumePlan.eligible_after_filters > 0 ||
+      volumePlan.completed_audits > 0),
+  );
+  const filterDetail = volumePlan?.filter_losses
+    ?.slice(0, 2)
+    .map((item) => `${item.label}: ${item.count}`)
+    .join(' · ');
 
   return (
     <section className="panel-box-lg space-y-6">
@@ -178,6 +189,25 @@ export function AutomationRuntimePanel({
             <Metric label="Baixadas (Hoje)" value={String(engineStatus.baixadas_total ?? 0)} />
             <Metric label="Auditadas (Hoje)" value={String(engineStatus.auditadas_total ?? 0)} />
           </dl>
+
+          {hasVolumePlan && volumePlan ? (
+            <div className="border-t border-white/10 pt-3 text-xs leading-5 text-slate-500 theme-light:border-slate-200 theme-light:text-slate-700">
+              <p className="flex items-center gap-2 font-semibold text-slate-300 theme-light:text-slate-800">
+                <Info className="h-4 w-4 text-sky-400" />
+                Meta do ciclo
+              </p>
+              <p className="mt-1">
+                {`Solicitadas ${volumePlan.requested_audits} · possíveis ${volumePlan.possible_audits} · executadas ${volumePlan.completed_audits}`}
+              </p>
+              {volumePlan.requested_audits > 0 && volumePlan.possible_audits < volumePlan.requested_audits ? (
+                <p>
+                  {filterDetail
+                    ? `Volume elegível menor que a meta; principais filtros: ${filterDetail}.`
+                    : 'Volume elegível menor que a meta.'}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

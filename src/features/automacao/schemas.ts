@@ -25,6 +25,33 @@ const booleanValue = (fallback = false) =>
     return fallback;
   });
 
+const CycleVolumePlanSchema = z
+  .object({
+    requested_audits: numberValue(0),
+    eligible_after_filters: numberValue(0),
+    possible_audits: numberValue(0),
+    downloaded: numberValue(0),
+    queued: numberValue(0),
+    completed_audits: numberValue(0),
+    discarded: numberValue(0),
+    gap_to_requested: numberValue(0),
+    gap_reason: text(''),
+    filter_losses: z
+      .array(
+        z
+          .object({
+            key: text(),
+            label: text(),
+            count: numberValue(0),
+          })
+          .passthrough(),
+      )
+      .catch([]),
+  })
+  .passthrough()
+  .nullable()
+  .catch(null);
+
 export const PipelineConfigSchema = z
   .object({
     enabled: booleanValue(false),
@@ -221,6 +248,7 @@ export const EngineStatusSchema = z
     last_sync: D1CycleResultSchema,
     last_audit: AuditProgressSchema.nullable().catch(null),
     last_result: z.any().nullable().catch(null),
+    last_volume_plan: CycleVolumePlanSchema,
     latest_run: AutomationCycleRunSchema,
     latest_run_is_stale: booleanValue(false),
     audit_progress: AuditProgressSchema,
@@ -246,6 +274,7 @@ export const EngineStatusSchema = z
     last_sync: null,
     last_audit: null,
     last_result: null,
+    last_volume_plan: null,
     latest_run: null,
     latest_run_is_stale: false,
     audit_progress: AuditProgressSchema.parse({}),
@@ -292,3 +321,4 @@ export type EngineStatus = z.infer<typeof EngineStatusSchema>;
 export type AuditProgress = z.infer<typeof AuditProgressSchema>;
 export type AutomationHealthReport = z.infer<typeof AutomationHealthReportSchema>;
 export type HealthStatus = z.infer<typeof HealthStatusSchema>;
+export type CycleVolumePlan = z.infer<typeof CycleVolumePlanSchema>;
