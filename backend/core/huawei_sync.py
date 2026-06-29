@@ -75,6 +75,7 @@ from core.huawei_direction import (
 from core.huawei_obs_client import HuaweiOBSClient
 from core.huawei_discovery import HuaweiDiscoveryService
 from core.huawei.filtro_duracao import aplicar_filtro_duracao
+from core.huawei.teto_operador import aplicar_teto_operador, registrar_download_operador
 from core import cost_guard
 from core.llm_triage import filtrar_ligacoes_com_llm
 from core.automation_disposition import Disposition, execute_discard
@@ -1082,25 +1083,21 @@ async def executar_sync_huawei(
                 _register_direction_skip(call_id, interacao, operador_resolvido, skip_reason)
                 continue
 
-            # Teto de download por operador POR CICLO (desacoplado da cota de
-            # compliance do supervisor). `cap_op_ciclo == 0` => sem teto. O contador
-            # `ignoradas_cota_mensal_pre_download` segue com o mesmo nome (lido por
-            # huawei_d_minus_1/automation_engine), mas agora conta cortes deste teto.
-            op_name_norm = str(operador_resolvido.get("nome") or operador_resolvido.get("name") or "").strip().lower()
-            op_id_norm = str(operador_resolvido.get("id_telefonia") or operador_resolvido.get("id_huawei") or "").strip().lower()
-            op_key = (op_name_norm, op_id_norm)
-
-            current_op_count = download_count_by_operator.get(op_key, 0)
-
-            if cap_op_ciclo > 0 and (op_name_norm or op_id_norm) and current_op_count >= cap_op_ciclo:
-                contadores.setdefault("ignoradas_cota_mensal_pre_download", 0)
-                contadores["ignoradas_cota_mensal_pre_download"] += 1
+            # Regra operacional documentada em core/huawei/teto_operador.py:
+            # este teto e por ciclo de download, nao a cota mensal do supervisor.
+            teto_operador = aplicar_teto_operador(
+                contadores,
+                download_count_by_operator,
+                operador_resolvido,
+                teto_por_operador=cap_op_ciclo,
+            )
+            if teto_operador.descartar:
                 database.huawei_sync_log_registrar(
                     call_id=call_id,
-                    agent_id=op_id_norm or None,
+                    agent_id=teto_operador.agent_id,
                     media_url=None,
-                    status="skipped_quota",
-                    failure_reason="teto_download_por_operador_ciclo",
+                    status=teto_operador.status_log,
+                    failure_reason=teto_operador.motivo_log,
                     operator_name=_resolve_operator_name_from_interacao(interacao, operador_resolvido),
                     huawei_skill_id=_resolve_huawei_skill_id_field(interacao),
                 )
@@ -1146,7 +1143,7 @@ async def executar_sync_huawei(
             por_setor_count[cand_setor] = por_setor_count.get(cand_setor, 0) + 1
             call_ids_tentados_no_ciclo.add(call_id)
             # Conta este download no teto por operador do ciclo (so candidatos reais).
-            download_count_by_operator[op_key] = current_op_count + 1
+            registrar_download_operador(download_count_by_operator, teto_operador)
 
 
         contadores["chamadas_validas_pos_filtro"] = len(call_ids_validos_unicos)
