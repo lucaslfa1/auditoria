@@ -74,6 +74,7 @@ from core.huawei_direction import (
 )
 from core.huawei_obs_client import HuaweiOBSClient
 from core.huawei_discovery import HuaweiDiscoveryService
+from core.huawei.filtro_duracao import aplicar_filtro_duracao
 from core import cost_guard
 from core.llm_triage import filtrar_ligacoes_com_llm
 from core.automation_disposition import Disposition, execute_discard
@@ -1112,18 +1113,16 @@ async def executar_sync_huawei(
                 max_duration_seconds,
             )
 
-            duration = get_call_duration_seconds(interacao)
-            duration_known = _call_duration_is_known(interacao)
-            if duration_known and duration < min_sec:
-                contadores.setdefault("ignoradas_duracao_minima", 0)
-                contadores["ignoradas_duracao_minima"] += 1
+            # Regra operacional documentada em core/huawei/filtro_duracao.py:
+            # minimo inclusivo (110s passa), maximo opcional e duracao ausente
+            # segue no funil para evitar perda por manifesto Huawei incompleto.
+            if aplicar_filtro_duracao(
+                contadores,
+                interacao,
+                minimo_segundos=min_sec,
+                maximo_segundos=max_sec,
+            ):
                 continue
-            if duration_known and max_sec > 0 and duration > max_sec:
-                contadores.setdefault("ignoradas_duracao_maxima", 0)
-                contadores["ignoradas_duracao_maxima"] += 1
-                continue
-            if not duration_known:
-                contadores["sem_duracao_consideradas"] += 1
 
             call_ids_validos_unicos.add(call_id)
             # Rodizio por setor: limita a coleta a `max_download_attempts` POR SETOR
