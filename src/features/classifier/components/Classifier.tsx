@@ -706,9 +706,6 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
                                             </p>
                                             {result.duplicate && (
                                                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                                                        {result.duplicate_label || (result.duplicate_reason === 'already_audited' ? 'Já auditado' : 'Já na triagem')}
-                                                    </span>
                                                     <button
                                                         onClick={() => void forceReclassify(index)}
                                                         disabled={isProcessing}
@@ -923,9 +920,6 @@ export function Classifier({ theme, auditedIndices, onStartAudit }: ClassifierPr
                                                         </span>
                                                         {result.duplicate && (
                                                             <div className="flex items-center gap-2">
-                                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap">
-                                                                    {result.duplicate_label || (result.duplicate_reason === 'already_audited' ? 'Já auditado' : 'Já na triagem')}
-                                                                </span>
                                                                 <button
                                                                     onClick={() => void forceReclassify(index)}
                                                                     disabled={isProcessing}
