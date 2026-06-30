@@ -366,7 +366,10 @@ class TestCoreLogic(unittest.TestCase):
                 else:
                     os.environ[key] = value
 
-    def test_transcribe_audio_keeps_fast_only_without_premium_fallback(self):
+    def test_transcribe_audio_keeps_fast_only_when_premium_fallback_disabled(self):
+        # Desde 2026-06-30 o fallback premium volta a ser LIGADO por padrao
+        # (reverte o corte de 10/06). Este teste cobre o opt-out explicito por
+        # env: com os fallbacks desligados, o pipeline fica so no `fast`.
         env_keys = [
             "AZURE_SPEECH_ENDPOINT",
             "AZURE_TRANSCRIPTION_ENGINE",
@@ -388,7 +391,7 @@ class TestCoreLogic(unittest.TestCase):
                 "AZURE_WHISPER_FALLBACK",
                 "AZURE_SDK_FALLBACK",
             ):
-                os.environ.pop(key, None)
+                os.environ[key] = "false"
 
             with (
                 patch.object(core.transcription, "AI_PROVIDER_PRIORITY", "azure"),

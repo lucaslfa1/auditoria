@@ -1509,9 +1509,17 @@ async def transcribe_audio(
         else:
             engine = env_engine
         
-        allow_sdk_fallback = _env_flag("AZURE_SDK_FALLBACK", False)
+        allow_sdk_fallback = _env_flag("AZURE_SDK_FALLBACK", True)
 
-        premium_fallback_enabled = _env_flag("AZURE_PREMIUM_TRANSCRIPTION_FALLBACK", False)
+        # 2026-06-30: revertido o corte de 10/06 que deixou o `fast` sem rede de
+        # seguranca e degradou a qualidade (alucinacoes + troca de interlocutor).
+        # Volta o fallback premium ao padrao LIGADO (estado pre-10/06): o `fast`
+        # roda primeiro e so aciona Whisper/GPT-4o Diarize quando o resultado sai
+        # ruim (diarizacao fraca / risco de troca alto); o selector escolhe o
+        # melhor candidato. Continua desligavel por env
+        # (AZURE_PREMIUM_TRANSCRIPTION_FALLBACK=false) se o custo Azure apertar;
+        # o teto diario de custo (v1.3.114) segue protegendo contra estouro.
+        premium_fallback_enabled = _env_flag("AZURE_PREMIUM_TRANSCRIPTION_FALLBACK", True)
         allow_whisper_fallback = (
             engine in {"hybrid_dual", "whisper"}
             or premium_fallback_enabled
