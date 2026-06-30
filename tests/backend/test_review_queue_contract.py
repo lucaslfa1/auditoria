@@ -516,6 +516,8 @@ class TestReviewQueueContract(unittest.TestCase):
         mock_audit_single_item,
         mock_concurrency,
     ):
+        # Força concorrência = 1 para que o loop serial legado (que chama asyncio.sleep)
+        # seja executado e possamos assinalar as chamadas do mock_sleep.
         mock_listar.return_value = [
             {
                 "input_hash": "hash-operator",
@@ -1200,6 +1202,8 @@ class TestReviewQueueContract(unittest.TestCase):
         mock_sleep,
         mock_concurrency,
     ):
+        # Força concorrência = 1 para que o loop serial legado (que chama asyncio.sleep)
+        # seja executado e possamos assinalar as chamadas do mock_sleep.
         mock_listar.return_value = [
             {
                 "input_hash": "queue-hash-missing",

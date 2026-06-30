@@ -140,6 +140,10 @@ def _ready_queue_quota_debt_sql(jsonb_src: str) -> str:
                     ))
                     FROM audits a
                     WHERE (
+                        -- Otimização: Divide a consulta com OR para permitir que o PostgreSQL use
+                        -- o índice individual em audit_date (caso preenchido) ou timestamp (caso contrário).
+                        -- Compara strings brutas formatadas via TO_CHAR para evitar castings custosos
+                        -- e proteger a query contra erros de conversão de data (CAST/Parse Exception) em tempo de execução.
                         (a.audit_date IS NOT NULL AND a.audit_date >= TO_CHAR(date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM-DD')
                          AND a.audit_date < TO_CHAR(date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '1 month', 'YYYY-MM-DD'))
                         OR
