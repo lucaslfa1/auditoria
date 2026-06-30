@@ -165,6 +165,16 @@ def upsert_colaborador(
                 """,
                 (nome, supervisor, setor, escala, status, auditavel_value, id_weon, id_huawei, row[0]),
             )
+            cursor.execute(
+                """
+                UPDATE fechamento_layout_operadores
+                SET nome = %s, supervisor = %s, setor = %s, matricula = %s,
+                    turno_operacao = %s, huawei = %s, weon = %s, status_base = %s,
+                    atualizado_em = CURRENT_TIMESTAMP
+                WHERE colaborador_id = %s
+                """,
+                (nome, supervisor, setor, matricula, escala, id_huawei, id_weon, status, row[0]),
+            )
         else:
             cursor.execute(
                 """
@@ -257,6 +267,15 @@ def upsert_colaborador_telefonia(
                     """,
                     (existing_row["id"],),
                 )
+                cursor.execute(
+                    """
+                    UPDATE fechamento_layout_operadores
+                    SET status_base = 'INATIVO',
+                        atualizado_em = CURRENT_TIMESTAMP
+                    WHERE colaborador_id = %s
+                    """,
+                    (existing_row["id"],),
+                )
                 conn.commit()
             return
 
@@ -302,6 +321,22 @@ def upsert_colaborador_telefonia(
                     organizacao_telefonia or existing_row["organizacao_telefonia"] or "",
                     tipo_agente or existing_row["tipo_agente"] or "",
                     status_telefonia or existing_row["status_telefonia"] or "",
+                    existing_row["id"],
+                ),
+            )
+            cursor.execute(
+                """
+                UPDATE fechamento_layout_operadores
+                SET nome = %s, setor = %s, turno_operacao = %s, status_base = %s,
+                    huawei = %s, atualizado_em = CURRENT_TIMESTAMP
+                WHERE colaborador_id = %s
+                """,
+                (
+                    nome or existing_row["nome"] or "",
+                    resolved_setor,
+                    resolved_escala,
+                    existing_row["status"] or mapped_status,
+                    resolved_id_huawei,
                     existing_row["id"],
                 ),
             )
@@ -990,6 +1025,26 @@ def update_colaborador(
                 colaborador_id,
             ),
         )
+        cursor.execute(
+            """
+            UPDATE fechamento_layout_operadores
+            SET nome = %s, supervisor = %s, setor = %s, matricula = %s,
+                turno_operacao = %s, huawei = %s, weon = %s, status_base = %s,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE colaborador_id = %s
+            """,
+            (
+                nome.strip(),
+                supervisor,
+                setor,
+                matricula,
+                escala,
+                id_huawei,
+                id_weon,
+                status,
+                colaborador_id,
+            ),
+        )
         updated = cursor.rowcount > 0
         if updated:
             snapshot_after = _snapshot_colaborador(cursor, colaborador_id)
@@ -1123,6 +1178,15 @@ def bulk_apply_colaborador_action(
         cursor.execute(
             f"UPDATE colaboradores SET {assignments} WHERE id = ANY(%s)",
             (normalized_ids,),
+        )
+        layout_status = "ATIVO" if action in ("activate", "enable_audit") else "INATIVO"
+        cursor.execute(
+            """
+            UPDATE fechamento_layout_operadores
+            SET status_base = %s, atualizado_em = CURRENT_TIMESTAMP
+            WHERE colaborador_id = ANY(%s)
+            """,
+            (layout_status, normalized_ids),
         )
         updated = cursor.rowcount
         conn.commit()
