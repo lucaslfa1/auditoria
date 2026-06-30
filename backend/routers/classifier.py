@@ -378,7 +378,14 @@ async def correct_classification(
     if not sector:
         raise HTTPException(status_code=400, detail="Setor invalido para correcao manual.")
 
-    alert = next((item for item in sector.get("alerts", []) if item["id"] == alert_id), None)
+    sector_alerts = sector.alerts if hasattr(sector, "alerts") else sector.get("alerts", [])
+    alert = next(
+        (
+            item for item in sector_alerts
+            if (item.id if hasattr(item, "id") else item.get("id")) == alert_id
+        ),
+        None,
+    )
     if not alert:
         raise HTTPException(status_code=400, detail="Alerta invalido para o setor informado.")
 
@@ -425,14 +432,17 @@ async def correct_classification(
         except Exception as persist_error:
             logger.warning("Manual classification persistence warning: %s", persist_error)
 
+    sector_label = str(sector.label if hasattr(sector, "label") else sector.get("label", ""))
+    alert_label = str(alert.label if hasattr(alert, "label") else alert.get("label", ""))
+
     return {
         "result": {
             "filename": updated["nome_arquivo"],
             "input_hash": updated["input_hash"],
             "sector_id": sector_id,
-            "sector_label": str(sector["label"]),
+            "sector_label": sector_label,
             "alert_id": alert_id,
-            "alert_label": str(alert["label"]),
+            "alert_label": alert_label,
             "confidence": updated.get("confianca"),
             "operator_name": updated.get("operador_previsto"),
             "error": updated.get("erro"),
