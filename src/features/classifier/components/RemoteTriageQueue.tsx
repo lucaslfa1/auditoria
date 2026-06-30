@@ -661,9 +661,9 @@ export function RemoteTriageQueue() {
                                 onOperatorIdChange={setEditOperatorId}
                                 onOperatorSelect={(op: any) => {
                                     setEditOperatorName(op.name);
-                                    setEditOperatorId(op.id);
-                                    setEditSupervisor(op.supervisor);
-                                    setEditEscala(op.escala);
+                                    setEditOperatorId(op.preferredId || op.matricula || '');
+                                    setEditSupervisor(op.supervisor || '');
+                                    setEditEscala(op.escala || '');
                                 }}
                                 theme="dark"
                             />
