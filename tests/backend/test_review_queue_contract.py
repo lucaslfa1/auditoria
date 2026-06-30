@@ -503,6 +503,7 @@ class TestReviewQueueContract(unittest.TestCase):
         self.assertEqual(applied["deleted"], ["old-orphan.wav"])
         self.assertEqual(applied["referenced"], 1)
 
+    @patch.object(automation, "_get_automation_audit_concurrency", return_value=1)
     @patch.object(automation, "_audit_single_item_with_timeout", new_callable=AsyncMock)
     @patch.object(automation.asyncio, "sleep", new_callable=AsyncMock)
     @patch.object(automation.database, "atualizar_status_fila_revisao_classificacao")
@@ -513,6 +514,7 @@ class TestReviewQueueContract(unittest.TestCase):
         mock_atualizar_status,
         mock_sleep,
         mock_audit_single_item,
+        mock_concurrency,
     ):
         mock_listar.return_value = [
             {
@@ -1185,6 +1187,7 @@ class TestReviewQueueContract(unittest.TestCase):
         self.assertEqual(kwargs["metadata_merge"]["audit_id"], 123)
         self.assertEqual(kwargs["metadata_merge"]["audit_input_hash"], "audit-hash-pdf")
 
+    @patch.object(automation, "_get_automation_audit_concurrency", return_value=1)
     @patch.object(automation.asyncio, "sleep", new_callable=AsyncMock)
     @patch.object(automation.database, "atualizar_status_fila_revisao_classificacao")
     @patch.object(automation.database, "listar_fila_revisao_classificacao")
@@ -1195,6 +1198,7 @@ class TestReviewQueueContract(unittest.TestCase):
         mock_listar,
         mock_update_queue_status,
         mock_sleep,
+        mock_concurrency,
     ):
         mock_listar.return_value = [
             {

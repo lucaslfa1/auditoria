@@ -139,10 +139,13 @@ def _ready_queue_quota_debt_sql(jsonb_src: str) -> str:
                         COALESCE(a.source_type, '')
                     ))
                     FROM audits a
-                    WHERE CAST(COALESCE(a.audit_date, a.timestamp) AS DATE)
-                              >= date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date
-                      AND CAST(COALESCE(a.audit_date, a.timestamp) AS DATE)
-                              < (date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '1 month')::date
+                    WHERE (
+                        (a.audit_date IS NOT NULL AND a.audit_date >= TO_CHAR(date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM-DD')
+                         AND a.audit_date < TO_CHAR(date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '1 month', 'YYYY-MM-DD'))
+                        OR
+                        (a.audit_date IS NULL AND a.timestamp >= TO_CHAR(date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM-DD')
+                         AND a.timestamp < TO_CHAR(date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '1 month', 'YYYY-MM-DD'))
+                    )
                       AND COALESCE(a.audit_scope, {scope}) = {scope}
                       AND COALESCE(a.status, '') <> {discarded}
                       AND (
