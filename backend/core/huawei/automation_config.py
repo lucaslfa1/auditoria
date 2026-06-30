@@ -40,6 +40,8 @@ DEFAULT_HUAWEI_AUTO_AUDIT_CONFIDENCE_THRESHOLD = 0.90
 # envio ao supervisor). Objetivo: o volume baixado se aproximar da meta sem ficar
 # preso em 2/operador. 0 = ilimitado (segue so a meta + rodizio por setor).
 DEFAULT_HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO = 10
+DEFAULT_AUTOMACAO_COBERTURA_INICIAL_DIAS = 3
+DEFAULT_AUTOMACAO_COBERTURA_INICIAL_MIN_POR_OPERADOR = 2
 
 # Linhas fixas da CENTRAL (47 3481-6122 / 47 2101-6122 e ramais do mesmo bloco),
 # usadas para inferir a direção de ligações que vêm sem `isCallIn` (manifesto OBS).
@@ -237,6 +239,29 @@ def _download_max_por_operador_ciclo() -> int:
         DEFAULT_HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO,
     )
     return max(0, valor)
+
+
+
+def _initial_quota_coverage_days() -> int:
+    """Dias iniciais do mes em que a coleta prioriza operadores abaixo da cobertura."""
+
+    valor = _runtime_int_config(
+        "AUTOMACAO_COBERTURA_INICIAL_DIAS",
+        ("automacao_cobertura_inicial_dias",),
+        DEFAULT_AUTOMACAO_COBERTURA_INICIAL_DIAS,
+    )
+    return max(0, valor)
+
+
+def _initial_quota_coverage_min_per_operator() -> int:
+    """Minimo de auditorias por operador priorizado durante a janela inicial."""
+
+    valor = _runtime_int_config(
+        "AUTOMACAO_COBERTURA_INICIAL_MIN_POR_OPERADOR",
+        ("automacao_cobertura_inicial_min_por_operador", "huawei_cota_max_por_operador_mes"),
+        DEFAULT_AUTOMACAO_COBERTURA_INICIAL_MIN_POR_OPERADOR,
+    )
+    return max(1, valor)
 
 
 def _runtime_float_config(env_key: str, db_keys: tuple[str, ...], default: float) -> float:

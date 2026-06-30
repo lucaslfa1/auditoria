@@ -3,6 +3,7 @@ import sys
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, call, patch
+from zoneinfo import ZoneInfo
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -709,7 +710,16 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         for kwargs in [call_item.kwargs for call_item in enqueue.await_args_list]:
             self.assertNotIn("pular_triagem", kwargs)
 
-    async def _run_sync_selection(self, chamadas, *, env, config_values, operadores=None):
+    async def _run_sync_selection(
+        self,
+        chamadas,
+        *,
+        env,
+        config_values,
+        operadores=None,
+        monthly_counts=None,
+        now_sp=None,
+    ):
         """Roda executar_sync_huawei com os mocks-padrao e devolve o result dict.
 
         Reaproveita o cenario de test_executar_sync_limits_downloads_to_twenty_*:
@@ -748,6 +758,17 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
 
         with contextlib.ExitStack() as stack:
             stack.enter_context(patch.dict(os.environ, env, clear=True))
+            if now_sp is not None:
+                real_datetime = datetime
+
+                class FixedDatetime(real_datetime):
+                    @classmethod
+                    def now(cls, tz=None):
+                        if tz is None:
+                            return now_sp.replace(tzinfo=None)
+                        return now_sp.astimezone(tz)
+
+                stack.enter_context(patch.object(huawei_sync, "datetime", FixedDatetime))
             stack.enter_context(patch.object(huawei_sync._HuaweiSyncExecutionLock, "acquire", return_value=True))
             stack.enter_context(patch.object(huawei_sync._HuaweiSyncExecutionLock, "release", return_value=None))
             stack.enter_context(patch.object(huawei_sync, "_ensure_enabled", return_value=True))
@@ -763,11 +784,19 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
             ))
             stack.enter_context(patch.object(huawei_sync.database, "huawei_sync_log_exists", return_value=False))
             stack.enter_context(patch.object(huawei_sync.database, "huawei_sync_log_registrar"))
-            stack.enter_context(patch("repositories.audits.get_operator_audit_counts_for_month_bulk", return_value={}))
+            stack.enter_context(
+                patch(
+                    "repositories.audits.get_operator_audit_counts_for_month_bulk",
+                    return_value=monthly_counts or {},
+                )
+            )
             stack.enter_context(patch.object(huawei_sync.database, "get_config_value", side_effect=fake_get_config))
             stack.enter_context(patch("core.huawei_sync.HuaweiOBSClient", new=mock_obs_cls))
-            stack.enter_context(patch.object(huawei_sync, "_enfileirar_audio", AsyncMock(return_value={"status": "queued"})))
-            return await huawei_sync.executar_sync_huawei(horas_retroativas=1)
+            enqueue = AsyncMock(return_value={"status": "queued"})
+            stack.enter_context(patch.object(huawei_sync, "_enfileirar_audio", enqueue))
+            result = await huawei_sync.executar_sync_huawei(horas_retroativas=1)
+            result["_enqueue_filenames"] = [call_item.args[1] for call_item in enqueue.await_args_list]
+            return result
 
     @staticmethod
     def _chamadas_mesmo_operador(n):
@@ -797,6 +826,7 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
             },
             config_values={
                 "huawei_download_max_por_operador_ciclo": "3",
+                "automacao_cobertura_inicial_dias": "0",
                 # cota do supervisor NAO deve influir no download:
                 "huawei_cota_max_por_operador_mes": "2",
             },
@@ -817,11 +847,92 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
             },
             config_values={
                 "huawei_download_max_por_operador_ciclo": "0",
+                "automacao_cobertura_inicial_dias": "0",
                 "huawei_cota_max_por_operador_mes": "2",
             },
         )
         self.assertEqual(result["candidatos_download"], 25)
         self.assertEqual(result.get("ignoradas_cota_mensal_pre_download", 0), 0)
+
+    async def test_cobertura_inicial_prioriza_operador_abaixo_da_cota(self):
+        operadores = [
+            {
+                "id": 1,
+                "id_huawei": "HUA-CHEIO",
+                "id_telefonia": "HUA-CHEIO",
+                "nome": "Operador Cheio",
+                "setor": "uti",
+                "escala": "",
+                "matricula": "MAT-CHEIO",
+                "supervisor": "",
+            },
+            {
+                "id": 2,
+                "id_huawei": "HUA-VAZIO",
+                "id_telefonia": "HUA-VAZIO",
+                "nome": "Operador Vazio",
+                "setor": "uti",
+                "escala": "",
+                "matricula": "MAT-VAZIO",
+                "supervisor": "",
+            },
+        ]
+        chamadas = [
+            {
+                "callId": f"cheio-{i}",
+                "duration": 300,
+                "beginTime": 1777516670000 + i * 1000,
+                "endTime": 1777516970000 + i * 1000,
+                "isCallIn": "false",
+                "workNo": "HUA-CHEIO",
+                "operatorName": "Operador Cheio",
+            }
+            for i in range(3)
+        ] + [
+            {
+                "callId": f"vazio-{i}",
+                "duration": 120,
+                "beginTime": 1777510000000 + i * 1000,
+                "endTime": 1777510120000 + i * 1000,
+                "isCallIn": "false",
+                "workNo": "HUA-VAZIO",
+                "operatorName": "Operador Vazio",
+            }
+            for i in range(3)
+        ]
+
+        result = await self._run_sync_selection(
+            chamadas,
+            env={
+                "HUAWEI_SYNC_MIN_DURATION_SECONDS": "10",
+                "HUAWEI_SYNC_MAX_DURATION_SECONDS": "0",
+                "HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS": "2",
+            },
+            config_values={
+                "huawei_download_max_por_operador_ciclo": "10",
+                "automacao_cobertura_inicial_dias": "3",
+                "automacao_cobertura_inicial_min_por_operador": "2",
+            },
+            monthly_counts={
+                ("operador cheio", "mat-cheio"): 2,
+                ("operador vazio", "mat-vazio"): 0,
+            },
+            operadores=operadores,
+            now_sp=datetime(2026, 6, 10, 12, 0, 0, tzinfo=ZoneInfo("America/Sao_Paulo")),
+        )
+
+        self.assertTrue(result["cobertura_inicial_ativa"])
+        self.assertTrue(result["cobertura_inicial_estendida_por_divida"])
+        self.assertEqual(result["operadores_abaixo_cobertura_inicial"], 1)
+        self.assertEqual(result["cobertura_inicial_divida_total"], 2)
+        self.assertEqual(result["candidatos_download"], 2)
+        self.assertEqual(
+            result["_enqueue_filenames"],
+            [
+                "ligacao_huawei_operador_vazio_vazio_2.wav",
+                "ligacao_huawei_operador_vazio_vazio_1.wav",
+            ],
+        )
 
     def test_obs_prefix_candidates_uses_call_phones_before_agent_id(self):
         result = huawei_sync._obs_prefix_candidates(

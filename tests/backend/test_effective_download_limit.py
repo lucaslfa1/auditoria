@@ -19,6 +19,8 @@ def _clear_env(monkeypatch):
         "AUTOMATION_AUDIT_TARGET_COUNT",
         "AUTOMATION_AUDIT_BATCH_SIZE",
         "HUAWEI_DOWNLOAD_MAX_POR_OPERADOR_CICLO",
+        "AUTOMACAO_COBERTURA_INICIAL_DIAS",
+        "AUTOMACAO_COBERTURA_INICIAL_MIN_POR_OPERADOR",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -120,3 +122,29 @@ def test_download_por_operador_nao_le_chave_de_compliance(monkeypatch):
     # Setar so a cota do supervisor NAO afeta o teto de download (default 10).
     _patch_config(monkeypatch, {"huawei_cota_max_por_operador_mes": "2"})
     assert huawei_sync._download_max_por_operador_ciclo() == 10
+
+
+# --- Cobertura inicial obrigatoria por operador ---
+
+
+def test_cobertura_inicial_default(monkeypatch):
+    _patch_config(monkeypatch, {})
+    assert huawei_sync._initial_quota_coverage_days() == 3
+    assert huawei_sync._initial_quota_coverage_min_per_operator() == 2
+
+
+def test_cobertura_inicial_configuravel(monkeypatch):
+    _patch_config(
+        monkeypatch,
+        {
+            "automacao_cobertura_inicial_dias": "5",
+            "automacao_cobertura_inicial_min_por_operador": "4",
+        },
+    )
+    assert huawei_sync._initial_quota_coverage_days() == 5
+    assert huawei_sync._initial_quota_coverage_min_per_operator() == 4
+
+
+def test_cobertura_inicial_minimo_fallback_cota_compliance(monkeypatch):
+    _patch_config(monkeypatch, {"huawei_cota_max_por_operador_mes": "3"})
+    assert huawei_sync._initial_quota_coverage_min_per_operator() == 3

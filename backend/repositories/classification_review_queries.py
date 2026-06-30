@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Callable, Optional, Any
 
 from db.domain_constants import (
+    AUDIT_STATUS_DISCARDED,
     REVIEW_QUEUE_MANUAL_TRIAGE_STATUSES,
     REVIEW_QUEUE_READY_STATUSES,
     REVIEW_QUEUE_STATUS_ALL,
@@ -21,6 +22,7 @@ from db.domain_constants import (
     REVIEW_QUEUE_STATUS_READY_FOR_AUDIT,
 )
 from repositories.common import (
+    CALL_QUALITY_SCOPE,
     harden_jsonb_nul_cast,
     json_loads,
     normalize_review_status,
@@ -69,6 +71,130 @@ def _huawei_operator_id_candidates_sql(jsonb_src: str) -> str:
         _normalize_huawei_id_sql(f"{jsonb_src} ->> '{key}'")
         for key in _HUAWEI_OPERATOR_ID_METADATA_KEYS
     )
+
+
+def _sql_literal(value: str) -> str:
+    """Small SQL string literal helper for trusted in-code constants."""
+
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _queue_operator_name_sql(jsonb_src: str) -> str:
+    """Operator name expression available before the official lateral joins."""
+
+    return f"""
+        COALESCE(
+            NULLIF(TRIM(f.operador_previsto), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'operator_name'), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'operator_name_real'), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'huawei_operator_name'), '')
+        )
+    """
+
+
+def _queue_operator_quota_id_sql(jsonb_src: str) -> str:
+    """Operator id expression used only for quota ordering.
+
+    Prefer matricula because `audits.operator_id` stores matricula in production.
+    Huawei ids remain later fallbacks, and the count also matches by name.
+    """
+
+    return f"""
+        COALESCE(
+            NULLIF(TRIM({jsonb_src} ->> 'operator_matricula'), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'matricula'), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'operator_id'), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'operator_id_huawei_real'), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'id_huawei'), ''),
+            NULLIF(TRIM({jsonb_src} ->> 'huawei_agent_id'), '')
+        )
+    """
+
+
+def _ready_queue_quota_debt_sql(jsonb_src: str) -> str:
+    """Debt score for initial-month coverage ordering of ready audit items.
+
+    The first N days of the month (config default 3) are the critical window, but
+    any remaining coverage debt keeps sorting priority until the operator reaches
+    the configured minimum (default 2). This is only ordering; it does not block
+    auditing.
+    """
+
+    op_name = _queue_operator_name_sql(jsonb_src)
+    op_id = _queue_operator_quota_id_sql(jsonb_src)
+    scope = _sql_literal(CALL_QUALITY_SCOPE)
+    discarded = _sql_literal(AUDIT_STATUS_DISCARDED)
+    return f"""
+        CASE
+            WHEN qp.cobertura_inicial_dias > 0
+                 AND qp.cobertura_inicial_min_por_operador > 0
+            THEN GREATEST(
+                qp.cobertura_inicial_min_por_operador
+                - COALESCE((
+                    SELECT COUNT(DISTINCT CONCAT_WS(
+                        '|',
+                        COALESCE(NULLIF(TRIM(a.operator_id), ''), LOWER(TRIM(COALESCE(a.operator_name, '')))),
+                        COALESCE(a.timestamp::text, ''),
+                        COALESCE(a.alert_id, ''),
+                        COALESCE(a.source_type, '')
+                    ))
+                    FROM audits a
+                    WHERE CAST(COALESCE(a.audit_date, a.timestamp) AS DATE)
+                              >= date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date
+                      AND CAST(COALESCE(a.audit_date, a.timestamp) AS DATE)
+                              < (date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '1 month')::date
+                      AND COALESCE(a.audit_scope, {scope}) = {scope}
+                      AND COALESCE(a.status, '') <> {discarded}
+                      AND (
+                          (({op_id}) <> '' AND LOWER(TRIM(COALESCE(a.operator_id, ''))) = LOWER(({op_id})))
+                          OR (({op_name}) <> '' AND LOWER(TRIM(COALESCE(a.operator_name, ''))) = LOWER(({op_name})))
+                      )
+                ), 0),
+                0
+            )
+            ELSE 0
+        END
+    """
+
+
+_QUOTA_PARAMS_CTE = """
+    quota_params AS MATERIALIZED (
+        SELECT
+            COALESCE(
+                (
+                    SELECT CASE
+                        WHEN TRIM(valor) ~ '^[0-9]+$' THEN GREATEST(0, TRIM(valor)::int)
+                        ELSE NULL
+                    END
+                    FROM configuracoes
+                    WHERE chave = 'automacao_cobertura_inicial_dias'
+                    LIMIT 1
+                ),
+                3
+            ) AS cobertura_inicial_dias,
+            COALESCE(
+                (
+                    SELECT CASE
+                        WHEN TRIM(valor) ~ '^[0-9]+$' THEN GREATEST(1, TRIM(valor)::int)
+                        ELSE NULL
+                    END
+                    FROM configuracoes
+                    WHERE chave = 'automacao_cobertura_inicial_min_por_operador'
+                    LIMIT 1
+                ),
+                (
+                    SELECT CASE
+                        WHEN TRIM(valor) ~ '^[0-9]+$' THEN GREATEST(1, TRIM(valor)::int)
+                        ELSE NULL
+                    END
+                    FROM configuracoes
+                    WHERE chave = 'huawei_cota_max_por_operador_mes'
+                    LIMIT 1
+                ),
+                2
+            ) AS cobertura_inicial_min_por_operador
+    )
+"""
 
 
 def listar_fila_revisao_classificacao(
@@ -154,10 +280,21 @@ def listar_fila_revisao_classificacao(
 
         where_clause = f"WHERE {' AND '.join(filtros)}" if filtros else ""
 
+        quota_priority_enabled = (
+            status_normalizado == REVIEW_QUEUE_STATUS_READY_FOR_AUDIT
+            and order_by != "recent"
+        )
+        quota_debt_expr = (
+            _ready_queue_quota_debt_sql("f.metadata_json::jsonb")
+            if quota_priority_enabled
+            else "0"
+        )
         if order_by == "recent":
             order_clause = "ORDER BY atualizado_em DESC, id DESC"
+            final_order_clause = "ORDER BY f.atualizado_em DESC, f.id DESC"
         else:
-            order_clause = "ORDER BY CASE prioridade WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, atualizado_em DESC, id DESC"
+            order_clause = "ORDER BY _quota_debt DESC, CASE prioridade WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, atualizado_em DESC, id DESC"
+            final_order_clause = "ORDER BY f._quota_debt DESC, CASE f.prioridade WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, f.atualizado_em DESC, f.id DESC"
 
         limit_clause = "LIMIT %s" if limit is not None else ""
 
@@ -170,9 +307,11 @@ def listar_fila_revisao_classificacao(
         # alteram quais linhas nem a ordem; mover ORDER/LIMIT para a CTE só evita
         # rodar os laterais em linhas que seriam descartadas).
         query = f"""
-            WITH f_base AS MATERIALIZED (
-                SELECT f.*, f.metadata_json::jsonb AS _mj
+            WITH {_QUOTA_PARAMS_CTE},
+            f_base AS MATERIALIZED (
+                SELECT f.*, f.metadata_json::jsonb AS _mj, ({quota_debt_expr})::int AS _quota_debt
                 FROM fila_revisao_classificacao f
+                CROSS JOIN quota_params qp
                 {where_clause}
                 {order_clause}
                 {limit_clause}
@@ -227,7 +366,7 @@ def listar_fila_revisao_classificacao(
                     c.nome
                 LIMIT 1
             ) official_by_name ON TRUE
-            {order_clause}
+            {final_order_clause}
         """
         if limit is not None:
             params.append(limit)

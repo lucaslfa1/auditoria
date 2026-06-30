@@ -76,6 +76,13 @@ from core.huawei_obs_client import HuaweiOBSClient
 from core.huawei_discovery import HuaweiDiscoveryService
 from core.huawei.filtro_duracao import aplicar_filtro_duracao
 from core.huawei.teto_operador import aplicar_teto_operador, registrar_download_operador
+from core.huawei.cobertura_operador import (
+    calcular_dividas_cobertura,
+    chaves_operadores_cobertura,
+    cobertura_inicial_ativa,
+    divida_cobertura_operador,
+    teto_por_cobertura,
+)
 from core import cost_guard
 from core.llm_triage import filtrar_ligacoes_com_llm
 from core.automation_disposition import Disposition, execute_discard
@@ -111,6 +118,8 @@ from core.huawei.automation_config import (  # noqa: E402,F401
     _runtime_float_config,
     _effective_download_attempt_limit,
     _download_max_por_operador_ciclo,
+    _initial_quota_coverage_days,
+    _initial_quota_coverage_min_per_operator,
     _get_huawei_auto_audit_confidence_threshold,
     _env_flag,
     _should_run_auto_classification_after_sync,
@@ -749,6 +758,46 @@ def _selecionar_rodizio_por_setor(candidatas: list[dict], limite: int) -> list[d
     return selecionadas
 
 
+
+def _operator_for_coverage_sort(
+    interacao: dict,
+    operator_by_id: dict,
+    operator_by_name: dict,
+) -> dict:
+    """Resolve an operator for sorting only, without the DB auto-align side effect."""
+
+    operator_id = _resolve_huawei_operator_id(interacao)
+    if operator_id:
+        operador = operator_by_id.get(operator_id) or operator_by_id.get(operator_id.lower())
+        if operador:
+            return operador
+
+    for value in (
+        interacao.get("operatorName"),
+        interacao.get("countName"),
+        interacao.get("agentName"),
+    ):
+        name_key = _normalize_identity_text(value)
+        if name_key and name_key in operator_by_name:
+            return operator_by_name[name_key]
+    return {}
+
+
+def _download_candidate_coverage_sort_key(
+    interacao: dict,
+    operator_by_id: dict,
+    operator_by_name: dict,
+    dividas_cobertura: dict,
+) -> tuple:
+    """Sort key: under-covered operators first, then the existing media priority."""
+
+    operador = _operator_for_coverage_sort(interacao, operator_by_id, operator_by_name)
+    return (
+        divida_cobertura_operador(operador, dividas_cobertura),
+        *_download_candidate_sort_key(interacao),
+    )
+
+
 async def executar_sync_huawei(
     horas_retroativas: float = 1.0,
     *,
@@ -1041,17 +1090,70 @@ async def executar_sync_huawei(
         # Teto de download do MESMO operador neste ciclo (0 = ilimitado). Desacoplado
         # da cota de compliance do supervisor (huawei_cota_max_por_operador_mes=2).
         cap_op_ciclo = _download_max_por_operador_ciclo()
+        cobertura_inicial_dias = _initial_quota_coverage_days()
+        cobertura_min_por_operador = _initial_quota_coverage_min_per_operator()
+        agora_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        dividas_cobertura: dict[tuple[str, str], int] = {}
+        if cobertura_inicial_dias > 0 and cobertura_min_por_operador > 0:
+            try:
+                contagens_mes = audits.get_operator_audit_counts_for_month_bulk(
+                    database.get_connection,
+                    chaves_operadores_cobertura(operadores),
+                    agora_sp.year,
+                    agora_sp.month,
+                )
+            except Exception:
+                logger.warning(
+                    "Sync Huawei: falha ao carregar cobertura mensal por operador; seguindo sem prioridade inicial.",
+                    exc_info=True,
+                )
+                contagens_mes = {}
+            else:
+                dividas_cobertura = calcular_dividas_cobertura(
+                    operadores,
+                    contagens_mes,
+                    minimo_por_operador=cobertura_min_por_operador,
+                )
+        divida_total_cobertura = sum(dividas_cobertura.values())
+        cobertura_ativa = cobertura_inicial_ativa(
+            agora_sp,
+            dias_iniciais=cobertura_inicial_dias,
+            minimo_por_operador=cobertura_min_por_operador,
+            divida_total=divida_total_cobertura,
+        )
         contadores["min_duracao_padrao_segundos"] = min_duration_seconds
         contadores["max_duracao_padrao_segundos"] = max_duration_seconds
         contadores["limite_tentativas_download"] = max_download_attempts
         contadores["limite_downloads"] = max_download_attempts
         contadores["limite_download_por_operador"] = cap_op_ciclo
+        contadores["cobertura_inicial_dias"] = cobertura_inicial_dias
+        contadores["cobertura_inicial_min_por_operador"] = cobertura_min_por_operador
+        contadores["cobertura_inicial_ativa"] = cobertura_ativa
+        contadores["cobertura_inicial_estendida_por_divida"] = (
+            cobertura_ativa and agora_sp.day > cobertura_inicial_dias and divida_total_cobertura > 0
+        )
+        contadores["operadores_abaixo_cobertura_inicial"] = sum(
+            1 for divida in dividas_cobertura.values() if divida > 0
+        )
+        contadores["cobertura_inicial_divida_total"] = divida_total_cobertura
 
         candidatas: list[dict] = []
         por_setor_count: dict[str, int] = {}
         # Contador fresco por operador SO deste ciclo (sem historico mensal).
         download_count_by_operator: dict[tuple[str, str], int] = {}
-        sorted_interacoes = sorted(interacoes, key=_download_candidate_sort_key, reverse=True)
+        if cobertura_ativa and dividas_cobertura:
+            sorted_interacoes = sorted(
+                interacoes,
+                key=lambda item: _download_candidate_coverage_sort_key(
+                    item,
+                    operator_by_id,
+                    operator_by_name,
+                    dividas_cobertura,
+                ),
+                reverse=True,
+            )
+        else:
+            sorted_interacoes = sorted(interacoes, key=_download_candidate_sort_key, reverse=True)
         for index, interacao in enumerate(sorted_interacoes, start=1):
             if index == 1 or index % 250 == 0 or index == len(sorted_interacoes):
                 _notify_progress(progress_callback, "selecting_candidates", index, len(sorted_interacoes))
@@ -1085,12 +1187,19 @@ async def executar_sync_huawei(
 
             # Regra operacional documentada em core/huawei/teto_operador.py:
             # este teto e por ciclo de download, nao a cota mensal do supervisor.
+            divida_operador = (
+                divida_cobertura_operador(operador_resolvido, dividas_cobertura)
+                if cobertura_ativa
+                else 0
+            )
             teto_operador = aplicar_teto_operador(
                 contadores,
                 download_count_by_operator,
                 operador_resolvido,
-                teto_por_operador=cap_op_ciclo,
+                teto_por_operador=teto_por_cobertura(cap_op_ciclo, divida_operador),
             )
+            if divida_operador > 0:
+                interacao["_cobertura_inicial_divida"] = divida_operador
             if teto_operador.descartar:
                 database.huawei_sync_log_registrar(
                     call_id=call_id,

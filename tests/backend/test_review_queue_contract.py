@@ -182,6 +182,13 @@ class TestReviewQueueContract(unittest.TestCase):
 
         query, params = cursor.executed[-1]
         self.assertIn("monthly_cap_period", query)
+        self.assertIn("automacao_cobertura_inicial_dias", query)
+        self.assertIn("automacao_cobertura_inicial_min_por_operador", query)
+        self.assertIn("AS _quota_debt", query)
+        self.assertIn("ORDER BY _quota_debt DESC", query)
+        self.assertIn("qp.cobertura_inicial_dias > 0", query)
+        self.assertNotIn("<= qp.cobertura_inicial_dias", query)
+        self.assertIn("COUNT(DISTINCT CONCAT_WS", query)
         self.assertEqual(params[0], list(REVIEW_QUEUE_READY_STATUSES))
         self.assertEqual(params[1], REVIEW_QUEUE_STATUS_MONTHLY_CAPPED)
         self.assertEqual(params[2], datetime.now().strftime("%Y-%m"))

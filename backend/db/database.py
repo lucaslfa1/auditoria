@@ -176,6 +176,8 @@ def init_db():
         default_configs = [
             ('tema_visual', 'corporativo', 'Tema visual padrao da interface'),
             ('robo_habilitado', 'false', 'Ativa ou desativa o robô de importação'),
+            ('automacao_cobertura_inicial_dias', '3', 'Dias iniciais do mes em que a automacao prioriza operadores abaixo da cobertura minima'),
+            ('automacao_cobertura_inicial_min_por_operador', '2', 'Minimo de auditorias por operador priorizado nos primeiros dias do mes'),
             ('rpa_url_login', '', 'URL de acesso ao sistema de telefonia'),
             ('rpa_usuario', '', 'Usuário para acesso ao sistema'),
             ('rpa_senha', '', 'Senha para acesso ao sistema'),
