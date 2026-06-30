@@ -125,19 +125,52 @@ def _resolve_operador_interacao(
                 or "Nao Identificado"
             )
             from utils.text_processing import format_pt_br_name
+
+            # Se temos um ID na chamada, podemos auto-alinhar o cadastro no banco e em memória
+            if operator_id:
+                import db.database as database
+                try:
+                    conn = database.get_connection()
+                    try:
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            """
+                            UPDATE colaboradores 
+                            SET id_huawei = %s, id_telefonia = %s, atualizado_em = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                            """,
+                            (operator_id, operator_id, matched.get("id"))
+                        )
+                        conn.commit()
+                        logger.info(
+                            "Auto-alinhamento: ID Huawei do operador '%s' (ID %s) atualizado para '%s' com base no nome.",
+                            matched.get("nome"), matched.get("id"), operator_id
+                        )
+                    finally:
+                        conn.close()
+                except Exception:
+                    logger.exception("Falha ao atualizar ID Huawei do operador por auto-alinhamento")
+
+                # Atualiza os índices em memória para chamadas subsequentes
+                updated_op = dict(matched)
+                updated_op["id_huawei"] = operator_id
+                updated_op["id_telefonia"] = operator_id
+                by_id[operator_id] = updated_op
+                by_id[operator_id.lower()] = updated_op
+
+            # Retorna o operador com os dados reais para permitir download imediato neste ciclo
             return {
-                "nome": format_pt_br_name(str(operator_name or "Nao Identificado").strip() or "Nao Identificado"),
-                "id_huawei": str(operator_id or "").strip(),
-                "id_telefonia": str(operator_id or "").strip(),
-                "setor": "",
-                "escala": "",
-                "matricula": "",
-                "auditavel_db": False,
-                "huawei_registered": False,
-                "huawei_match_source": "name_only",
-                "matched_operator_id": matched.get("id"),
-                "matched_operator_name": matched.get("nome") or matched.get("name"),
-                "matched_operator_id_huawei": matched.get("id_huawei") or matched.get("idHuawei"),
+                "id": matched.get("id"),
+                "nome": matched.get("nome") or matched.get("name") or format_pt_br_name(str(operator_name).strip()),
+                "supervisor": matched.get("supervisor"),
+                "setor": matched.get("setor"),
+                "escala": matched.get("escala"),
+                "matricula": matched.get("matricula"),
+                "id_huawei": operator_id or matched.get("id_huawei"),
+                "id_telefonia": operator_id or matched.get("id_telefonia"),
+                "auditavel_db": True,
+                "huawei_registered": True,
+                "huawei_match_source": "name_only_auto_aligned" if operator_id else "name_only",
             }
 
     operator_name = (
