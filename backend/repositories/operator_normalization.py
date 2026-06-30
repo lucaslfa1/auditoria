@@ -23,8 +23,10 @@ from repositories.common import normalize_huawei_agent_id
 
 
 def _normalize_lookup_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFD", str(value or "").strip().lower())
-    return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    cleaned = str(value or "").replace("\xad", "").strip().lower()
+    normalized = unicodedata.normalize("NFD", cleaned)
+    res = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    return res.replace("logiistica", "logistica").replace("logstica", "logistica")
 
 
 def _map_status_telefonia_to_status(status_telefonia: str) -> str:
@@ -67,7 +69,7 @@ def _normalize_operator_sector(
     escala: str = "",
     organizacao_telefonia: str = "",
 ) -> str:
-    raw_setor = str(setor or "").strip()
+    raw_setor = str(setor or "").replace("\xad", "").strip()
     normalized_hints = " ".join(
         (
             _normalize_lookup_text(setor or ""),

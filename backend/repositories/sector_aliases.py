@@ -54,8 +54,10 @@ def _norm(value: Optional[str]) -> str:
     """
     if not value:
         return ""
-    normalized = unicodedata.normalize("NFD", str(value).strip().lower())
-    return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    cleaned = str(value).replace("\xad", "").strip().lower()
+    normalized = unicodedata.normalize("NFD", cleaned)
+    res = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    return res.replace("logiistica", "logistica").replace("logstica", "logistica")
 
 
 def clear_cache() -> None:

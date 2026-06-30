@@ -781,7 +781,13 @@ def _resolve_db_sector_alias(db_sector: str | None) -> str | None:
     if not db_sector:
         return None
 
-    raw_id = str(db_sector).strip().lower()
+    # Normaliza o setor removendo acentos, soft hyphens (\xad) e resolvendo erros de escrita comuns
+    cleaned = str(db_sector).replace("\xad", "").strip().lower()
+    import unicodedata
+    normalized = unicodedata.normalize("NFD", cleaned)
+    raw_id = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    raw_id = raw_id.replace("logiistica", "logistica").replace("logstica", "logistica")
+
     try:
         from repositories import sector_aliases as _sector_aliases_repo
         alias_map = _sector_aliases_repo.get_setor_exact_aliases(get_connection)
@@ -800,6 +806,8 @@ def _resolve_db_sector_alias(db_sector: str | None) -> str | None:
         pass
 
     normalized_db_sector = _normalize_operator_identity_text(db_sector)
+    # Também aplica correções ao resultado do normalize_operator_identity_text
+    normalized_db_sector = normalized_db_sector.replace("logiistica", "logistica").replace("logstica", "logistica").replace("log stica", "logistica")
     return alias_map.get(normalized_db_sector, normalized_db_sector or None)
 
 
