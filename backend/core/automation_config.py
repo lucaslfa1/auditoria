@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_AUTOMATION_AUDIT_TARGET_COUNT = 3
 DEFAULT_AUTOMATION_EXPECTED_AUDIT_ITEM_SECONDS = 180
+DEFAULT_AUTOMATION_COVERAGE_BACKFILL_LOOKBACK_DAYS = 7
+DEFAULT_AUTOMATION_COVERAGE_BACKFILL_MAX_OPERATORS = 3
 
 
 def _get_automation_item_timeout_seconds() -> int:
@@ -161,6 +163,61 @@ def _get_automation_audit_concurrency() -> int:
     except (TypeError, ValueError):
         parsed = DEFAULT_AUTOMATION_AUDIT_CONCURRENCY
     return max(1, min(parsed, 10))
+
+
+def _read_bool_config(env_key: str, db_key: str, default: bool) -> bool:
+    """Lê flag booleana de env/banco com default explícito."""
+
+    raw = os.getenv(env_key)
+    if raw in (None, ""):
+        try:
+            raw = database.get_config_value(db_key, "true" if default else "false")
+        except Exception as exc:
+            logger.debug("Automacao: falha ao ler config %s: %s", db_key, exc)
+            raw = "true" if default else "false"
+    return str(raw or "").strip().lower() in {"1", "true", "yes", "on", "sim"}
+
+
+def _automation_coverage_backfill_enabled() -> bool:
+    """Ativa a busca direcionada de ligações para operadores abaixo da cobertura."""
+
+    return _read_bool_config(
+        "AUTOMATION_COVERAGE_BACKFILL_ENABLED",
+        "automacao_cobertura_backfill_ativa",
+        True,
+    )
+
+
+def _get_automation_coverage_backfill_lookback_days() -> int:
+    """Janela retroativa da busca direcionada por operador (1..30 dias)."""
+
+    raw = os.getenv("AUTOMATION_COVERAGE_BACKFILL_LOOKBACK_DAYS")
+    if raw in (None, ""):
+        raw = database.get_config_value(
+            "automacao_cobertura_backfill_lookback_dias",
+            str(DEFAULT_AUTOMATION_COVERAGE_BACKFILL_LOOKBACK_DAYS),
+        )
+    try:
+        parsed = int(str(raw).strip())
+    except (TypeError, ValueError):
+        parsed = DEFAULT_AUTOMATION_COVERAGE_BACKFILL_LOOKBACK_DAYS
+    return max(1, min(parsed, 30))
+
+
+def _get_automation_coverage_backfill_max_operators() -> int:
+    """Máximo de operadores abaixo da cobertura buscados por ciclo (1..20)."""
+
+    raw = os.getenv("AUTOMATION_COVERAGE_BACKFILL_MAX_OPERATORS")
+    if raw in (None, ""):
+        raw = database.get_config_value(
+            "automacao_cobertura_backfill_max_operadores",
+            str(DEFAULT_AUTOMATION_COVERAGE_BACKFILL_MAX_OPERATORS),
+        )
+    try:
+        parsed = int(str(raw).strip())
+    except (TypeError, ValueError):
+        parsed = DEFAULT_AUTOMATION_COVERAGE_BACKFILL_MAX_OPERATORS
+    return max(1, min(parsed, 20))
 
 
 def _config_flag(key: str) -> bool:

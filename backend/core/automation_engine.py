@@ -1692,6 +1692,54 @@ async def run_automation_cycle(*, source: str = "manual") -> dict:
             )
             return result
 
+        backfill_result: dict = {"status": "skipped", "baixadas": 0, "enfileiradas": 0}
+        try:
+            from core.automation_coverage_backfill import run_operator_coverage_backfill
+
+            _update_status(
+                current_stage="coverage_backfill",
+                current_message="Buscando ligacoes de operadores abaixo da cobertura.",
+            )
+            _persist_cycle_update(
+                _current_run_id,
+                stage="coverage_backfill",
+                message="Buscando ligacoes de operadores abaixo da cobertura.",
+            )
+
+            def _coverage_backfill_progress(stage: str, current: int, total: int) -> None:
+                stage_text = str(stage or "coverage_backfill").replace("_", " ")
+                if total > 0:
+                    message = f"Busca de cobertura: {stage_text} ({current}/{total})."
+                else:
+                    message = f"Busca de cobertura: {stage_text}."
+                _update_status(current_stage="coverage_backfill", current_message=message)
+
+            backfill_result = await _await_with_lock_refresh(
+                run_operator_coverage_backfill(
+                    database.get_connection,
+                    should_cancel=_automation_cancel_requested,
+                    progress_callback=_coverage_backfill_progress,
+                ),
+                cycle_lock,
+                run_id=_current_run_id,
+            )
+            baixadas += int(backfill_result.get("baixadas", 0) or 0)
+            _current_status["baixadas_total"] += int(backfill_result.get("baixadas", 0) or 0)
+            sync_result["coverage_backfill"] = backfill_result
+            _update_status(last_sync=sync_result)
+            _persist_cycle_update(_current_run_id, sync_result=sync_result)
+            logger.info("Backfill de cobertura concluido: %s", backfill_result)
+        except asyncio.CancelledError:
+            raise
+        except AutomationLockLostError:
+            raise
+        except Exception as backfill_exc:
+            backfill_result = {"status": "error", "message": str(backfill_exc), "baixadas": 0}
+            sync_result["coverage_backfill"] = backfill_result
+            _update_status(last_sync=sync_result)
+            _persist_cycle_update(_current_run_id, sync_result=sync_result)
+            logger.warning("Falha no backfill de cobertura: %s", backfill_exc)
+
         try:
             classification_result = await _classify_pending_huawei_items(
                 _current_run_id,

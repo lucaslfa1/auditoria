@@ -719,6 +719,9 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         operadores=None,
         monthly_counts=None,
         now_sp=None,
+        target_operator_ids=None,
+        target_operator_names=None,
+        max_download_attempts_override=None,
     ):
         """Roda executar_sync_huawei com os mocks-padrao e devolve o result dict.
 
@@ -794,7 +797,12 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
             stack.enter_context(patch("core.huawei_sync.HuaweiOBSClient", new=mock_obs_cls))
             enqueue = AsyncMock(return_value={"status": "queued"})
             stack.enter_context(patch.object(huawei_sync, "_enfileirar_audio", enqueue))
-            result = await huawei_sync.executar_sync_huawei(horas_retroativas=1)
+            result = await huawei_sync.executar_sync_huawei(
+                horas_retroativas=1,
+                target_operator_ids=target_operator_ids,
+                target_operator_names=target_operator_names,
+                max_download_attempts_override=max_download_attempts_override,
+            )
             result["_enqueue_filenames"] = [call_item.args[1] for call_item in enqueue.await_args_list]
             return result
 
@@ -853,6 +861,80 @@ class TestHuaweiSync(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(result["candidatos_download"], 25)
         self.assertEqual(result.get("ignoradas_cota_mensal_pre_download", 0), 0)
+
+    async def test_busca_direcionada_baixa_somente_operador_alvo(self):
+        operadores = [
+            {
+                "id": 1,
+                "id_huawei": "HUA-ALVO",
+                "id_telefonia": "HUA-ALVO",
+                "nome": "Operador Alvo",
+                "setor": "uti",
+                "escala": "",
+                "matricula": "MAT-ALVO",
+                "supervisor": "",
+            },
+            {
+                "id": 2,
+                "id_huawei": "HUA-OUTRO",
+                "id_telefonia": "HUA-OUTRO",
+                "nome": "Operador Outro",
+                "setor": "uti",
+                "escala": "",
+                "matricula": "MAT-OUTRO",
+                "supervisor": "",
+            },
+        ]
+        chamadas = [
+            {
+                "callId": f"outro-{i}",
+                "duration": 300,
+                "beginTime": 1777516670000 + i * 1000,
+                "endTime": 1777516970000 + i * 1000,
+                "isCallIn": "false",
+                "workNo": "HUA-OUTRO",
+                "operatorName": "Operador Outro",
+            }
+            for i in range(3)
+        ] + [
+            {
+                "callId": f"alvo-{i}",
+                "duration": 120,
+                "beginTime": 1777510000000 + i * 1000,
+                "endTime": 1777510120000 + i * 1000,
+                "isCallIn": "false",
+                "workNo": "HUA-ALVO",
+                "operatorName": "Operador Alvo",
+            }
+            for i in range(3)
+        ]
+
+        result = await self._run_sync_selection(
+            chamadas,
+            env={
+                "HUAWEI_SYNC_MIN_DURATION_SECONDS": "10",
+                "HUAWEI_SYNC_MAX_DURATION_SECONDS": "0",
+                "HUAWEI_SYNC_MAX_DOWNLOAD_ATTEMPTS": "10",
+            },
+            config_values={
+                "huawei_download_max_por_operador_ciclo": "10",
+                "automacao_cobertura_inicial_dias": "0",
+            },
+            operadores=operadores,
+            target_operator_ids={"HUA-ALVO"},
+            max_download_attempts_override=2,
+        )
+
+        self.assertTrue(result["busca_operador_alvo"])
+        self.assertEqual(result["candidatos_download"], 2)
+        self.assertEqual(result["ignoradas_operador_fora_alvo"], 3)
+        self.assertEqual(
+            result["_enqueue_filenames"],
+            [
+                "ligacao_huawei_operador_alvo_alvo_2.wav",
+                "ligacao_huawei_operador_alvo_alvo_1.wav",
+            ],
+        )
 
     async def test_cobertura_inicial_prioriza_operador_abaixo_da_cota(self):
         operadores = [

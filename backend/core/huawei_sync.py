@@ -798,6 +798,67 @@ def _download_candidate_coverage_sort_key(
     )
 
 
+def _normalize_operator_target_ids(values: Optional[set[str] | list[str] | tuple[str, ...]]) -> set[str]:
+    normalized: set[str] = set()
+    for value in values or []:
+        text = _clean_huawei_operator_id(value)
+        if text:
+            normalized.add(text.lower())
+    return normalized
+
+
+def _normalize_operator_target_names(values: Optional[set[str] | list[str] | tuple[str, ...]]) -> set[str]:
+    normalized: set[str] = set()
+    for value in values or []:
+        text = _normalize_identity_text(value)
+        if text:
+            normalized.add(text)
+    return normalized
+
+
+def _operator_matches_download_target(
+    interacao: dict,
+    operador: dict,
+    target_operator_ids: set[str],
+    target_operator_names: set[str],
+) -> bool:
+    """True when no target was requested or this call belongs to the target operator.
+
+    Used by the coverage backfill path. Non-target calls are ignored silently: they
+    must not create tombstones or skipped-operator logs, because the operator is
+    only outside the current targeted search, not invalid globally.
+    """
+
+    if not target_operator_ids and not target_operator_names:
+        return True
+
+    for value in (
+        _resolve_huawei_operator_id(interacao),
+        operador.get("id_huawei"),
+        operador.get("idHuawei"),
+        operador.get("id_telefonia"),
+        operador.get("idTelefonia"),
+        interacao.get("operatorIdHuaweiResolved"),
+    ):
+        text = _clean_huawei_operator_id(value)
+        if text and text.lower() in target_operator_ids:
+            return True
+
+    for value in (
+        operador.get("nome"),
+        operador.get("name"),
+        interacao.get("operatorNameResolved"),
+        interacao.get("operatorName"),
+        interacao.get("countName"),
+        interacao.get("agentName"),
+    ):
+        text = _normalize_identity_text(value)
+        if text and text in target_operator_names:
+            return True
+
+    return False
+
+
 async def executar_sync_huawei(
     horas_retroativas: float = 1.0,
     *,
@@ -809,6 +870,9 @@ async def executar_sync_huawei(
     prefetched_obs_client: Optional[HuaweiOBSClient] = None,
     progress_callback: Optional[Callable[[str, int, int], None]] = None,
     is_manual: bool = False,
+    target_operator_ids: Optional[set[str] | list[str] | tuple[str, ...]] = None,
+    target_operator_names: Optional[set[str] | list[str] | tuple[str, ...]] = None,
+    max_download_attempts_override: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Funcao principal que baixa, tria e enfileira as ligacoes na revisao.
 
@@ -832,6 +896,10 @@ async def executar_sync_huawei(
     - prefetched_obs_client: reaproveita um `HuaweiOBSClient` ja criado.
     - progress_callback: callback (fase, atual, total) para reportar progresso.
     - is_manual: marca os itens enfileirados como originados de acao manual.
+    - target_operator_ids / target_operator_names: restringe a seleção a um
+      operador específico sem tombstonear chamadas de outros operadores.
+    - max_download_attempts_override: limite efetivo deste ciclo, usado por
+      buscas direcionadas para baixar só o saldo faltante.
 
     Retorna um dict de contadores/estatisticas do ciclo (status, baixadas,
     enfileiradas, duplicadas, ignoradas por varios motivos, etc.).
@@ -855,6 +923,10 @@ async def executar_sync_huawei(
         }
 
     try:
+        normalized_target_operator_ids = _normalize_operator_target_ids(target_operator_ids)
+        normalized_target_operator_names = _normalize_operator_target_names(target_operator_names)
+        targeted_operator_search = bool(normalized_target_operator_ids or normalized_target_operator_names)
+
         if not _ensure_enabled():
             logger.warning(
                 "ENABLE_HUAWEI_SYNC=false; sincronizacao bloqueada por configuracao de ambiente. "
@@ -962,6 +1034,7 @@ async def executar_sync_huawei(
             "ignoradas_setor_nao_telefonia": 0,
             "ignoradas_operador_huawei_nao_cadastrado": 0,
             "ignoradas_mondelez": 0,
+            "ignoradas_operador_fora_alvo": 0,
             "ignoradas_ja_sincronizadas": 0,
             "ignoradas_tentadas_no_ciclo": 0,
             "tentativas_download": 0,
@@ -983,6 +1056,9 @@ async def executar_sync_huawei(
             "duplicadas": 0,
             "erros": [],
         }
+        contadores["busca_operador_alvo"] = targeted_operator_search
+        contadores["operador_alvo_ids"] = sorted(normalized_target_operator_ids)
+        contadores["operador_alvo_nomes"] = sorted(normalized_target_operator_names)
         call_ids_tentados_no_ciclo: set[str] = set()
         call_ids_vdn_unicos: set[str] = set()
         call_ids_manifest_unicos: set[str] = set()
@@ -1086,7 +1162,16 @@ async def executar_sync_huawei(
                 DEFAULT_HUAWEI_SYNC_MAX_DURATION_SECONDS,
             ),
         )
-        max_download_attempts = _effective_download_attempt_limit()
+        if max_download_attempts_override is not None:
+            max_download_attempts = max(
+                1,
+                min(
+                    HUAWEI_SYNC_DOWNLOAD_HARD_CEILING,
+                    _coerce_int(max_download_attempts_override, _effective_download_attempt_limit()),
+                ),
+            )
+        else:
+            max_download_attempts = _effective_download_attempt_limit()
         # Teto de download do MESMO operador neste ciclo (0 = ilimitado). Desacoplado
         # da cota de compliance do supervisor (huawei_cota_max_por_operador_mes=2).
         cap_op_ciclo = _download_max_por_operador_ciclo()
@@ -1177,6 +1262,15 @@ async def executar_sync_huawei(
                 operator_by_name,
             )
             _inject_operator_truth(interacao, operador_resolvido)
+
+            if not _operator_matches_download_target(
+                interacao,
+                operador_resolvido,
+                normalized_target_operator_ids,
+                normalized_target_operator_names,
+            ):
+                contadores["ignoradas_operador_fora_alvo"] += 1
+                continue
 
             skip_reason = _should_skip_call(interacao, operador_resolvido)
             if skip_reason:
