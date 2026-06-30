@@ -186,6 +186,7 @@ def _operator_truth_snapshot(operador: dict) -> dict[str, str]:
         "escala": _operator_field(operador, "escala"),
         "matricula": _operator_field(operador, "matricula"),
         "id_huawei": id_huawei,
+        "supervisor": _operator_field(operador, "supervisor"),
     }
 
 def _inject_operator_truth(interacao: dict, operador: dict) -> dict[str, str]:
@@ -196,4 +197,5 @@ def _inject_operator_truth(interacao: dict, operador: dict) -> dict[str, str]:
     interacao["operatorScaleResolved"] = truth["escala"]
     interacao["operatorMatriculaResolved"] = truth["matricula"]
     interacao["operatorIdHuaweiResolved"] = truth["id_huawei"]
+    interacao["operatorSupervisorResolved"] = truth.get("supervisor", "")
     return truth

@@ -136,6 +136,7 @@ def _enfileirar_classificado(
         "operator_escala": operator_truth.get("escala"),
         "operator_matricula": detected_matricula,
         "operator_id_huawei_real": detected_id_huawei,
+        "operator_supervisor": operator_truth.get("supervisor"),
         "is_manual": is_manual,
     }
     if extra_metadata:

@@ -396,6 +396,8 @@ async def correct_classification(
         operador_previsto=payload.operator_name,
         operator_id=payload.operator_id,
         revisado_por=reviewed_by,
+        supervisor=payload.supervisor,
+        escala=payload.escala,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Classificacao nao encontrada na fila de triagem.")

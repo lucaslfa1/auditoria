@@ -462,6 +462,8 @@ def corrigir_classificacao_fila_revisao(
     operador_previsto: Optional[str] = None,
     operator_id: Optional[str] = None,
     revisado_por: Optional[str] = None,
+    supervisor: Optional[str] = None,
+    escala: Optional[str] = None,
 ) -> Optional[dict]:
     """Aplica correção humana de setor/alerta a um item da fila (triagem manual).
 
@@ -512,10 +514,16 @@ def corrigir_classificacao_fila_revisao(
             "alerta_previsto": alerta_previsto,
             "operador_previsto": operador_previsto,
             "operator_id": operator_id,
+            "supervisor": supervisor,
+            "escala": escala,
             "status": REVIEW_QUEUE_STATUS_REVIEWED,
         }
         if operator_id:
             metadata_atual["operator_id"] = operator_id
+        if supervisor:
+            metadata_atual["operator_supervisor"] = supervisor
+        if escala:
+            metadata_atual["operator_escala"] = escala
 
         cursor.execute(
             """

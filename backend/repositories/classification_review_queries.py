@@ -327,9 +327,11 @@ def listar_fila_revisao_classificacao(
                    official_by_huawei.nome AS official_operator_name,
                    official_by_huawei.id_huawei AS official_operator_id_huawei,
                    official_by_huawei.matricula AS official_operator_matricula,
+                   official_by_huawei.supervisor AS official_operator_supervisor,
                    official_by_name.nome AS official_operator_name_by_name,
                    official_by_name.id_huawei AS official_operator_id_huawei_by_name,
                    official_by_name.matricula AS official_operator_matricula_by_name,
+                   official_by_name.supervisor AS official_operator_supervisor_by_name,
                    CASE
                        WHEN COALESCE(f._mj ->> 'origem', '') = 'huawei_sync'
                            THEN official_by_huawei.id_huawei IS NOT NULL
@@ -338,7 +340,7 @@ def listar_fila_revisao_classificacao(
                    END as is_oficial
             FROM f_base f
             LEFT JOIN LATERAL (
-                SELECT c.nome, c.id_huawei, c.matricula
+                SELECT c.nome, c.id_huawei, c.matricula, c.supervisor
                 FROM colaboradores c
                 WHERE c.status = 'ATIVO'
                   AND COALESCE(c.auditavel, 1) = 1
@@ -347,14 +349,14 @@ def listar_fila_revisao_classificacao(
                       {_huawei_operator_id_candidates_sql("f._mj")}
                   ])
                 ORDER BY
-                    CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
-                    CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
-                    c.atualizado_em DESC NULLS LAST,
-                    c.nome
+                  CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
+                  CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
+                  c.atualizado_em DESC NULLS LAST,
+                  c.nome
                 LIMIT 1
             ) official_by_huawei ON TRUE
             LEFT JOIN LATERAL (
-                SELECT c.nome, c.id_huawei, c.matricula
+                SELECT c.nome, c.id_huawei, c.matricula, c.supervisor
                 FROM colaboradores c
                 WHERE c.status = 'ATIVO'
                   AND COALESCE(c.auditavel, 1) = 1
@@ -367,10 +369,10 @@ def listar_fila_revisao_classificacao(
                       NULLIF(f._mj ->> 'huawei_operator_name', '')
                   )))
                 ORDER BY
-                    CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
-                    CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
-                    c.atualizado_em DESC NULLS LAST,
-                    c.nome
+                  CASE WHEN UPPER(c.status) = 'ATIVO' THEN 0 ELSE 1 END,
+                  CASE WHEN COALESCE(c.auditavel, 1) = 1 THEN 0 ELSE 1 END,
+                  c.atualizado_em DESC NULLS LAST,
+                  c.nome
                 LIMIT 1
             ) official_by_name ON TRUE
             {final_order_clause}
@@ -402,6 +404,12 @@ def listar_fila_revisao_classificacao(
         official_operator_matricula_by_name = (
             row["official_operator_matricula_by_name"] if "official_operator_matricula_by_name" in row.keys() else None
         )
+        official_operator_supervisor = (
+            row["official_operator_supervisor"] if "official_operator_supervisor" in row.keys() else None
+        )
+        official_operator_supervisor_by_name = (
+            row["official_operator_supervisor_by_name"] if "official_operator_supervisor_by_name" in row.keys() else None
+        )
         operator_name = (
             official_operator_name
             or official_operator_name_by_name
@@ -426,6 +434,13 @@ def listar_fila_revisao_classificacao(
             or metadata.get("matricula")
             or metadata.get("huawei_agent_id")
         )
+        operator_supervisor = (
+            official_operator_supervisor
+            or official_operator_supervisor_by_name
+            or metadata.get("operator_supervisor")
+            or metadata.get("supervisor")
+            or ""
+        )
         items.append(
             {
                 "id": row["id"],
@@ -439,6 +454,7 @@ def listar_fila_revisao_classificacao(
                 "operator_id": operator_id,
                 "operator_matricula": operator_matricula,
                 "matricula": operator_matricula,
+                "supervisor": operator_supervisor,
                 "erro": row["erro"],
                 "prioridade": row["prioridade"],
                 "motivos_revisao": json_loads(row["motivos_json"], []),
@@ -476,9 +492,11 @@ def obter_fila_revisao_classificacao_por_hash(
                    official_by_huawei.nome AS official_operator_name,
                    official_by_huawei.id_huawei AS official_operator_id_huawei,
                    official_by_huawei.matricula AS official_operator_matricula,
+                   official_by_huawei.supervisor AS official_operator_supervisor,
                    official_by_name.nome AS official_operator_name_by_name,
                    official_by_name.id_huawei AS official_operator_id_huawei_by_name,
                    official_by_name.matricula AS official_operator_matricula_by_name,
+                   official_by_name.supervisor AS official_operator_supervisor_by_name,
                    CASE
                        WHEN COALESCE(f.metadata_json::jsonb ->> 'origem', '') = 'huawei_sync'
                            THEN official_by_huawei.id_huawei IS NOT NULL
@@ -487,7 +505,7 @@ def obter_fila_revisao_classificacao_por_hash(
                    END as is_oficial
             FROM fila_revisao_classificacao f
             LEFT JOIN LATERAL (
-                SELECT c.nome, c.id_huawei, c.matricula
+                SELECT c.nome, c.id_huawei, c.matricula, c.supervisor
                 FROM colaboradores c
                 WHERE c.status = 'ATIVO'
                   AND COALESCE(c.auditavel, 1) = 1
@@ -503,7 +521,7 @@ def obter_fila_revisao_classificacao_por_hash(
                 LIMIT 1
             ) official_by_huawei ON TRUE
             LEFT JOIN LATERAL (
-                SELECT c.nome, c.id_huawei, c.matricula
+                SELECT c.nome, c.id_huawei, c.matricula, c.supervisor
                 FROM colaboradores c
                 WHERE c.status = 'ATIVO'
                   AND COALESCE(c.auditavel, 1) = 1
@@ -548,6 +566,12 @@ def obter_fila_revisao_classificacao_por_hash(
         official_operator_matricula_by_name = (
             row["official_operator_matricula_by_name"] if "official_operator_matricula_by_name" in row.keys() else None
         )
+        official_operator_supervisor = (
+            row["official_operator_supervisor"] if "official_operator_supervisor" in row.keys() else None
+        )
+        official_operator_supervisor_by_name = (
+            row["official_operator_supervisor_by_name"] if "official_operator_supervisor_by_name" in row.keys() else None
+        )
         operator_matricula = (
             official_operator_matricula
             or official_operator_matricula_by_name
@@ -571,6 +595,13 @@ def obter_fila_revisao_classificacao_por_hash(
             or metadata.get("huawei_agent_id")
             or ""
         )
+        operator_supervisor = (
+            official_operator_supervisor
+            or official_operator_supervisor_by_name
+            or metadata.get("operator_supervisor")
+            or metadata.get("supervisor")
+            or ""
+        )
 
         return {
             "id": row["id"],
@@ -588,6 +619,7 @@ def obter_fila_revisao_classificacao_por_hash(
             "operator_id": operator_id,
             "operator_matricula": operator_matricula,
             "matricula": operator_matricula,
+            "supervisor": operator_supervisor,
             "status": row["status"],
             "criado_em": row["criado_em"],
             "atualizado_em": row["atualizado_em"],
