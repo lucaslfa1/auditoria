@@ -31,9 +31,11 @@ import { useToast } from '../../../shared/components/ToastProvider';
 import {
   EngineStatusSchema,
   HealthStatusSchema,
+  OperadoresMesSchema,
   PipelineSummarySchema,
   type EngineStatus,
   type HealthStatus,
+  type OperadoresMes,
   type PipelineConfig,
   type PipelineSummary,
 } from '../schemas';
@@ -41,6 +43,7 @@ import type { AutomationGateStatus } from '../automationViewModel';
 
 const AUTOMACAO_QUERY_KEY = ['automacao', 'dashboard'] as const;
 const AUDITORIAS_MES_QUERY_KEY = ['automacao', 'auditorias-mes'] as const;
+const OPERADORES_MES_QUERY_KEY = ['automacao', 'operadores-mes'] as const;
 const RETRYABLE_CYCLE_STATUSES = new Set(['error', 'partial']);
 
 /** Auditoria listada no painel (subset do registro de `arquivo_salvo`). */
@@ -73,6 +76,12 @@ async function fetchAuditoriasDoMes(): Promise<AuditoriaDoMes[]> {
     const ts = new Date(item.data_analise).getTime();
     return Number.isFinite(ts) && ts >= startOfMonth;
   });
+}
+
+/** Busca a contagem de auditorias do mês por operador (× cota). */
+async function fetchOperadoresMes(): Promise<OperadoresMes> {
+  const raw = await apiFetchJson('/api/automation/operadores-mes');
+  return OperadoresMesSchema.parse(raw);
 }
 
 type ConfigField = keyof PipelineConfig;
@@ -320,6 +329,16 @@ export function useAutomacaoDashboard() {
   const auditoriasMesQuery = useQuery({
     queryKey: AUDITORIAS_MES_QUERY_KEY,
     queryFn: fetchAuditoriasDoMes,
+    refetchInterval: () => {
+      const status = dashboardQuery.data?.engineStatus;
+      return status?.is_running || status?.is_cycle_running ? 5000 : 30000;
+    },
+    refetchOnWindowFocus: true,
+  });
+
+  const operadoresMesQuery = useQuery({
+    queryKey: OPERADORES_MES_QUERY_KEY,
+    queryFn: fetchOperadoresMes,
     refetchInterval: () => {
       const status = dashboardQuery.data?.engineStatus;
       return status?.is_running || status?.is_cycle_running ? 5000 : 30000;
@@ -631,6 +650,7 @@ export function useAutomacaoDashboard() {
       refresh: () => {
         dashboardQuery.refetch();
         auditoriasMesQuery.refetch();
+        operadoresMesQuery.refetch();
       },
       refreshAuditorias: () => auditoriasMesQuery.refetch(),
       updateDraftField,
@@ -643,6 +663,7 @@ export function useAutomacaoDashboard() {
       auditoriasMesQuery,
       controlMutation,
       dashboardQuery,
+      operadoresMesQuery,
       runNowMutation,
       saveDraftField,
       toggleMutation,
@@ -658,6 +679,8 @@ export function useAutomacaoDashboard() {
     loadError: dashboardQuery.error,
     auditoriasDoMes: auditoriasMesQuery.data ?? [],
     auditoriasLoading: auditoriasMesQuery.isLoading,
+    operadoresMes: operadoresMesQuery.data ?? null,
+    operadoresMesLoading: operadoresMesQuery.isLoading,
     actions,
     pending: {
       savingConfig: saveConfigMutation.isPending ? saveConfigMutation.variables?.field ?? null : null,

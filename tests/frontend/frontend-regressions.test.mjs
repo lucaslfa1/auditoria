@@ -27,6 +27,7 @@ const automacaoConfigPanelSource = read('src/features/automacao/components/Autom
 const automacaoHookSource = read('src/features/automacao/hooks/useAutomacaoDashboard.ts');
 const automacaoSchemasSource = read('src/features/automacao/schemas.ts');
 const automacaoViewModelSource = read('src/features/automacao/automationViewModel.ts');
+const operadoresMesPanelSource = read('src/features/automacao/components/OperadoresMesPanel.tsx');
 // Mojibake real (UTF-8 lido como Latin-1) gera C3/C2 seguidos de simbolo ou minuscula.
 // Portugues legitimo usa essas letras apenas antes de outra maiuscula ou espaco
 // (ex.: APROVACAO com cedilha/til, CAMARA com circunflexo) - o lookahead negativo
@@ -110,6 +111,22 @@ assert.doesNotMatch(automacaoHookSource, /enabled: allAutomationGatesEnabled/);
 assert.match(automacaoPageSource, /gates=\{gates\}/);
 assert.doesNotMatch(automacaoPageSource, /AutomationHealthPanel/);
 assert.doesNotMatch(automacaoPageSource, /Saúde da automação/);
+
+// Painel "Auditorias por operador" (auditorias do mês × cota mensal por operador).
+assert.match(automacaoPageSource, /import \{ OperadoresMesPanel \} from '\.\/OperadoresMesPanel';/);
+assert.match(automacaoPageSource, /<OperadoresMesPanel data=\{operadoresMes\} isLoading=\{operadoresMesLoading\} \/>/);
+assert.match(automacaoSchemasSource, /OperadoresMesSchema/);
+assert.match(automacaoHookSource, /fetchOperadoresMes/);
+assert.match(automacaoHookSource, /'operadores-mes'/);
+assert.match(automacaoHookSource, /\/api\/automation\/operadores-mes/);
+assert.match(automacaoHookSource, /operadoresMes: operadoresMesQuery\.data \?\? null/);
+// Coluna renomeada para "Cota Mensal" e rótulo "cheio" em texto neutro.
+assert.match(operadoresMesPanelSource, /Cota Mensal/);
+assert.match(operadoresMesPanelSource, /cheio/);
+assert.match(operadoresMesPanelSource, /Buscar operador/);
+// Decisão do usuário: SEM ícone de alerta no "cheio".
+assert.doesNotMatch(operadoresMesPanelSource, /AlertTriangle|AlertCircle/);
+assert.doesNotMatch(operadoresMesPanelSource, mojibakePattern);
 assert.match(automacaoRuntimePanelSource, /não processados/);
 assert.match(automacaoRuntimePanelSource, /Meta do ciclo/);
 assert.match(automacaoRuntimePanelSource, /Volume elegível menor que a meta/);

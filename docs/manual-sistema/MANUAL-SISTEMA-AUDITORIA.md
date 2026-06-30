@@ -1127,6 +1127,7 @@ Onde se liga, configura e acompanha o ciclo automático.
     <div class="uirow muted">Em execução: baixando… · classificando… · auditando…</div>
     <div class="uirow"><span class="grow">Configurações: Dias para trás · Cota mensal · <b>Meta de auditorias</b> · <b>Máx. por operador no download</b> · Tentativas · Espera</span></div>
     <div class="uirow muted">Auditorias do mês — lista, com atalho para abrir em Arquivos</div>
+    <div class="uirow muted">Auditorias por operador — contagem do mês × cota mensal, com busca</div>
   </div>
 </div>
 
@@ -1139,6 +1140,10 @@ Onde se liga, configura e acompanha o ciclo automático.
   por operador no download").
 - **Auditorias do mês** — a produção do ciclo, com atalho para abrir em Arquivos
   Salvos.
+- **Auditorias por operador** — para cada operador auditável, quantas auditorias
+  ele já teve no mês frente à cota mensal (§7.1); ordenado por quem tem mais, com
+  busca, e o rótulo "cheio" quando o operador atinge a cota. Ajuda a enxergar quem
+  já encheu a cota do mês.
 
 ### B.5 Colaboradores — o cadastro que controla o sync (rota `/colaboradores`)
 

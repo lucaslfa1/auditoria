@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 import db.database as database
 from core.automation import audit_all_pending, cancel_automation, get_automation_status
+from core.automation_operator_report import build_operadores_mes
 from db.domain_constants import AUDIT_STATUS_AWAITING_PAIR, AUDIT_STATUS_PENDING_APPROVAL
 from routers.auth import require_admin
 
@@ -103,6 +104,18 @@ def get_automation_engine_status(
     """Retorna o status do motor de automação."""
     from core.automation_engine import get_engine_status
     return get_engine_status()
+
+
+@router.get("/operadores-mes")
+def get_operadores_mes(
+    _user: dict = Depends(require_admin),
+):
+    """Auditorias do mês por operador (contagem × cota) para o painel de Automação.
+
+    Somente leitura, sem custo de API: junta o roster auditável, a contagem do mês
+    em lote e a cota mensal. Não aplica nem altera nenhuma regra de cota/filtro.
+    """
+    return build_operadores_mes(database.get_connection)
 
 
 @router.post("/run-now")

@@ -13,6 +13,7 @@ import { AutomationConfigPanel } from './AutomationConfigPanel';
 import { AutomationControlHero } from './AutomationControlHero';
 import { AutomationRuntimePanel } from './AutomationRuntimePanel';
 import { AuditoriasDoMes } from './AuditoriasDoMes';
+import { OperadoresMesPanel } from './OperadoresMesPanel';
 import { AuditModal } from './AuditModal';
 import { useAutomacaoDashboard } from '../hooks/useAutomacaoDashboard';
 
@@ -28,6 +29,8 @@ export function AutomacaoPage() {
     pending,
     auditoriasDoMes,
     auditoriasLoading,
+    operadoresMes,
+    operadoresMesLoading,
   } = useAutomacaoDashboard();
 
   if (isLoading) {
@@ -136,6 +139,8 @@ export function AutomacaoPage() {
         isLoading={auditoriasLoading}
         onOpenInArquivos={handleOpenModal}
       />
+
+      <OperadoresMesPanel data={operadoresMes} isLoading={operadoresMesLoading} />
 
       {selectedAuditId !== null && (
         <AuditModal

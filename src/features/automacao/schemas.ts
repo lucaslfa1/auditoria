@@ -315,6 +315,28 @@ export const HealthStatusSchema = z
     release: ReleaseInfoSchema.parse({}),
   });
 
+const OperadorMesSchema = z
+  .object({
+    nome: text(''),
+    setor: text(''),
+    operator_id: text(''),
+    auditorias_mes: numberValue(0),
+    cheio: booleanValue(false),
+  })
+  .passthrough();
+
+export const OperadoresMesSchema = z
+  .object({
+    mes: text(''),
+    cota: numberValue(0),
+    operadores: z.array(OperadorMesSchema).catch([]),
+  })
+  .passthrough()
+  .catch({ mes: '', cota: 0, operadores: [] });
+
+export type OperadorMes = z.infer<typeof OperadorMesSchema>;
+export type OperadoresMes = z.infer<typeof OperadoresMesSchema>;
+
 export type PipelineConfig = z.infer<typeof PipelineConfigSchema>;
 export type PipelineSummary = z.infer<typeof PipelineSummarySchema>;
 export type EngineStatus = z.infer<typeof EngineStatusSchema>;
