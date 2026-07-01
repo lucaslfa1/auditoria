@@ -252,7 +252,11 @@ async def classify_audios(
                     precisa_revisao=getattr(result, "needs_review", False),
                     prioridade=getattr(result, "review_priority", "low"),
                     motivos_revisao=getattr(result, "review_reasons", []),
-                    metadata={"filename_upload": filename, "classified_audio_path": audio_path},
+                    metadata={
+                        "filename_upload": filename,
+                        "classified_audio_path": audio_path,
+                        "transcription": getattr(result, "transcription", None),
+                    },
                 )
 
                 ligacao_referencia = database.get_ligacao_auditada_por_hash(arquivo_hash)
@@ -389,6 +393,9 @@ async def correct_classification(
     if not alert:
         raise HTTPException(status_code=400, detail="Alerta invalido para o setor informado.")
 
+    sector_label = str(sector.label if hasattr(sector, "label") else sector.get("label", ""))
+    alert_label = str(alert.label if hasattr(alert, "label") else alert.get("label", ""))
+
     reviewed_by = (
         user.get("username")
         or user.get("sub")
@@ -408,6 +415,50 @@ async def correct_classification(
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Classificacao nao encontrada na fila de triagem.")
+
+    # Se temos transcrição e houve de fato uma correção (setor ou alerta mudaram),
+    # alimentamos o aprendizado (ai_feedback) para calibrar as próximas classificações.
+    metadata = updated.get("metadata") or {}
+    transcription = metadata.get("transcription")
+    previous_class = metadata.get("manual_review_previous") or {}
+    prev_sector = previous_class.get("setor_previsto")
+    prev_alert = previous_class.get("alerta_previsto")
+
+    has_changed = (prev_sector != sector_id) or (prev_alert != alert_id)
+
+    if transcription and has_changed:
+        try:
+            from core.ai_feedback import add_feedback
+
+            prev_sector_label = prev_sector or "desconhecido"
+            prev_alert_label = prev_alert or "desconhecido"
+
+            if prev_sector:
+                p_sec = catalog.get(prev_sector)
+                if p_sec:
+                    prev_sector_label = str(p_sec.label if hasattr(p_sec, "label") else p_sec.get("label", prev_sector))
+                    if prev_alert:
+                        p_alerts = p_sec.alerts if hasattr(p_sec, "alerts") else p_sec.get("alerts", [])
+                        p_al = next((a for a in p_alerts if (a.id if hasattr(a, "id") else a.get("id")) == prev_alert), None)
+                        if p_al:
+                            prev_alert_label = str(p_al.label if hasattr(p_al, "label") else p_al.get("label", prev_alert))
+
+            situacao = f"A IA previu incorretamente o setor '{prev_sector_label}' (id: {prev_sector}) e o alerta '{prev_alert_label}' (id: {prev_alert}) na triagem automática."
+            correcao = f"O auditor corrigiu para o setor '{sector_label}' (id: {sector_id}) e o alerta '{alert_label}' (id: {alert_id})."
+
+            add_feedback(
+                tipo="classificacao",
+                situacao=situacao,
+                correcao=correcao,
+                justificativa="Correção manual de triagem pelo auditor.",
+                criado_por=reviewed_by,
+                setor=sector_id,
+                criterio_id=alert_id,
+                exemplo_transcricao=transcription,
+            )
+            logger.info("AI feedback of type 'classificacao' created for input_hash %s", input_hash)
+        except Exception as fb_error:
+            logger.warning("Falha ao salvar feedback de calibração automática: %s", fb_error)
 
     ligacao_referencia = database.get_ligacao_auditada_por_hash(input_hash)
     if ligacao_referencia:
@@ -431,9 +482,6 @@ async def correct_classification(
             )
         except Exception as persist_error:
             logger.warning("Manual classification persistence warning: %s", persist_error)
-
-    sector_label = str(sector.label if hasattr(sector, "label") else sector.get("label", ""))
-    alert_label = str(alert.label if hasattr(alert, "label") else alert.get("label", ""))
 
     return {
         "result": {

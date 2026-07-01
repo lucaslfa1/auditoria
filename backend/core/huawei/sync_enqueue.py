@@ -148,6 +148,10 @@ def _enfileirar_classificado(
     if classification_extras:
         metadata.update({k: v for k, v in classification_extras.items() if v not in (None, "")})
 
+    # Se houver transcrição, propaga pro metadata
+    if getattr(classification, "transcription", None):
+        metadata["transcription"] = classification.transcription
+
     # Fluxo unificado (v1.3.92): manual e auto entram com o mesmo status
     # (pending/auto_resolved decidido por precisa_revisao). A distincao visual
     # fica no badge "Auto" do frontend (metadata.is_manual + metadata.origem).

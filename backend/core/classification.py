@@ -237,6 +237,7 @@ class ClassificationResult:
     id_huawei: Optional[str] = None
     matricula: Optional[str] = None
     error: Optional[str] = None
+    transcription: Optional[str] = None
     direction_mismatch: bool = False
     needs_review: bool = False
     review_reasons: list[str] = field(default_factory=list)
@@ -936,6 +937,111 @@ def resolve_operator_identity(
         resolved.source = "ai"
 
     return resolved
+
+
+# ── Triagem de áudio puro: identidade do operador pela FALA (v1.3.212) ───────
+# Quando não há nome de arquivo (upload de áudio solto), o operador quase sempre
+# se identifica na fala ("aqui é a Valéria da base de logística", "cadastro
+# Opentech Dayane"). Extraímos o primeiro nome falado e, se casar com UM único
+# colaborador do cadastro (usando o setor falado para desempatar homônimos),
+# deixamos o guardrail de RH puxar o setor oficial. Ambíguo/sem match => não
+# mexe (segue para revisão manual; nunca chuta).
+
+_SPEECH_NAME_PATTERNS = [
+    _re.compile(r"\baqui\s+(?:e\s+)?(?:quem\s+fala\s+e\s+)?(?:o|a)\s+([a-z]{3,})\b"),
+    _re.compile(r"\bme\s+chamo\s+(?:o\s+|a\s+)?([a-z]{3,})\b"),
+    _re.compile(r"\bmeu\s+nome\s+e\s+([a-z]{3,})\b"),
+    _re.compile(r"\beu\s+sou\s+(?:o|a)\s+([a-z]{3,})\b"),
+    _re.compile(
+        r"\b(?:cadastro|sinistro|logistica|monitoramento|temperatura)\s+"
+        r"(?:da\s+|de\s+)?opentech\s+([a-z]{3,})\b"
+    ),
+]
+
+# Tokens que NUNCA são nome de operador (evita falso positivo na extração).
+_SPEECH_NAME_STOPWORDS = frozenset({
+    "bom", "boa", "dia", "tarde", "noite", "senhor", "senhora", "voce", "como",
+    "qual", "aqui", "que", "com", "uma", "central", "base", "setor", "opentech",
+    "para", "por", "favor", "moto", "motorista", "cliente", "sim", "nao", "gente",
+    "empresa", "rastreamento", "monitoramento", "sinistro", "cadastro", "logistica",
+})
+
+# Termos falados que indicam cada setor (só para desempatar homônimos).
+_SPEECH_SECTOR_KEYWORDS = {
+    "logistica": ("logistica", "temperatura", "espelhamento", "estadia"),
+    "cadastro": ("cadastro", "antecedente"),
+    "bas": ("base de sinistro", "central de sinistro", " bas ", "central de monitoramento"),
+    "uti": (" uti ", " grs ", "tratativa", "gerenciamento de risco"),
+    "transferencia": ("transferencia", "longo percurso"),
+    "distribuicao": ("distribuicao",),
+    "fenix": ("fenix",),
+    "receptivo": ("receptivo",),
+}
+
+
+def _strip_accents_lower(text: str) -> str:
+    """Minúsculas sem acento (para casar termos falados de forma robusta)."""
+    norm = unicodedata.normalize("NFKD", str(text or ""))
+    return "".join(c for c in norm if not unicodedata.combining(c)).lower()
+
+
+def _extract_spoken_operator_first_name(transcription: str) -> Optional[str]:
+    """Primeiro nome que o operador fala ao se apresentar; None se nada plausível.
+
+    Olha só a abertura da ligação (onde a apresentação acontece) e ignora tokens
+    que claramente não são nome. Nome implausível não casa no cadastro depois,
+    então a função é segura por construção.
+    """
+    head = _strip_accents_lower(transcription)[:700]
+    for pattern in _SPEECH_NAME_PATTERNS:
+        match = pattern.search(head)
+        if not match:
+            continue
+        candidate = match.group(1).strip()
+        if len(candidate) >= 3 and candidate not in _SPEECH_NAME_STOPWORDS:
+            return candidate
+    return None
+
+
+def _spoken_sector_ids(transcription: str) -> set[str]:
+    """Setores cujos termos aparecem na fala (usado só para desempate)."""
+    haystack = f" {_strip_accents_lower(transcription)} "
+    return {
+        sector_id
+        for sector_id, keywords in _SPEECH_SECTOR_KEYWORDS.items()
+        if any(keyword in haystack for keyword in keywords)
+    }
+
+
+def resolve_operator_from_speech(transcription: str) -> Optional[dict]:
+    """Resolve o colaborador pela FALA (primeiro nome + setor falado para desempate).
+
+    Só retorna quando há UM único colaborador compatível (alta precisão). Vários
+    candidatos sem desempate claro => None (revisão manual; nunca chuta). Nunca
+    levanta exceção (qualquer falha => None). Só lê o banco.
+    """
+    try:
+        first_name = _extract_spoken_operator_first_name(transcription)
+        if not first_name:
+            return None
+        from repositories import operators
+        candidates = operators.listar_colaboradores_por_primeiro_nome(get_connection, first_name)
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return candidates[0]
+        spoken_sectors = _spoken_sector_ids(transcription)
+        if spoken_sectors:
+            filtered = [
+                cand for cand in candidates
+                if _strip_accents_lower(_get_effective_db_sector(cand) or "") in spoken_sectors
+            ]
+            if len(filtered) == 1:
+                return filtered[0]
+        return None  # ambíguo: deixa para revisão manual
+    except Exception as exc:
+        logger.warning("resolve_operator_from_speech falhou (ignorando): %s", exc)
+        return None
 
 
 # ── Guardrails pós-classificação (correções determinísticas sobre a IA) ─────
@@ -1834,6 +1940,27 @@ async def classify_audio(audio_bytes: bytes, filename: str) -> ClassificationRes
             parsed_filename=parsed,
         )
 
+    # Áudio puro (sem nome de arquivo): o operador não foi resolvido pelo nome do
+    # arquivo nem pela IA. Tenta identificá-lo pela FALA; achando um único
+    # colaborador, o guardrail de RH puxa o setor oficial. Conservador e sem-erro:
+    # ambíguo/nada => não mexe (segue para revisão manual).
+    if not final_operator and not parsed.operator_name:
+        speech_rh = await asyncio.to_thread(resolve_operator_from_speech, transcription)
+        if speech_rh:
+            final_operator = speech_rh.get("name") or final_operator
+            final_id_huawei = final_id_huawei or speech_rh.get("idHuawei") or speech_rh.get("idTelefonia")
+            final_matricula = final_matricula or speech_rh.get("matricula")
+            db_sector = _get_effective_db_sector(speech_rh)
+            classification["operator_name"] = final_operator
+            _append_review_reason(classification, "operador_identificado_pela_fala")
+            classification = await asyncio.to_thread(
+                enforce_operator_and_direction_guardrails,
+                classification,
+                final_operator,
+                db_sector=db_sector,
+                parsed_filename=parsed,
+            )
+
     if classification.get("sector_id") in {"desconhecido", "erro", "", None} and parsed.sector_hint:
         catalog = load_audit_criteria_catalog()
         sector_data = catalog.get(parsed.sector_hint)
@@ -1860,7 +1987,8 @@ async def classify_audio(audio_bytes: bytes, filename: str) -> ClassificationRes
             id_huawei=final_id_huawei,
             matricula=final_matricula,
             direction_mismatch=classification.get("_direction_mismatch", False),
-            review_reasons=classification.get("review_reasons", [])
+            review_reasons=classification.get("review_reasons", []),
+            transcription=transcription,
         )
     )
 

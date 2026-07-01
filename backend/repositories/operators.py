@@ -554,6 +554,84 @@ def buscar_colaborador_por_nome(get_connection: ConnectionFactory, nome: str) ->
     return None
 
 
+def listar_colaboradores_por_primeiro_nome(
+    get_connection: ConnectionFactory, primeiro_nome: str
+) -> list[dict]:
+    """Lista colaboradores auditáveis cujo PRIMEIRO nome bate com ``primeiro_nome``.
+
+    Usado pela triagem de áudio puro (sem nome de arquivo): a partir do primeiro
+    nome que o operador fala ("aqui é a Valéria..."), devolve TODOS os candidatos
+    para o chamador desempatar (ex.: pelo setor falado). Match por primeiro nome
+    normalizado (>= 3 chars), só ATIVO + auditável, ignorando linhas técnicas/
+    removidas. Retorna ``[]`` se nada casar. Só lê o banco — sem efeitos colaterais.
+    """
+    if not primeiro_nome or not str(primeiro_nome).strip():
+        return []
+    normalized = _normalize_lookup_text(primeiro_nome)
+    target_parts = normalized.split()
+    if not target_parts:
+        return []
+    target_first = target_parts[0]
+    if len(target_first) < 3:
+        return []
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, nome, supervisor, setor, escala, matricula, id_huawei,
+                   id_telefonia, softphone_number, telefonia_account,
+                   organizacao_telefonia, tipo_agente, status_telefonia, id_weon,
+                   auditavel
+            FROM colaboradores
+            WHERE status = 'ATIVO'
+              AND COALESCE(auditavel, 1) = 1
+              AND nome IS NOT NULL
+              AND nome != ''
+            """
+        )
+        rows = cursor.fetchall()
+    finally:
+        conn.close()
+
+    def _to_dict(row) -> dict:
+        preferred_id, preferred_id_source = _pick_preferred_operator_id(row)
+        resolved_setor = _normalize_operator_sector(
+            row["setor"] or "", row["escala"] or "", row["organizacao_telefonia"] or "",
+        )
+        resolved_huawei_id = _resolve_huawei_id(row)
+        _, resolved_telefonia_id = _coerce_huawei_and_telefonia_ids(
+            row["id_huawei"], row["id_telefonia"],
+        )
+        return {
+            "id": row["id"],
+            "name": str(row["nome"] or "").strip(),
+            "preferredId": preferred_id,
+            "preferredIdSource": preferred_id_source,
+            "supervisor": str(row["supervisor"] or "").strip(),
+            "setor": resolved_setor,
+            "escala": str(row["escala"] or "").strip(),
+            "matricula": str(row["matricula"] or "").strip(),
+            "idHuawei": resolved_huawei_id,
+            "idTelefonia": resolved_telefonia_id,
+            "softphoneNumber": str(row["softphone_number"] or "").strip(),
+            "telefoniaAccount": str(row["telefonia_account"] or "").strip(),
+            "organizacaoTelefonia": str(row["organizacao_telefonia"] or "").strip(),
+            "tipoAgente": str(row["tipo_agente"] or "").strip(),
+            "statusTelefonia": str(row["status_telefonia"] or "").strip(),
+        }
+
+    candidatos: list[dict] = []
+    for row in rows:
+        if not _is_auditable_row(row) or _is_removed_operator_row(row):
+            continue
+        db_parts = _normalize_lookup_text(row["nome"]).split()
+        if db_parts and db_parts[0] == target_first:
+            candidatos.append(_to_dict(row))
+    return candidatos
+
+
 def buscar_colaborador_por_matricula(get_connection: ConnectionFactory, matricula: str) -> Optional[dict]:
     """Busca um colaborador auditável pela `matricula` (match exato).
 
