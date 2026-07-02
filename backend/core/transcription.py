@@ -89,7 +89,10 @@ from transcription_providers.azure import (
     AzureTranscriptionDependencies,
     transcribe_audio_azure as run_azure_transcription,
 )
-from transcription_providers.common import build_transcription_domain_prompt
+from transcription_providers.common import (
+    build_transcription_domain_prompt,
+    fit_prompt_to_whisper_window,
+)
 from core.transcription_candidates import TranscriptionCandidate, build_candidate
 from core.transcription_cross_signals import compute_cross_signals
 from core.transcription_selector import (
@@ -441,11 +444,34 @@ _parse_float = parse_float_value
 
 # ── Roteamento p/ GPT-4o diarize como engine primária (smart routing) ───────
 
+def _whisper_prompt_priority_terms() -> list[str]:
+    """Glossário crítico que DEVE sobreviver ao corte de 224 tokens do prompt do Whisper.
+
+    Vem de `whisper_prompt_priority_terms` do text_corrections.json; na ausência,
+    usa os próprios `target` das correções (a forma canônica de cada termo que o
+    ASR costuma errar) mais o marcador de inaudível.
+    """
+    configured = TEXT_CORRECTIONS_CONFIG.get("whisper_prompt_priority_terms")
+    if isinstance(configured, list):
+        cleaned = [str(term).strip() for term in configured if str(term).strip()]
+        if cleaned:
+            return cleaned
+    targets = [
+        str(correction.get("target") or "").strip()
+        for correction in TEXT_CORRECTIONS_CONFIG.get("corrections", [])
+    ]
+    return [target for target in targets if target] + ["[Inaudível]"]
+
+
 def _resolve_whisper_prompt(sector_id: Optional[str]) -> str:
     """Prompt de vocabulário do Whisper: específico do setor (DB) ou default do JSON.
 
     Falha de banco não derruba a transcrição — cai no prompt local de
-    `text_corrections.json`.
+    `text_corrections.json`. O prompt resolvido é SEMPRE ajustado à janela de
+    224 tokens do Whisper (`fit_prompt_to_whisper_window`): o modelo ignora tudo
+    antes dos últimos 224 tokens, então os termos críticos (Opentech, clientes,
+    tecnologias) são garantidos no FIM e o excedente é cortado do início — sem
+    isso, prompts longos do banco descartavam silenciosamente o glossário.
     """
     default_prompt = TEXT_CORRECTIONS_CONFIG.get(
         "whisper_prompt",
@@ -454,10 +480,11 @@ def _resolve_whisper_prompt(sector_id: Optional[str]) -> str:
     try:
         from repositories.ai_prompts import get_whisper_prompt_for_sector
 
-        return get_whisper_prompt_for_sector(database.get_connection, sector_id, default_prompt) or default_prompt
+        prompt = get_whisper_prompt_for_sector(database.get_connection, sector_id, default_prompt) or default_prompt
     except Exception:
         logger.debug("Falha ao carregar prompt Whisper por setor; usando fallback local.", exc_info=True)
-        return default_prompt
+        prompt = default_prompt
+    return fit_prompt_to_whisper_window(prompt, _whisper_prompt_priority_terms())
 
 
 def _should_use_gpt4o_diarize_as_primary(

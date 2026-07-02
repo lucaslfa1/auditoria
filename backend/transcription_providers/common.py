@@ -197,6 +197,68 @@ def build_transcription_domain_prompt(
     )
 
 
+# O Whisper considera APENAS os últimos 224 tokens do prompt (transparency note
+# da Azure OpenAI); tudo antes disso é ignorado silenciosamente. Orçamento com
+# folga para a estimativa de tokens não estourar a janela real.
+WHISPER_PROMPT_TOKEN_BUDGET = 210
+
+
+def estimate_whisper_prompt_tokens(text: str) -> int:
+    """Estimativa CONSERVADORA de tokens do prompt no BPE do Whisper (~3 chars/token em pt-BR).
+
+    Superestimar de propósito é seguro: corta-se um pouco mais do início do
+    prompt, mas os termos críticos (no fim) nunca saem da janela de 224 tokens.
+    """
+    return max(1, (len(text or "") + 2) // 3)
+
+
+def fit_prompt_to_whisper_window(
+    prompt: str,
+    priority_terms: list[str] | None = None,
+    max_tokens: int = WHISPER_PROMPT_TOKEN_BUDGET,
+) -> str:
+    """Reordena e corta o prompt de vocabulário para caber na janela de 224 tokens do Whisper.
+
+    O Whisper só considera os ÚLTIMOS 224 tokens do prompt, então: (1) os
+    `priority_terms` (glossário crítico: Opentech, clientes, tecnologias) são
+    movidos/garantidos no FIM do prompt — a parte que sobrevive ao corte do
+    modelo; (2) termos são deduplicados sem distinção de caixa; (3) se a
+    estimativa de tokens exceder `max_tokens`, remove termos do INÍCIO (os menos
+    críticos) até caber. Função pura; espera prompt em formato de lista separada
+    por vírgulas (o formato usado em `whisper_prompt.*`).
+    """
+    text = (prompt or "").strip()
+    if not text:
+        return text
+
+    terms = [term.strip() for term in text.rstrip(" .").split(",") if term.strip()]
+    if not terms:
+        return text
+
+    priority: list[str] = []
+    seen: set[str] = set()
+    for term in priority_terms or []:
+        cleaned = str(term).strip()
+        key = cleaned.lower()
+        if cleaned and key not in seen:
+            seen.add(key)
+            priority.append(cleaned)
+
+    rest: list[str] = []
+    for term in terms:
+        key = term.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        rest.append(term)
+
+    ordered = rest + priority
+    while len(ordered) > 1 and estimate_whisper_prompt_tokens(", ".join(ordered) + ".") > max_tokens:
+        ordered.pop(0)
+
+    return ", ".join(ordered) + "."
+
+
 def build_combined_segments(
     phrases: list[dict],
     *,

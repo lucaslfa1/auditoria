@@ -27,8 +27,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import unicodedata
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from audio.diarization_quality import (
     clone_transcription_segment,
@@ -150,12 +151,175 @@ def normalize_text_for_dedupe(text: str) -> str:
 
 
 def normalize_company_name(text: str) -> str:
-    """Corrige erros foneticos de transcricao usando config/text_corrections.json."""
+    """Corrige erros foneticos de transcricao usando config/text_corrections.json.
+
+    Duas camadas, nesta ordem: (1) regex explícitos de `corrections` (casos
+    conhecidos, inclusive multi-palavra); (2) correção fuzzy fonética
+    (`fuzzy_corrections`), que aproxima tokens desconhecidos dos termos canônicos
+    e pega variantes que nunca entraram no dicionário (ex.: "pintech" → Opentech).
+    """
     corrections = TEXT_CORRECTIONS_CONFIG.get("corrections", [])
     for correction in corrections:
         target = correction.get("target", "")
         for pattern in correction.get("patterns", []):
             text = re.sub(pattern, target, text, flags=re.IGNORECASE)
+    return apply_fuzzy_corrections(text)
+
+
+# ── Fuzzy phonetic corrections ────────────────────────────────────────────────
+# Complementa os regex de `corrections`: em vez de enumerar cada erro possível
+# do ASR ("Opemtech", "Alpentech", ...), compara a forma FONÉTICA de cada token
+# (e de pares de tokens adjacentes) com os termos canônicos de
+# `fuzzy_corrections.targets` por distância de edição. Determinístico, sem API.
+
+
+def _strip_accents(text: str) -> str:
+    return "".join(
+        ch for ch in unicodedata.normalize("NFD", text) if unicodedata.category(ch) != "Mn"
+    )
+
+
+def _phonetic_key(token: str) -> str:
+    """Forma fonética aproximada pt-BR para comparar erros de ASR (opemtech ≈ opentek).
+
+    Normaliza as confusões clássicas do reconhecedor: dígrafos (ch/ck/qu → k,
+    ph → f), c com som de s/k, nasal antes de consoante (m → n), z/ç → s,
+    remoção de h mudo e colapso de letras duplicadas.
+    """
+    t = _strip_accents(str(token).lower())
+    t = re.sub(r"[^a-z]", "", t)
+    t = t.replace("ph", "f").replace("qu", "k").replace("ck", "k").replace("ch", "k")
+    t = re.sub(r"c(?=[eiy])", "s", t)
+    t = t.replace("c", "k").replace("z", "s")
+    t = t.replace("w", "v").replace("y", "i")
+    t = re.sub(r"m(?![aeiou])", "n", t)
+    t = t.replace("h", "")
+    t = re.sub(r"(.)\1+", r"\1", t)
+    return t
+
+
+def _levenshtein(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    if not a or not b:
+        return len(a) + len(b)
+    previous = list(range(len(b) + 1))
+    for i, ca in enumerate(a, start=1):
+        current = [i]
+        for j, cb in enumerate(b, start=1):
+            current.append(
+                min(
+                    previous[j] + 1,          # remoção
+                    current[j - 1] + 1,       # inserção
+                    previous[j - 1] + (ca != cb),  # substituição
+                )
+            )
+        previous = current
+    return previous[-1]
+
+
+def _fuzzy_allowed_distance(target_key_length: int) -> int:
+    """Distância máxima tolerada em função do tamanho da chave fonética do alvo.
+
+    Alvos curtos exigem quase-igualdade (evita capturar palavras comuns);
+    alvos longos toleram mais ruído de ASR.
+    """
+    if target_key_length <= 4:
+        return 0
+    if target_key_length <= 5:
+        return 1
+    if target_key_length <= 8:
+        return 2
+    return 3
+
+
+def _build_fuzzy_state(config: dict) -> dict:
+    fuzzy_config = config.get("fuzzy_corrections") or {}
+    targets = []
+    for target in fuzzy_config.get("targets", []):
+        cleaned = str(target).strip()
+        key = _phonetic_key(cleaned)
+        if cleaned and len(key) >= 4:
+            targets.append((cleaned, key))
+    protected = {
+        _strip_accents(str(word).strip().lower())
+        for word in fuzzy_config.get("protected_words", [])
+        if str(word).strip()
+    }
+    return {
+        "enabled": bool(fuzzy_config.get("enabled", False)) and bool(targets),
+        "targets": targets,
+        "protected": protected,
+        "min_token_length": max(3, int(fuzzy_config.get("min_token_length", 5))),
+    }
+
+
+_FUZZY_STATE = _build_fuzzy_state(TEXT_CORRECTIONS_CONFIG)
+
+_FUZZY_TOKEN_PATTERN = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ]+")
+
+
+def _fuzzy_match_target(raw_token: str, min_token_length: int) -> Optional[str]:
+    """Retorna o termo canônico mais próximo do token, ou None se nada casar com segurança."""
+    token = raw_token.strip()
+    if len(token) < min_token_length:
+        return None
+    if _strip_accents(token.lower()) in _FUZZY_STATE["protected"]:
+        return None
+    key = _phonetic_key(token)
+    if len(key) < 4:
+        return None
+
+    best_target: Optional[str] = None
+    best_distance = -1
+    for target, target_key in _FUZZY_STATE["targets"]:
+        allowed = _fuzzy_allowed_distance(len(target_key))
+        if abs(len(key) - len(target_key)) > allowed:
+            continue
+        distance = _levenshtein(key, target_key)
+        if distance <= allowed and (best_target is None or distance < best_distance):
+            best_target = target
+            best_distance = distance
+    return best_target
+
+
+def apply_fuzzy_corrections(text: str) -> str:
+    """Aproxima tokens (e pares de tokens) do glossário canônico por fonética + distância de edição.
+
+    Percorre as palavras do texto; para cada uma (e para cada par adjacente
+    separado só por espaço/hífen, ex.: "pin tech"), busca o termo canônico cuja
+    chave fonética esteja dentro da distância tolerada e substitui preservando o
+    restante do texto. Palavras em `protected_words` e tokens curtos nunca são
+    tocados. Sem custo de API; puro CPU.
+    """
+    if not text or not _FUZZY_STATE["enabled"]:
+        return text
+
+    tokens = list(_FUZZY_TOKEN_PATTERN.finditer(text))
+    min_token_length = _FUZZY_STATE["min_token_length"]
+    replacements: list[tuple[int, int, str]] = []
+
+    i = 0
+    while i < len(tokens):
+        # Par adjacente primeiro ("open teque", "pin tech"); exige >= 3 letras em
+        # cada parte para não juntar artigos/preposições ("o pente", "a gente").
+        if i + 1 < len(tokens):
+            gap = text[tokens[i].end() : tokens[i + 1].start()]
+            if gap.strip() in {"", "-"} and len(tokens[i].group()) >= 3 and len(tokens[i + 1].group()) >= 3:
+                combo = tokens[i].group() + tokens[i + 1].group()
+                target = _fuzzy_match_target(combo, min_token_length)
+                if target:
+                    replacements.append((tokens[i].start(), tokens[i + 1].end(), target))
+                    i += 2
+                    continue
+
+        target = _fuzzy_match_target(tokens[i].group(), min_token_length)
+        if target and tokens[i].group() != target:
+            replacements.append((tokens[i].start(), tokens[i].end(), target))
+        i += 1
+
+    for start, end, target in reversed(replacements):
+        text = text[:start] + target + text[end:]
     return text
 
 

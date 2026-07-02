@@ -81,7 +81,8 @@
                 "\\bOpen\\s*tag\\b",
                 "\\bOpe\\s*tech\\b",
                 "\\bHope\\s*tech\\b",
-                "\\b[Oo]culos\\s*tec\\b"
+                "\\b[Oo]culos\\s*tec\\b",
+                "\\b[Pp]i[nm]\\s*te(?:ch|ck|c|k|x|que)\\b"
             ]
         },
         {
@@ -295,5 +296,64 @@
         "eu falo com você": "[Inaudível]",
         "eu falo com voce": "[Inaudível]",
         "falo com você": "[Inaudível]"
+    },
+    "whisper_prompt_priority_terms": [
+        "Opentech",
+        "nstech",
+        "BAS",
+        "Base de Sinistros",
+        "Mondelez",
+        "Unilever",
+        "Buonny",
+        "Sascar",
+        "Tracker",
+        "Onix",
+        "Onixsat",
+        "Autotrac",
+        "Omnilink",
+        "Ravex",
+        "Sighra",
+        "Maxtrack",
+        "T4S",
+        "3S",
+        "isca",
+        "jammer",
+        "senha de segurança",
+        "gerenciamento de risco",
+        "motorista",
+        "placa",
+        "[Inaudível]"
+    ],
+    "fuzzy_corrections": {
+        "enabled": true,
+        "min_token_length": 5,
+        "targets": [
+            "Opentech",
+            "nstech",
+            "Mondelez",
+            "Unilever",
+            "Omnilink",
+            "Autotrac",
+            "Onixsat",
+            "Maxtrack",
+            "Buonny"
+        ],
+        "protected_words": [
+            "gente",
+            "agente",
+            "urgente",
+            "pente",
+            "pentes",
+            "fintech",
+            "modelo",
+            "modelos",
+            "sigla",
+            "siglas",
+            "sacar",
+            "quente",
+            "ontem",
+            "aumente",
+            "atente"
+        ]
     }
 }

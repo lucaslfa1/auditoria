@@ -311,6 +311,11 @@ def transcribe_audio_azure(
         "diarization": {"enabled": True, "maxSpeakers": max_speakers},
         "wordLevelTimestampsEnabled": True,
     }
+    # Modelo Custom Speech treinado com o vocabulário do domínio (api-version
+    # 2025-10-15+). Opt-in por env: quando ausente, usa o modelo base pt-BR.
+    custom_model_uri = (os.getenv("AZURE_SPEECH_CUSTOM_MODEL_URI") or "").strip()
+    if custom_model_uri:
+        definition["models"] = {"pt-BR": custom_model_uri}
     domain_phrases = build_azure_domain_phrases(
         dependencies.text_corrections_config,
         operator_name,
