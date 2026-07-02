@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Auditoria por IA</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 3: Auditoria por Inteligência Artificial</h1>
+        <p>Este processo transforma a ligação em texto e calcula a nota. O sistema possui uma fila inteligente que tenta primeiro as formas de transcrição mais rápidas e econômicas. Se houver problemas com o áudio, ele escala para modelos mais avançados de IA para garantir a precisão do texto antes de pontuar.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Áudio Enviado para Auditoria]) --> TranscribeCascade{Sistema de Redundância: Como transcrever?}
+                
+                TranscribeCascade --> Engine1[1. Transcrição Rápida - Azure]
+                Engine1 -- Falha / Qualidade Baixa --> Engine2[2. Transcrição Premium - Whisper]
+                Engine2 -- Falha / Conexão Ruim --> Engine3[3. Transcrição por IA de Longa Duração]
+                Engine3 -- Caso Extremo --> Engine4[4. Transcrição Integrada SDK]
+                
+                Engine1 -- Sucesso --> SelectBest[IA avaliadora escolhe o melhor texto]
+                Engine2 -- Sucesso --> SelectBest
+                Engine3 -- Sucesso --> SelectBest
+                Engine4 -- Sucesso --> SelectBest
+                
+                SelectBest --> Evaluate[IA lê a conversa e pontua os critérios de qualidade]
+                Evaluate --> CalcAward[Calcula a nota com base nos pesos cadastrados]
+                
+                CalcAward --> Zeragem{Ocorreu alguma falha gravíssima?}
+                Zeragem -- Sim --> ZeroScore[Força a nota final para ZERO]
+                Zeragem -- Não --> MaintainScore[Mantém a nota calculada normal]
+                
+                ZeroScore --> SaveDraft[Salva nos rascunhos em Arquivos Salvos]
+                MaintainScore --> SaveDraft
+                SaveDraft --> End([Aguardando revisão humana])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style TranscribeCascade fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Zeragem fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style ZeroScore fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Redundância de Transcrição:</b> O sistema tem 4 caminhos diferentes para gerar o texto do áudio. Se um canal cai ou o áudio tem ruído demais, o robô tenta o próximo da lista de forma automática.</li>
+                <li><b>Critérios de qualidade:</b> A IA verifica se o operador disse a frase padrão, se identificou a empresa, se confirmou dados do cliente, etc.</li>
+                <li><b>Falhas gravíssimas (Zeragem):</b> Omissões graves (ex: não checar dados de segurança) ou atendimento grosseiro zeram a nota final de forma direta, não importa se outros critérios foram atendidos.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

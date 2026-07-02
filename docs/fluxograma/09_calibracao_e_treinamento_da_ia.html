@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Calibração e Treinamento da IA</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 9: Calibração e Ajuste Fino da Inteligência Artificial</h1>
+        <p>A Inteligência Artificial precisa estar alinhada com as decisões humanas. Quando um auditor discorda da nota da IA ou quer ensinar novas regras ao robô, ele usa o processo de calibração para cadastrar exemplos gabarito (Golden Dataset) no sistema.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Divergência na Nota da IA]) --> CheckError[Auditor detecta que a IA errou uma nota ou critério]
+                CheckError --> SaveCalib[Salvar o atendimento real como Exemplo de Calibração]
+                
+                SaveCalib --> OpenExample[Editar Exemplo no painel Calibração de IA]
+                OpenExample --> DefineGabarito[Auditor preenche a transcrição ideal e as respostas corretas do gabarito]
+                
+                DefineGabarito --> SaveGolden[Salvar no banco de dados como Caso de Teste Oficial]
+                
+                SaveGolden --> RunRetest[Testar o motor da IA contra todos os gabaritos salvos]
+                
+                RunRetest --> CheckConfidence{A taxa de acerto da IA é satisfatória?}
+                CheckConfidence -- Não --> AdjustPrompt[Ajustar instruções gerais do Prompt da IA]
+                AdjustPrompt --> RunRetest
+                
+                CheckConfidence -- Sim --> Deploy[Pronto! Nova regra ativa para futuras auditorias]
+                Deploy --> End([IA Calibrada])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style CheckConfidence fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style DefineGabarito fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+                style AdjustPrompt fill:#f43f5e,stroke:#e11d48,stroke-width:2px,color:#fff
+                style Deploy fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Exemplos Gabarito (Golden Dataset):</b> São ligações reais que foram detalhadamente analisadas e corrigidas por humanos. O sistema as usa como "prova de teste" para medir a inteligência da IA.</li>
+                <li><b>Instruções do Prompt:</b> Se a IA falha no gabarito, o administrador reescreve a regra do robô (ex: "Considere negação apenas se o operador explicitamente recusar...").</li>
+                <li><b>IA Calibrada:</b> Garante que após alterações de regras ou novos POPs operacionais, a IA mantenha um comportamento coerente, estável e livre de desvios nas notas.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

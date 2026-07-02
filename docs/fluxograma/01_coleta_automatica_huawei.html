@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Coleta Automática Huawei</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 1: Coleta Automática de Ligações (Huawei)</h1>
+        <p>Este processo roda sozinho todos os dias de madrugada. O robô do sistema conecta na telefonia da Huawei, puxa a lista de ligações do dia anterior e seleciona apenas as ligações úteis que valem a pena ser auditadas, descartando o restante para economizar custos.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Cronômetro Diário: Rodar de Madrugada]) --> Manifest[Busca lista de ligações de ontem na telefonia Huawei]
+                Manifest --> Loop[Analisa ligação por ligação]
+                
+                Loop --> CheckOperador{O operador está cadastrado e ativo?}
+                CheckOperador -- Não --> Descarte[Descarte Permanente: Registra o motivo no painel]
+                
+                CheckOperador -- Sim --> CheckFiltros{A ligação tem duração e sentido corretos?}
+                CheckFiltros -- Não --> Descarte
+                
+                CheckFiltros -- Sim --> LLMTriage{A Inteligência Artificial considera a chamada útil?}
+                LLMTriage -- Não --> Descarte
+                
+                LLMTriage -- Sim --> Download[Baixa o arquivo de áudio com segurança]
+                Download --> SaveQueue[Envia o áudio para a Fila de Triagem]
+                SaveQueue --> End([Pronto para análise])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Descarte fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+                style CheckOperador fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style CheckFiltros fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style LLMTriage fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Duração e sentido:</b> Ligações muito curtas (ex: menos de 30 segundos) ou que não entraram pelos canais corretos (VDN) são descartadas imediatamente.</li>
+                <li><b>Operador ativo:</b> Se o operador não estiver cadastrado no painel com seu ID Huawei correspondente, o robô ignora a ligação dele.</li>
+                <li><b>Descarte Permanente:</b> Para evitar acúmulo de lixo, ligações reprovadas nos filtros são marcadas em definitivo e nunca mais são baixadas.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

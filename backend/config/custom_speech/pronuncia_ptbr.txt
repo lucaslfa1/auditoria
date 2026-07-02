@@ -1,0 +1,79 @@
+﻿Opentech	ôpen téc
+Opentech	ôpen téqui
+Opentech	ópen tec
+nstech	ene esse téc
+nstech	enes téqui
+BAS	bás
+Mondelez	mondelés
+Mondelez	mondeléz
+Unilever	uni léver
+Buonny	buôni
+Buonny	bôni
+Sascar	sás car
+Autotrac	auto trác
+Autotrac	auto tráqui
+Omnilink	ômni linque
+Omnilink	ômni linc
+Onix	ônix
+Onixsat	ônix sát
+Maxtrack	máx tráqui
+Maxtrack	máx tréc
+Ravex	ravéx
+Ravex	ravéks
+Sighra	sigra
+Tracker	tráquer
+Tracker	tréquer
+Translovato	trans lovato
+T4S	té quatro esse
+3S	três esse
+CT-e	cê tê é
+B.O.	bê ó
+PRF	pê erre éfe
+PRE	pê erre é
+QAP	quê a pê
+QRA	quê erre a
+CNH	cê ene agá
+CPF	cê pê éfe
+VUC	vuque
+URA	ura
+SLA	esse ele a
+EADI	eádi
+P.A.	pê a
+Thermo King	termo quingue
+Carrier	cárrier
+Jadlog	jádi lógui
+JSL	jota esse ele
+BRF	bê erre éfe
+JBS	jota bê esse
+geofence	geofence
+geofence	gêo fence
+jammer	jâmer
+jammer	gêimer
+BR-116	bê erre cento e dezesseis
+BR-101	bê erre cento e um
+BR-381	bê erre trezentos e oitenta e um
+BR-153	bê erre cento e cinquenta e três
+BR-040	bê erre zero quarenta
+BR-277	bê erre duzentos e setenta e sete
+BR-163	bê erre cento e sessenta e três
+CV	cê vê
+TCP	tê cê pê
+ADA	ada
+VTR	vê tê erre
+UOP	u ó pê
+B.A.T.	bê a tê
+OBC	ó bê cê
+GPS	gê pê esse
+CEAGESP	ceagéspi
+CEAGESP	cê a gésp
+Sequoia	sequóia
+Loggi	lógui
+Tegma	tégma
+Braspress	brás préss
+Rodonaves	rodo naves
+Patrus	pátrus
+Frimesa	friméza
+Copacol	copacól
+Marfrig	marfrígui
+Setpoint	sét põint
+Datalogger	dêita lóguer

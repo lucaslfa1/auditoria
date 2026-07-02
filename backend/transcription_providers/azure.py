@@ -322,7 +322,21 @@ def transcribe_audio_azure(
         driver_name,
     )
     if domain_phrases:
-        definition["phraseList"] = {"phrases": domain_phrases}
+        phrase_list: dict[str, Any] = {"phrases": domain_phrases}
+        # Peso do viés da phraseList (0.0-2.0; default do serviço = 1.0). Valores
+        # maiores aumentam a chance de reconhecer os termos do domínio (Opentech,
+        # clientes, tecnologias) em vez de alucinações fonéticas. Suportado na
+        # api-version 2025-10-15; validado empiricamente no endpoint em 02/07/2026.
+        raw_weight = (os.getenv("AZURE_SPEECH_PHRASELIST_BIASING_WEIGHT") or "").strip()
+        if raw_weight:
+            try:
+                phrase_list["biasingWeight"] = max(0.0, min(2.0, float(raw_weight)))
+            except ValueError:
+                logger.warning(
+                    "AZURE_SPEECH_PHRASELIST_BIASING_WEIGHT invalido (%r); ignorando.",
+                    raw_weight,
+                )
+        definition["phraseList"] = phrase_list
 
     max_sync_upload_bytes = _get_max_sync_upload_bytes()
     if len(audio_file) > max_sync_upload_bytes:

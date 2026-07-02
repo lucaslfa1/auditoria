@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Cadastro de Operadores</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 7: Cadastro e Gestão de Operadores</h1>
+        <p>Para que o robô do sistema consiga baixar ligações automaticamente, o operador precisa estar devidamente cadastrado no banco de dados e marcado como ativo. Este fluxograma descreve os passos para cadastrar ou importar novos colaboradores.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Painel de Operadores]) --> Choice{Como cadastrar?}
+                
+                Choice -- 1. Novo Colaborador (Formulário) --> Form[Preencher Nome, Supervisor, Setor e Escala]
+                Choice -- 2. Importar Planilha (Em lote) --> ExcelImport[Importar arquivo Excel de operadores]
+                
+                Form --> FieldHuawei[Cadastrar Matrícula e ID Huawei da telefonia]
+                ExcelImport --> FieldHuawei
+                
+                FieldHuawei --> CheckActive{Marcar como Ativo e Auditável?}
+                
+                CheckActive -- Não --> SkipSync[Operador é cadastrado, mas ignorado pelo robô da telefonia]
+                CheckActive -- Sim --> EnableSync[Robô inclui o operador na busca de ligações diária]
+                
+                EnableSync --> End([Operador Habilitado para Coleta])
+                SkipSync --> End
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Choice fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style CheckActive fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style EnableSync fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+                style SkipSync fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>ID Huawei:</b> Este é o código do operador dentro do sistema de telefonia. Sem ele preenchido, o robô não tem como cruzar os dados da ligação, e o operador "some" da coleta diária.</li>
+                <li><b>Marcação Auditável:</b> Permite desativar temporariamente a auditoria de um operador (como em férias ou afastamento) sem precisar apagá-lo do histórico.</li>
+                <li><b>Importação em Lote:</b> Ideal para cadastros massivos ou atualizações periódicas de equipe usando planilhas.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

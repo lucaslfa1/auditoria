@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Triagem e Classificação</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 2: Triagem e Classificação de Áudios</h1>
+        <p>Este processo gerencia a entrada dos áudios na fila de auditoria. Ele recebe tanto as gravações automáticas vindas do robô da Huawei quanto arquivos enviados manualmente pelo próprio auditor, permitindo revisar e corrigir quem atendeu e o tipo de ligação antes de rodar a nota.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Painel de Triagem]) --> Source{Como a ligação entrou?}
+                Source -- Vinda da Coleta Automática --> ShowLine[Exibe na fila de retidos da tela]
+                
+                Source -- Upload Manual --> Classify[A Inteligência Artificial lê o áudio e identifica: Operador, Setor e Alerta]
+                Classify --> ShowLine
+                
+                ShowLine --> Confirm{O Auditor concorda com os dados?}
+                Confirm -- Não --> Edit[Auditor altera os campos na própria linha]
+                Confirm -- Sim --> Action{Ação Escolhida}
+                
+                Edit --> Action
+                
+                Action -- Baixar --> Download[Salva o arquivo de áudio com nome organizado no PC]
+                Action -- Excluir --> Delete[Remove a gravação da fila]
+                Action -- Auditar --> IniciarAuditoria[Envia o áudio classificado para receber Nota da IA]
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Source fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Confirm fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Edit fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+                style Action fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
+                style Delete fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Identificação por IA:</b> Ao subir um arquivo manual, a IA tenta escutar o áudio e adivinhar o nome do operador, o setor do atendimento e o motivo da ligação (alerta).</li>
+                <li><b>Corrigir dados:</b> O auditor pode trocar as informações diretamente na tabela caso a IA tenha confundido o operador ou o setor.</li>
+                <li><b>Auditar:</b> O botão "Auditar" avança o item para o processamento de áudio, onde a transcrição textual completa e a avaliação de notas serão feitas.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

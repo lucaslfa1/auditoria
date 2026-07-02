@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Processamento e Auditoria IA</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 3: Processamento de Áudio e Avaliação por IA</h1>
+        <p>Este fluxograma documenta a esteira inteligente de transcrição e auditoria. Ele descreve a cadeia de redundância de engines de transcrição e a avaliação do texto gerado contra o catálogo oficial de critérios, aplicando regras automáticas de nota e zeragem por gravidade.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Áudio Selecionado para Auditoria]) --> TranscribeCascade{Cadeia de Transcrição}
+                
+                TranscribeCascade --> Engine1[1. Fast Transcription - Azure]
+                Engine1 -- Falha / Baixo Nível --> Engine2[2. Whisper - Azure]
+                Engine2 -- Falha / Baixo Nível --> Engine3[3. GPT-4o Diarize]
+                Engine3 -- Falha / Baixo Nível --> Engine4[4. Speech SDK - VIVO]
+                
+                Engine1 -- Sucesso --> Selector{Selector / Judge LLM}
+                Engine2 -- Sucesso --> Selector
+                Engine3 -- Sucesso --> Selector
+                Engine4 -- Sucesso --> Selector
+                
+                Selector --> Decision{Decisão do Selector}
+                Decision -- accepted --> EvaluateGPT[Avaliação GPT-4o contra Critérios]
+                Decision -- needs_review/rejected --> ReviewQueue[Fila de Correção de Transcrição]
+                
+                EvaluateGPT --> CalcAward[Calcular Nota Bruta por Pesos]
+                CalcAward --> ApplyRules{Regras de Zeragem - 3 Camadas}
+                
+                ApplyRules -- Critério Crítico Falhou --> SetZeroScore[Forçar Nota Global = 0]
+                ApplyRules -- OK --> MaintainScore[Manter Nota Calculada]
+                
+                SetZeroScore --> SaveDraft[Salvar Rascunho em Arquivos Salvos]
+                MaintainScore --> SaveDraft
+                SaveDraft --> End([Aguardando Gate Humano])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style TranscribeCascade fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Decision fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style ApplyRules fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style SetZeroScore fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+                style ReviewQueue fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>Legenda Técnica:</b>
+            <ul>
+                <li><b>Cadeia de Transcrição:</b> Sequência inteligente que tenta primeiro as engines mais baratas e escala para premium apenas em caso de falha técnica ou baixa confiança de áudio.</li>
+                <li><b>Selector / Judge:</b> Compara os textos das diferentes transcrições concorrentes e decide a melhor, apontando para aprovação direta ou intervenção humana.</li>
+                <li><b>Regras de Zeragem:</b> Algumas falhas específicas (como grosseria ou negação do CPF) anulam a nota total do atendimento de forma irrecuperável.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

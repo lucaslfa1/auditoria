@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Fechamento Mensal</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 6: Fechamento Mensal e Exportação para BI</h1>
+        <p>Este processo consolida as notas e avaliações do mês selecionado. Ele permite que o administrador filtre, analise discrepâncias e exporte os dados oficiais no layout Excel de faturamento consumido pelo time de Business Intelligence (BI).</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Painel de Fechamento]) --> SelectMonth[Selecionar Mês e Ano de Referência]
+                SelectMonth --> FetchData[Buscar todas as auditorias finalizadas do período]
+                
+                FetchData --> FilterSectors{1. Filtrar Operadores UTI/RJ?}
+                
+                FilterSectors -- Sim --> ApplyOverrides[Aplicar Overrides de Cadastro e IDs Temporários para Exportação]
+                FilterSectors -- Não --> ConsolidateLayout[2. Consolidar Notas no Layout Oficial de Qualidade]
+                
+                ApplyOverrides --> ConsolidateLayout
+                
+                ConsolidateLayout --> ExportCall[Gerar e Exportar Planilha Excel via backend]
+                ExportCall --> ExcelDownload[Download do Arquivo de Faturamento]
+                
+                ExcelDownload --> PeriodLock[Bloquear alterações no período consolidado]
+                PeriodLock --> End([Fim do Ciclo Mensal])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style FilterSectors fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style ApplyOverrides fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+                style ExportCall fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>Legenda Técnica:</b>
+            <ul>
+                <li><b>Layout de Qualidade:</b> Formato estruturado de planilha Excel cujos rótulos e colunas obedecem a um contrato fixo com a ferramenta de BI externa.</li>
+                <li><b>Overrides UTI/RJ:</b> Ajustes cadastrais dinâmicos feitos em tempo de exportação para adaptar operadores da célula do RJ aos códigos legados exigidos no faturamento.</li>
+                <li><b>Bloqueio de Período:</b> Uma vez exportado e validado, o faturamento é congelado para evitar discrepâncias históricas no BI.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

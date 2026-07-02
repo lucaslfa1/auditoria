@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Auditoria de Chat / Documental</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 8: Auditoria de Chat / Documental</h1>
+        <p>Além de áudios, o sistema permite auditar atendimentos por escrito (chats). O auditor envia o histórico da conversa em formato PDF, o sistema processa a escrita e a IA pontua o atendimento contra os critérios da mesma forma que faria com o telefone.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Painel de Auditoria Manual]) --> SelectContext[Definir Setor, Alerta e Operador]
+                SelectContext --> UploadPDF[Fazer upload do arquivo PDF de chat]
+                
+                UploadPDF --> ParsePDF[Leitura do PDF: Extração automática do texto e falas]
+                ParsePDF --> VerifyDialog{Foi detectada uma conversa válida?}
+                
+                VerifyDialog -- Não (Erro ou Vazio) --> ErrorMessage[Exibir aviso de falha na leitura]
+                VerifyDialog -- Sim --> Evaluate[Inteligência Artificial pontua cada critério]
+                
+                Evaluate --> GenerateScore[Calcular nota final e justificativas]
+                GenerateScore --> SaveDraft[Salvar rascunho em Arquivos Salvos]
+                SaveDraft --> End([Aguardando revisão do auditor])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style VerifyDialog fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style ErrorMessage fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+                style Evaluate fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Leitura de PDF:</b> O sistema analisa o documento de chat (gerado pelo Service Cloud ou similar) e separa as mensagens do cliente das mensagens do operador de forma automática.</li>
+                <li><b>Pontuação da Conversa:</b> A IA analisa se o atendente usou a linguagem correta, se foi solícito e se sanou a dúvida no chat, conforme as regras de negócio.</li>
+                <li><b>Status Rascunho:</b> Assim como no áudio, a auditoria de chat fica em Arquivos Salvos aguardando que o auditor valide a avaliação antes do envio final.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

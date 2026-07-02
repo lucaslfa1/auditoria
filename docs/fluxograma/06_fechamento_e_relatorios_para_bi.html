@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Fechamento e Relatórios para BI</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 6: Fechamento e Relatórios para o BI</h1>
+        <p>No final de cada período de faturamento, o administrador compila todas as avaliações encerradas no mês. O sistema organiza e exporta esses dados em uma planilha Excel padronizada para alimentar diretamente o Dashboard de BI corporativo.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Painel de Fechamento]) --> SelectMonth[Selecionar Mês e Ano de Referência]
+                SelectMonth --> FetchData[Buscar todas as notas encerradas do período]
+                
+                FetchData --> FilterSectors{Existem operadores da UTI/RJ?}
+                
+                FilterSectors -- Sim --> ApplyOverrides[Aplica apelidos e IDs de faturamento provisórios nos operadores]
+                FilterSectors -- Não --> ConsolidateLayout[Monta as linhas no layout padrão do BI]
+                
+                ApplyOverrides --> ConsolidateLayout
+                
+                ConsolidateLayout --> ExportCall[Gerar Planilha Excel via servidor]
+                ExportCall --> ExcelDownload[Download do arquivo Excel consolidado]
+                
+                ExcelDownload --> PeriodLock[Bloquear novas alterações nas notas do mês]
+                PeriodLock --> End([Fechamento Concluído])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style FilterSectors fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style ApplyOverrides fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+                style ExportCall fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Layout do BI:</b> As colunas e os nomes dos campos da planilha precisam seguir um contrato fixo. Qualquer alteração de texto neles poderia quebrar a importação do Dashboard de BI corporativo.</li>
+                <li><b>Ajustes do RJ (Overrides):</b> Operadores da célula do Rio de Janeiro possuem apelidos de faturamento que são traduzidos em tempo de exportação de forma automática.</li>
+                <li><b>Bloqueio de Período:</b> Após a exportação da planilha definitiva, o mês é travado para evitar que edições posteriores no banco desalinhem os relatórios.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

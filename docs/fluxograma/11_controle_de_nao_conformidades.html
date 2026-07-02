@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Controle de Não Conformidades</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 11: Controle de Não Conformidades (Falhas de Atendimento)</h1>
+        <p>Este fluxograma detalha como as falhas de atendimento (não conformidades) dos operadores são identificadas, justificadas por evidências textuais, validadas por auditores humanos e enviadas para aplicação de feedback pelos supervisores.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Atendimento Analisado]) --> Detect{Como a falha foi identificada?}
+                
+                Detect -- 1. Análise Automática da IA --> IAEval[IA escuta/lê e verifica critérios]
+                Detect -- 2. Auditoria Manual --> HumanEval[Auditor analisa ligação manualmente]
+                
+                IAEval --> CheckFailure{Algum critério de qualidade falhou?}
+                HumanEval --> CheckFailure
+                
+                CheckFailure -- Não (Atendimento Correto) --> SetApproved[Auditoria aprovada sem falhas]
+                CheckFailure -- Sim (Não Conforme) --> RecordFailure[Registrar falha e trecho do áudio como evidência]
+                
+                RecordFailure --> ReviewAuditor[Fila de Rascunhos: Auditor revisa a falha]
+                
+                ReviewAuditor --> ConfirmAuditor{O Auditor confirma que a falha ocorreu?}
+                ConfirmAuditor -- Não (Erro de leitura da IA) --> CorrectAudit[Remover falha e recalcular nota]
+                ConfirmAuditor -- Sim (Falha Real) --> SendSupervisor[Enviar nota e falha para o portal do Supervisor]
+                
+                CorrectAudit --> SendSupervisor
+                
+                SendSupervisor --> ActionSupervisor{Ação do Supervisor}
+                ActionSupervisor -- Aceitar Falha --> ApplyFeedback[Aplicar feedback corretivo / treinamento ao operador]
+                ActionSupervisor -- Discordar da Falha --> OpenDispute[Contestar falha no portal justificando o motivo]
+                
+                OpenDispute --> ReviewTech[Fila de Contestação: Auditor dá veredito final]
+                ReviewTech --> Verdict{Contestação aceita pelo auditor?}
+                Verdict -- Sim --> CorrectAudit
+                Verdict -- Não --> ApplyFeedback
+                
+                ApplyFeedback --> Finalize[Congelar notas e falhas no fechamento do mês]
+                Finalize --> End([Integrado ao Dashboard de BI])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Detect fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style CheckFailure fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style ConfirmAuditor fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style ActionSupervisor fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Verdict fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style RecordFailure fill:#ec4899,stroke:#db2777,stroke-width:2px,color:#fff
+                style CorrectAudit fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+                style ApplyFeedback fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Identificação com Evidência:</b> O sistema nunca aponta uma não conformidade sem justificativa. Ele sempre anexa o trecho exato da fala do operador ou cliente que gerou a reprovação.</li>
+                <li><b>Duplo Filtro de Validação:</b> Antes de virar uma punição de faturamento para o operador, a falha é revisada por um auditor e, posteriormente, pode ser contestada pelo supervisor da equipe.</li>
+                <li><b>Feedback Corretivo:</b> A etapa final de governança exige que o supervisor oriente o operador a corrigir o comportamento para evitar novas ocorrências.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Contestação e Aprovação do Supervisor</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 5: Contestação e Aprovação do Supervisor</h1>
+        <p>Após a liberação do auditor, a nota fica disponível no painel do supervisor. Ele pode concordar com a nota ou abrir uma contestação formal escrita caso discorde de algum critério avaliado. O auditor então decide sobre a procedência da contestação.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Nota Disponibilizada]) --> Portal[Fila no Portal do Supervisor]
+                Portal --> ReviewSupervisor[Supervisor lê a transcrição e a justificativa da nota]
+                
+                ReviewSupervisor --> Decision{Ação do Supervisor}
+                
+                Decision -- Concordar/Aceitar --> SetApproved[Aprova a nota]
+                SetApproved --> Finalize[Mover para o histórico consolidado de fechamento]
+                
+                Decision -- Contestar --> OpenDispute[Digita o motivo e a justificativa escrita]
+                OpenDispute --> SetDisputed[A nota entra em status de contestação]
+                
+                SetDisputed --> TechQueue[Fila de Contestação do Auditor]
+                TechQueue --> EvaluateAuditor[Auditor analisa se o supervisor tem razão]
+                
+                EvaluateAuditor --> Verdict{Veredito do Auditor}
+                
+                Verdict -- Procedente / Sim --> EditAudit[Corrige a nota e altera critérios]
+                Verdict -- Improcedente / Não --> MaintainAudit[Rejeita a contestação e mantém a nota original]
+                
+                EditAudit --> SetClosed[Status final: Nota Fechada]
+                MaintainAudit --> SetClosed
+                SetClosed --> Finalize
+                Finalize --> End([Finalizado no Fechamento])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Decision fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Verdict fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style SetDisputed fill:#ec4899,stroke:#db2777,stroke-width:2px,color:#fff
+                style SetApproved fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+                style SetClosed fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Justificativa da Contestação:</b> O supervisor deve detalhar por escrito em qual minuto ou frase do diálogo a IA ou o auditor erraram a avaliação.</li>
+                <li><b>Julgamento do Auditor:</b> O auditor serve de juiz. Se ele aceitar, o sistema edita os pontos; caso contrário, a nota original é mantida e travada.</li>
+                <li><b>Nota Fechada:</b> Status final que garante que a nota não sofrerá novas alterações e está pronta para o relatório mensal.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

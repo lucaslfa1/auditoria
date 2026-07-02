@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Gate Humano e Revisão</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 4: Gate Humano e Revisão (Arquivos Salvos)</h1>
+        <p>A inteligência artificial transcreve e sugere notas, mas a palavra final é sempre humana. Esse processo descreve a área de Arquivos Salvos (Gate Humano), onde o auditor revisa as auditorias geradas antes de disponibilizá-las para os supervisores.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Auditoria Salva em Rascunho]) --> savedList[Fila de Arquivos Salvos]
+                savedList --> OpenAudit[Auditor abre detalhe da auditoria]
+                
+                OpenAudit --> Choice{Ação do Auditor}
+                
+                Choice -- Excluir --> Delete[Apagar auditoria permanentemente]
+                Choice -- PDF --> PDFExport[Exportar relatório oficial em PDF]
+                
+                Choice -- Editar Manualmente --> FormEdit[Alterar Nota, Justificativa ou Metadados]
+                FormEdit --> Recalculate[Recalculo Determinístico da Nota e Zeragem]
+                
+                Choice -- Refazer com IA --> Reevaluate[Trocar Alerta ou Locutor e Reavaliar com IA]
+                Reevaluate --> Recalculate
+                
+                PDFExport --> SubmitOption[Enviar ao Supervisor]
+                Recalculate --> SubmitOption
+                
+                SubmitOption --> QuotaCheck{Cota Mensal: Já existem 2 auditorias para o operador no mês?}
+                QuotaCheck -- Sim --> AlertQuota[Avisar limite e exigir exclusão de anterior para prosseguir]
+                QuotaCheck -- Não --> PushSupervisor[Mover para a fila do Supervisor com status pending_supervisor]
+                
+                PushSupervisor --> End([Finalizado para o Auditor])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Choice fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style QuotaCheck fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Reevaluate fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+                style Delete fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+                style AlertQuota fill:#f43f5e,stroke:#e11d48,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>Legenda Técnica:</b>
+            <ul>
+                <li><b>Gate Humano:</b> Ponto único onde todas as auditorias automáticas (geradas pelo motor) e manuais se concentram para aprovação final.</li>
+                <li><b>Refazer com IA:</b> O endpoint <i>/api/audit/reevaluate</i> chama a IA novamente com parâmetros corrigidos de interlocutores ou novos alertas.</li>
+                <li><b>Cota Mensal:</b> Limite operacional de qualidade que restringe o envio de no máximo 2 auditorias consolidadas por operador/mês ao supervisor.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

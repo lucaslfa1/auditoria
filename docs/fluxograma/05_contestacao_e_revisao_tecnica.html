@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Contestação e Revisão Técnica</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 5: Contestação e Revisão Técnica</h1>
+        <p>Este fluxograma mapeia o processo de feedback e encerramento. Quando a nota chega ao supervisor, ele tem o direito de aceitar ou abrir uma contestação formal fundamentada. Caso haja contestação, a decisão é avaliada tecnicamente pelo auditor antes do fechamento final.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Auditoria Promovida: pending_supervisor]) --> Portal[Fila do Portal do Supervisor]
+                Portal --> ReviewSupervisor[Supervisor revisa nota e transcrição]
+                
+                ReviewSupervisor --> Decision{Escolha do Supervisor}
+                
+                Decision -- Aprovar/Aceitar --> SetApproved[Mudar status para approved]
+                SetApproved --> Finalize[Mover para o histórico de fechamento]
+                
+                Decision -- Contestar --> OpenDispute[Inserir motivo e justificativa escrita]
+                OpenDispute --> SetDisputed[Mudar status para disputed]
+                
+                SetDisputed --> TechQueue[Fila de Revisão Técnica - Auditor]
+                TechQueue --> EvaluateAuditor[Auditor julga a procedência da contestação]
+                
+                EvaluateAuditor --> Verdict{Veredito do Auditor}
+                
+                Verdict -- Procedente --> EditAudit[Corrigir critérios da auditoria e recalcular nota]
+                Verdict -- Improcedente --> MaintainAudit[Rejeitar contestação mantendo a nota original]
+                
+                EditAudit --> SetClosed[Status final: closed]
+                MaintainAudit --> SetClosed
+                SetClosed --> Finalize
+                Finalize --> End([Período Fechado])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Decision fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Verdict fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style SetDisputed fill:#ec4899,stroke:#db2777,stroke-width:2px,color:#fff
+                style SetApproved fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+                style SetClosed fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>Legenda Técnica:</b>
+            <ul>
+                <li><b>Disputed:</b> Status técnico que retira temporariamente o item da cota limpa e bloqueia a consolidação do BI até a resolução.</li>
+                <li><b>Veredito do Auditor:</b> O auditor atua como mediador final da qualidade técnica. Ele avalia se o supervisor de fato apontou uma falha ou um caso não contemplado nos critérios oficiais.</li>
+                <li><b>Closed:</b> Status de encerramento definitivo após a revisão técnica. Uma vez fechado, o item está consolidado para o fechamento.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

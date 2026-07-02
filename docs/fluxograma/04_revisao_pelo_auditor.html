@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Revisão pelo Auditor</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 4: Revisão pelo Auditor (Arquivos Salvos)</h1>
+        <p>A inteligência artificial faz a avaliação inicial, mas a palavra final é sempre humana. Esse processo descreve a área de Arquivos Salvos (Rascunhos), onde o auditor revisa e edita o rascunho da IA antes de promover a nota para o supervisor.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Auditoria Salva em Rascunho]) --> savedList[Fila de Rascunhos / Arquivos Salvos]
+                savedList --> OpenAudit[Auditor abre a auditoria para revisar]
+                
+                OpenAudit --> Choice{O que o Auditor quer fazer?}
+                
+                Choice -- Excluir --> Delete[Apaga a auditoria do sistema]
+                Choice -- PDF --> PDFExport[Gera relatório PDF para download]
+                
+                Choice -- Alterar Nota Manual --> FormEdit[Auditor edita nota e critérios manualmente]
+                FormEdit --> Recalculate[Recalculo automático da nota e das regras de zeragem]
+                
+                Choice -- Refazer com IA --> Reevaluate[IA refaz a nota corrigindo operador ou o locutor]
+                Reevaluate --> Recalculate
+                
+                PDFExport --> SubmitOption[Enviar ao Supervisor]
+                Recalculate --> SubmitOption
+                
+                SubmitOption --> QuotaCheck{O operador já atingiu o limite de 2 notas no mês?}
+                QuotaCheck -- Sim --> AlertQuota[Exige que o auditor exclua uma nota anterior para liberar espaço]
+                QuotaCheck -- Não --> PushSupervisor[Promove a nota para a fila do Supervisor]
+                
+                PushSupervisor --> End([Finalizado para o Auditor])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style Choice fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style QuotaCheck fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Reevaluate fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+                style Delete fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+                style AlertQuota fill:#f43f5e,stroke:#e11d48,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Arquivos Salvos:</b> É um portão de segurança obrigatório. Nenhuma nota gerada por robô vai direto para o supervisor; todas precisam de autorização de um auditor humano aqui.</li>
+                <li><b>Refazer com IA:</b> Caso a IA tenha confundido quem era o cliente e quem era o operador no áudio, o auditor inverte os papéis em um clique e pede para a IA reavaliar.</li>
+                <li><b>Limite de 2 notas (Cota):</b> O sistema impede o envio de mais de 2 auditorias por operador ao mês, mantendo a avaliação justa. Se precisar enviar uma nova, o auditor remove um rascunho anterior.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

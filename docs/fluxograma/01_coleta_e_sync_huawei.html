@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Coleta e Sync Huawei</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 1: Coleta e Sincronização Huawei</h1>
+        <p>Este processo é executado diariamente de forma automática (pipeline D-1). Ele busca os registros de telefonia da Huawei AICC, aplica filtros de elegibilidade determinísticos, realiza uma triagem inicial assistida por inteligência artificial (LLM) e baixa os áudios elegíveis para a fila de triagem.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Cron Diário: POST /api/telefonia/cron/sync]) --> FetchManifest[Baixar Manifesto D-1 da Huawei AICC]
+                FetchManifest --> LoopCall[Para cada gravação reportada]
+                
+                LoopCall --> Filter1{1. Filtros Determinísticos}
+                Filter1 -- Barrado --> DescarteTombstone[Registrar descarte permanente no banco]
+                
+                Filter1 -- OK --> Filter2{2. Operador Auditável e com ID Huawei?}
+                Filter2 -- Não --> DescarteTombstone
+                
+                Filter2 -- Sim --> Filter3{3. Direção VDN / Duração / Limite?}
+                Filter3 -- Não --> DescarteTombstone
+                
+                Filter3 -- Sim --> LLMTriage{4. Triagem LLM por Setor}
+                LLMTriage -- Reprovado/Falso Positivo --> DescarteTombstone
+                
+                LLMTriage -- Aprovado --> DownloadAudio[Baixar arquivo de áudio da Huawei OBS]
+                DownloadAudio --> ClassifyAudio[Classificar áudio: Setor, Alerta, Operador]
+                ClassifyAudio --> SaveTriageQueue[Inserir na Fila de Triagem]
+                SaveTriageQueue --> End([Fim do Ciclo de Coleta])
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style DescarteTombstone fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+                style Filter1 fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Filter2 fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style Filter3 fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style LLMTriage fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>Legenda Técnica:</b>
+            <ul>
+                <li><b>Filtros Determinísticos:</b> Validações de tamanho do arquivo, cabeçalhos de erros e inconsistências de rede.</li>
+                <li><b>Operador/ID Huawei:</b> O operador precisa estar com o campo <i>ID Huawei</i> preenchido no cadastro para ser coletado.</li>
+                <li><b>Descarte Permanente (Tombstone):</b> Ligações descartadas recebem marcação definitiva para nunca serem reprocessadas.</li>
+                <li><b>Triagem LLM:</b> Análise semântica rápida do contexto para atestar relevância antes do consumo pesado da IA.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

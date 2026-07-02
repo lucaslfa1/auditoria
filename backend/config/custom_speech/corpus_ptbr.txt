@@ -1,0 +1,132 @@
+﻿Bom dia, aqui é da Opentech, central de monitoramento, tudo bem?
+Boa tarde, meu nome é Valéria, falo da Opentech, gerenciadora de risco.
+Aqui é o operador da Base de Sinistros da Opentech.
+Estou entrando em contato da central de monitoramento Opentech.
+A Opentech é a gerenciadora de risco responsável pelo acompanhamento da sua viagem.
+O senhor pode confirmar a senha de segurança cadastrada na Opentech?
+A Opentech faz parte do grupo nstech de tecnologia para logística.
+O sistema da nstech registrou uma macro de pernoite fora do ponto de apoio.
+Aqui é o operador BAS da Opentech, preciso confirmar alguns dados do sinistro.
+A Base de Sinistros da Opentech recebeu o acionamento da transportadora.
+O BAS vai abrir o protocolo de atendimento do sinistro agora.
+Estou falando do setor de cadastro da Opentech.
+O setor de rastreamento da Opentech identificou perda de sinal do veículo.
+A célula de atendimento da Opentech acionou a pronta resposta.
+O monitoramento Opentech verificou um desvio de rota na viagem.
+Senhor motorista, aqui é da Opentech, o rastreador parou de posicionar.
+A Opentech precisa validar o espelho de carga antes da liberação.
+O checklist da Opentech ainda não foi concluído pela portaria.
+O operador de monitoramento da Opentech vai passar o protocolo do atendimento.
+Qual é a placa do cavalo mecânico e qual é a placa da carreta?
+Pode me confirmar a placa do veículo e o número do romaneio?
+O motorista confirmou o número do CT-e e da nota fiscal.
+Preciso do seu CPF e do número da sua CNH para o cadastro.
+O condutor foi reprovado no cadastro por pendência na consulta.
+A carga da Mondelez saiu do centro de distribuição pela manhã.
+Bem-vindo a Mondelez, sua ligação é muito importante.
+O carregamento da Unilever está agendado para o período da tarde.
+A operação da Unilever exige escolta armada nesse trecho.
+A viagem da Translovato segue pela Régis Bittencourt até Curitiba.
+A transportadora BBM confirmou o embarque no posto fiscal.
+O setor Fenix vai assumir o acompanhamento dessa operação.
+A operação Taborda tem parada programada no ponto de apoio.
+O veículo tem rastreador Sascar com atuador de bloqueio.
+O rastreador Sascar parou de transmitir posição na Fernão Dias.
+A carreta está com equipamento Autotrac instalado no cavalo.
+O Autotrac enviou a macro de início de viagem.
+O veículo possui Omnilink como tecnologia principal de rastreamento.
+O Omnilink apresentou falha de comunicação com a antena.
+O rastreador Onix está posicionando normalmente na rota.
+A tecnologia Onixsat mostrou o veículo parado na balança.
+O equipamento Maxtrack registrou abertura de baú fora da cerca eletrônica.
+A Ravex confirmou o bloqueio do veículo após o acionamento.
+O sistema Sighra apontou violação da macrozona de segurança.
+A tecnologia T4S está com o sensor de desengate ativado.
+O rastreador 3S perdeu o sinal dentro da área de risco.
+O Tracker do veículo indicou parada não programada.
+O segundo localizador é uma isca instalada dentro da carga.
+A isca parou de transmitir depois do tombamento.
+O motorista relatou uso de jammer durante o roubo da carga.
+O jammer bloqueou o sinal do rastreador e da isca.
+Os criminosos usaram vassourinha para varrer o sinal do veículo.
+O chupa-cabra foi instalado no plug de diagnóstico do caminhão.
+A trava de baú não abriu no centro de distribuição.
+O botão de pânico foi acionado pelo motorista na rodovia.
+O sensor de desengate disparou quando a carreta foi separada do cavalo.
+A pronta resposta foi acionada e a viatura está a caminho.
+A escolta armada acompanhou o comboio até o destino.
+O veículo saiu da cerca eletrônica sem autorização da torre.
+O geofence do cliente foi violado na entrada da área de risco.
+Houve um roubo de carga na Avenida Brasil, próximo ao Complexo do Alemão.
+O furto aconteceu durante o pernoite no posto de apoio.
+O tombamento da carreta aconteceu no quilômetro cinquenta da BR-116.
+A colisão envolveu o cavalo mecânico e um veículo de passeio.
+A avaria foi registrada no espelho de carga da operação.
+O salvado foi encaminhado para o pátio da seguradora.
+A perda total foi confirmada pela reguladora do seguro.
+O motorista registrou o boletim de ocorrência na delegacia.
+O B.O. foi lavrado na delegacia de roubos e furtos de cargas.
+A PRF abordou o veículo na Via Dutra durante a fiscalização.
+A Polícia Rodoviária Federal liberou o tráfego após o acidente.
+O sargento da PRE confirmou o desvio pela Bandeirantes.
+A viatura da polícia militar chegou ao local do sinistro.
+O delegado solicitou as imagens do rastreamento para a investigação.
+A guarnição encontrou o caminhão abandonado na Baixada Fluminense.
+O caveirão da polícia entrou na comunidade durante a operação.
+O QRA do motorista foi confirmado pela transportadora.
+O motorista respondeu QAP na primeira tentativa de contato.
+O chapa ajudou na descarga no centro de distribuição.
+O cavalo mecânico é um Scania e a carreta é um sider.
+O bitrem carregado de granel tombou na curva da serra.
+O baú foi violado durante a madrugada no pátio.
+A quinta roda apresentou problema no engate do pino rei.
+O romaneio da carga fracionada foi conferido na portaria.
+A macro de parada foi enviada pelo teclado do rastreador.
+O pernoite está autorizado somente em posto avançado credenciado.
+O motorista vai pernoitar no Posto Décio na Régis Bittencourt.
+A parada para almoço foi no posto Graal da Via Dutra.
+O comboio saiu do posto Arco-Íris com destino a São Paulo.
+A viagem passa pelo posto Sakamoto antes da entrega.
+A carga perecível segue no baú frigorífico com Thermo King.
+O equipamento Carrier manteve o setpoint em menos vinte graus.
+O datalogger registrou variação de temperatura durante o degelo.
+A JSL confirmou a transferência da carga para o hub.
+A Braspress coletou os volumes no centro de distribuição.
+A Tegma fará a entrega dos veículos zero quilômetro.
+A Jadlog assumiu a carga fracionada da filial.
+A Rodonaves segue com a lotação completa para o interior.
+A carga da JBS saiu do frigorífico com escolta.
+O caminhão da Friboi passou pela balança do posto fiscal.
+A BRF confirmou o agendamento da entrega no cliente.
+A Seara embarcou a carga perecível pela manhã.
+A Marfrig aguarda a liberação da nota fiscal.
+O caminhão da Aurora está no pátio aguardando a descarga.
+O veículo é um VUC e faz distribuição urbana no centro.
+O truck carregado saiu do EADI depois da liberação da aduana.
+O bitruck seguiu pela Anhanguera com carga de transferência.
+O rodotrem foi liberado na barreira fiscal da BR-163.
+A Vanderléia levou a carga indivisível pela Castello Branco.
+O motorista agregado assinou o conhecimento de transporte.
+O embarcador exigiu inteligência embarcada nessa operação.
+A seguradora solicitou a apólice e o certificado do seguro.
+A corretora confirmou a averbação da carga no seguro.
+O plano de gerenciamento de risco exige duas tecnologias de rastreamento.
+A torre de controle acompanha o posicionamento em tempo real.
+A URA transferiu a ligação para o operador de monitoramento.
+Sua ligação é muito importante, aguarde na linha.
+Digite a opção dois para falar com a Base de Sinistros.
+O protocolo de atendimento foi gerado dentro do SLA.
+A triagem classificou a ligação como acionamento de emergência.
+A transferência foi concluída e o setor assumiu o atendimento.
+Um momento, por favor, vou verificar no sistema.
+Pode aguardar na linha enquanto eu confirmo o posicionamento?
+Obrigado por aguardar, consegui confirmar os dados.
+A senha de segurança confere com o cadastro do motorista.
+A liberação do embarque depende da validação do espelho de carga.
+O ajudante foi cadastrado junto com o condutor na portaria.
+A recepção confirmou a chegada do veículo na guarita.
+O veículo está na balança aguardando a pesagem.
+O ponto de apoio credenciado fica no quilômetro dez da rodovia.
+O posto avançado tem vaga para pernoite com segurança.
+O P.A. mais próximo fica a vinte quilômetros do destino.
+Encerro o protocolo agradecendo o contato, tenha uma boa viagem.

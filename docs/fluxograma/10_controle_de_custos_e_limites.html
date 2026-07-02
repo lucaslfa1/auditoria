@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxograma: Controle de Custos e Limites</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'neutral',
+            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #38bdf8;
+            font-size: 24px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .legend b {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processo 10: Controle de Custos e Trava de Emergência</h1>
+        <p>A auditoria automática de ligações por inteligência artificial consome recursos em nuvem que geram custos. Para proteger o orçamento, o sistema monitora os gastos diariamente e possui travas automáticas e manuais (Kill-Switch) de contenção de custos.</p>
+        
+        <div class="mermaid">
+            graph TD
+                Start([Requisição de IA pelo Motor]) --> CheckKill{O botão de emergência (Kill-Switch) está ativo?}
+                
+                CheckKill -- Sim (Emergência) --> BlockIA[Bloquear processamento de IA imediatamente]
+                CheckKill -- Não --> TrackCost[Sistema calcula o gasto diário acumulado de tokens]
+                
+                TrackCost --> LimitCheck{O gasto atingiu o limite de orçamento diário?}
+                
+                LimitCheck -- Sim --> BlockIA
+                LimitCheck -- Não --> AllowIA[Permite a chamada de IA e processa a nota]
+                
+                BlockIA --> AlertAdmin[Avisa no painel: IA Bloqueada por Custo e adia fila de ligações]
+                AllowIA --> End([Auditoria Concluída])
+                AlertAdmin --> End
+
+                style Start fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style End fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
+                style CheckKill fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style LimitCheck fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+                style BlockIA fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
+                style AlertAdmin fill:#f43f5e,stroke:#e11d48,stroke-width:2px,color:#fff
+                style AllowIA fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+        </div>
+
+        <div class="legend">
+            <b>O que acontece em termos simples:</b>
+            <ul>
+                <li><b>Gasto diário de tokens:</b> Cada ligação enviada consome um volume de texto. O sistema mede o custo em tempo real e bloqueia novos envios automáticos se o limite financeiro do dia for atingido.</li>
+                <li><b>Botão de Emergência (Kill-Switch):</b> Uma flag configurável que corta na hora toda e qualquer chamada para a API de IA paga, sem precisar desligar o sistema ou alterar código.</li>
+                <li><b>Adiar Processamento:</b> Ligações pendentes de auditoria não são perdidas quando há bloqueio; elas ficam salvas e aguardam o reset automático do orçamento no dia seguinte.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
